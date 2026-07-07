@@ -34,7 +34,7 @@ dependencies:
   printing: ^5.13.1
 
   # Formatting, Security & Localization
-  intl: ">=0.19.0 <0.21.0"
+  intl: ^0.20.2
   uuid: ^4.4.0
   crypto: ^3.0.5
 
