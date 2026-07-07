@@ -1,0 +1,460 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' as drift;
+import '../../../core/constants/app_constants.dart';
+import '../../../data/database/database.dart';
+import '../../providers/app_providers.dart';
+import 'company_detail_screen.dart';
+
+/// معالج تأسيس شركة جديدة أو أرشفة شركة قائمة (CreateCompanyWizard V6.2)
+class CreateCompanyWizard extends ConsumerStatefulWidget {
+  const CreateCompanyWizard({super.key});
+
+  @override
+  ConsumerState<CreateCompanyWizard> createState() => _CreateCompanyWizardState();
+}
+
+class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
+  int _currentStep = 0;
+
+  // الخطوة 1: نوع مسار التأسيس
+  bool _isNewEstablishment = true;
+
+  // الخطوة 2: الشكل القانوني للشركة
+  String _companyType = 'شركة محدودة المسؤولية';
+
+  // الخطوة 3: البيانات الأساسية والعقار
+  final _nameController = TextEditingController();
+  final _activityController = TextEditingController();
+  final _capitalController = TextEditingController(text: '10000000');
+  final _paidCapitalController = TextEditingController(text: '10000000');
+  final _durationController = TextEditingController(text: '99');
+  final _addressController = TextEditingController(text: 'سوريا - دمشق');
+  final _propertyDetailsController = TextEditingController(text: 'ملك / إيجار - عقار رقم ...');
+
+  // الخطوة 4: الشركاء وحصصهم
+  final List<CompanyPartnersCompanion> _selectedPartners = [];
+  int? _tempPartnerPersonId;
+  String _tempShareType = 'cash';
+  final _tempShareValueController = TextEditingController();
+  final _tempSharePercentController = TextEditingController();
+
+  // الخطوة 5: الإدارة والمدير العام
+  final List<CompanyDirectorsCompanion> _selectedDirectors = [];
+  int? _tempDirectorPersonId;
+  final _tempAuthorityController = TextEditingController(text: 'مدير عام ومفوض بالتوقيع منفرداً');
+
+  bool _isSaving = false;
+
+  final List<String> _companyTypes = [
+    'شركة تضامن (أشخاص)',
+    'شركة توصية بسيطة (أشخاص)',
+    'شركة محاصة (أشخاص)',
+    'شركة محدودة المسؤولية (أموال)',
+    'شركة الشخص الواحد محدودة المسؤولية',
+    'شركة مساهمة مغفلة خاصة (أموال)',
+    'شركة مساهمة مغفلة عامة (أموال)',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('معالج تأسيس شركة تجارية أو أرشفة شركة قائمة (V6.2)'),
+      ),
+      body: Stepper(
+        currentStep: _currentStep,
+        onStepContinue: _onContinue,
+        onStepCancel: _onCancel,
+        controlsBuilder: (context, details) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 24.0),
+            child: Row(
+              children: [
+                ElevatedButton.icon(
+                  icon: _isSaving
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Icon(_currentStep == 4 ? Icons.check_circle : Icons.arrow_forward),
+                  label: Text(_currentStep == 4 ? (_isSaving ? 'جارٍ تأسيس الشركة...' : 'اعتماد وتوليد مراحل التأسيس الـ 10') : 'التالي'),
+                  onPressed: _isSaving ? null : details.onStepContinue,
+                ),
+                const SizedBox(width: 12),
+                if (_currentStep > 0)
+                  OutlinedButton(
+                    onPressed: details.onStepCancel,
+                    child: const Text('السابق'),
+                  ),
+              ],
+            ),
+          );
+        },
+        steps: [
+          Step(
+            title: const Text('مسار التأسيس'),
+            subtitle: Text(_isNewEstablishment ? 'تأسيس جديد من الصفر' : 'أرشفة شركة قائمة'),
+            isActive: _currentStep >= 0,
+            state: _currentStep > 0 ? StepState.complete : StepState.editing,
+            content: _buildPathStep(),
+          ),
+          Step(
+            title: const Text('الشكل القانوني للشركة'),
+            subtitle: Text(_companyType),
+            isActive: _currentStep >= 1,
+            state: _currentStep > 1 ? StepState.complete : StepState.editing,
+            content: _buildTypeStep(),
+          ),
+          Step(
+            title: const Text('البيانات الأساسية والمقر'),
+            subtitle: Text(_nameController.text.isNotEmpty ? _nameController.text : 'إلزامي *'),
+            isActive: _currentStep >= 2,
+            state: _currentStep > 2 ? StepState.complete : StepState.editing,
+            content: _buildBasicDataStep(),
+          ),
+          Step(
+            title: const Text('الشركاء وحصص رأس المال'),
+            subtitle: Text('عدد الشركاء: ${_selectedPartners.length}'),
+            isActive: _currentStep >= 3,
+            state: _currentStep > 3 ? StepState.complete : StepState.editing,
+            content: _buildPartnersStep(),
+          ),
+          Step(
+            title: const Text('الإدارة والتفويض بالتوقيع'),
+            subtitle: Text('عدد المديرين/المفوضين: ${_selectedDirectors.length}'),
+            isActive: _currentStep >= 4,
+            state: _currentStep == 4 ? StepState.editing : StepState.indexed,
+            content: _buildDirectorsStep(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPathStep() {
+    return Row(
+      children: [
+        ChoiceChip(
+          label: const Text('تأسيس جديد (من الصفر)'),
+          selected: _isNewEstablishment,
+          onSelected: (_) => setState(() => _isNewEstablishment = true),
+        ),
+        const SizedBox(width: 16),
+        ChoiceChip(
+          label: const Text('أرشفة شركة قائمة ومسجلة'),
+          selected: !_isNewEstablishment,
+          onSelected: (_) => setState(() => _isNewEstablishment = false),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTypeStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('اختر الشكل القانوني للشركة السورية:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          value: _companyType,
+          items: _companyTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+          onChanged: (val) => setState(() => _companyType = val!),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBasicDataStep() {
+    return Column(
+      children: [
+        TextFormField(
+          controller: _nameController,
+          decoration: const InputDecoration(labelText: 'الاسم التجاري للشركة *', prefixIcon: Icon(Icons.business)),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _activityController,
+          decoration: const InputDecoration(labelText: 'الغاية / نشاط الشركة *', prefixIcon: Icon(Icons.work)),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _capitalController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'رأس المال المكتتب به (ل.س) *'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextFormField(
+                controller: _paidCapitalController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'رأس المال المدفوع (ل.س) *'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _durationController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'مدة الشركة (بالسنوات)'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextFormField(
+                controller: _addressController,
+                decoration: const InputDecoration(labelText: 'المقر الرئيسي / المحافظة *'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _propertyDetailsController,
+          decoration: const InputDecoration(labelText: 'بيانات وصفة المقر (عقد إيجار / ملك / رقم قيد)', prefixIcon: Icon(Icons.location_city)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPartnersStep() {
+    final personsAsync = ref.watch(allPersonsProvider(null));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('إضافة الشركاء وتوزيع الحصص:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
+        personsAsync.when(
+          data: (persons) => Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.grey.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: [
+                DropdownButtonFormField<int>(
+                  value: _tempPartnerPersonId,
+                  decoration: const InputDecoration(labelText: 'اختر الشريك من سجل الأشخاص'),
+                  items: persons.map((p) => DropdownMenuItem(value: p.id, child: Text(p.fullName))).toList(),
+                  onChanged: (val) => setState(() => _tempPartnerPersonId = val),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _tempShareType,
+                        decoration: const InputDecoration(labelText: 'نوع الحصة'),
+                        items: const [
+                          DropdownMenuItem(value: 'cash', child: Text('نقدية')),
+                          DropdownMenuItem(value: 'in_kind', child: Text('عينية')),
+                          DropdownMenuItem(value: 'effort', child: Text('جهد')),
+                        ],
+                        onChanged: (val) => setState(() => _tempShareType = val!),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _tempShareValueController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'قيمة الحصة (ل.س)'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _tempSharePercentController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'النسبة %'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('إضافة الشريك للقائمة'),
+                  onPressed: () {
+                    if (_tempPartnerPersonId != null) {
+                      setState(() {
+                        _selectedPartners.add(CompanyPartnersCompanion.insert(
+                          companyId: 0,
+                          personId: _tempPartnerPersonId!,
+                          partnerType: const drift.Value('شريك مؤسس'),
+                          shareType: drift.Value(_tempShareType),
+                          shareValue: drift.Value(double.tryParse(_tempShareValueController.text.trim()) ?? 0),
+                          sharePercentage: drift.Value(double.tryParse(_tempSharePercentController.text.trim()) ?? 0),
+                        ));
+                        _tempPartnerPersonId = null;
+                        _tempShareValueController.clear();
+                        _tempSharePercentController.clear();
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          loading: () => const CircularProgressIndicator(),
+          error: (_, __) => const Text('خطأ في تحميل أسماء الأشخاص'),
+        ),
+        const SizedBox(height: 16),
+        const Text('قائمة الشركاء المضافين:', style: TextStyle(fontWeight: FontWeight.bold)),
+        ..._selectedPartners.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final p = entry.value;
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.person, color: AppConstants.primaryNavy),
+              title: Text('شريك رقم ID: ${p.personId.value} • النسبة: ${p.sharePercentage.value}%'),
+              subtitle: Text('قيمة الحصة: ${p.shareValue.value} ل.س • النوع: ${p.shareType.value == "cash" ? "نقدية" : "عينية"}'),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: AppConstants.statusDanger),
+                onPressed: () => setState(() => _selectedPartners.removeAt(idx)),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildDirectorsStep() {
+    final personsAsync = ref.watch(allPersonsProvider(null));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('تعيين المدير العام والمفوضين بالتوقيع:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 12),
+        personsAsync.when(
+          data: (persons) => Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.grey.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: [
+                DropdownButtonFormField<int>(
+                  value: _tempDirectorPersonId,
+                  decoration: const InputDecoration(labelText: 'اختر الشخص من السجل'),
+                  items: persons.map((p) => DropdownMenuItem(value: p.id, child: Text(p.fullName))).toList(),
+                  onChanged: (val) => setState(() => _tempDirectorPersonId = val),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _tempAuthorityController,
+                  decoration: const InputDecoration(labelText: 'المنصب ونطاق الصلاحيات'),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('إضافة المدير للقائمة'),
+                  onPressed: () {
+                    if (_tempDirectorPersonId != null) {
+                      setState(() {
+                        _selectedDirectors.add(CompanyDirectorsCompanion.insert(
+                          companyId: 0,
+                          personId: _tempDirectorPersonId!,
+                          roleType: const drift.Value('مدير عام'),
+                          authorityScope: drift.Value(_tempAuthorityController.text.trim()),
+                          appointmentDate: drift.Value(DateTime.now()),
+                        ));
+                        _tempDirectorPersonId = null;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          loading: () => const CircularProgressIndicator(),
+          error: (_, __) => const Text('خطأ في تحميل أسماء الأشخاص'),
+        ),
+        const SizedBox(height: 16),
+        const Text('قائمة المديرين والمفوضين المضافين:', style: TextStyle(fontWeight: FontWeight.bold)),
+        ..._selectedDirectors.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final d = entry.value;
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.gavel, color: AppConstants.accentGold),
+              title: Text('مدير رقم ID: ${d.personId.value}'),
+              subtitle: Text('الصلاحيات: ${d.authorityScope.value ?? ""}'),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: AppConstants.statusDanger),
+                onPressed: () => setState(() => _selectedDirectors.removeAt(idx)),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  void _onContinue() {
+    if (_currentStep == 2 && _nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اسم الشركة إلزامي!'), backgroundColor: AppConstants.statusDanger));
+      return;
+    }
+    if (_currentStep < 4) {
+      setState(() => _currentStep++);
+    } else {
+      _submitCompany();
+    }
+  }
+
+  void _onCancel() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _submitCompany() async {
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(companyRepositoryProvider);
+
+      final companyCompanion = CompaniesCompanion.insert(
+        companyType: _companyType,
+        legalStatus: drift.Value(_isNewEstablishment ? 'under_establishment' : 'active'),
+        name: _nameController.text.trim(),
+        activity: drift.Value(_activityController.text.trim()),
+        capitalDeclared: drift.Value(double.tryParse(_capitalController.text.trim()) ?? 0),
+        capitalPaid: drift.Value(double.tryParse(_paidCapitalController.text.trim()) ?? 0),
+        durationYears: drift.Value(int.tryParse(_durationController.text.trim()) ?? 99),
+        mainAddress: drift.Value(_addressController.text.trim()),
+        propertyDetails: drift.Value(_propertyDetailsController.text.trim()),
+      );
+
+      final companyId = await repo.createCompany(
+        company: companyCompanion,
+        partners: _selectedPartners,
+        directors: _selectedDirectors,
+        userRef: AppConstants.defaultLawyerName,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تأسيس الشركة وتوليد المراحل الـ 10 بنجاح!'), backgroundColor: AppConstants.statusSuccess),
+        );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => CompanyDetailScreen(companyId: companyId)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ أثناء حفظ الشركة: $e'), backgroundColor: AppConstants.statusDanger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+}

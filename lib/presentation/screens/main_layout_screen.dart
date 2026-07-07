@@ -5,6 +5,9 @@ import '../providers/office_settings_provider.dart';
 import 'archive/archive_screen.dart';
 import 'persons/persons_list_screen.dart';
 import 'cases/create_case_wizard.dart';
+import 'companies/create_company_wizard.dart';
+import 'contracts/create_contract_screen.dart';
+import 'admin_procedures/create_procedure_screen.dart';
 
 /// الشاشة الرئيسية وتخطيط الملاحة العام لتطبيقات إدارة مكتب المحاماة السوري (V6.2)
 class MainLayoutScreen extends ConsumerStatefulWidget {
@@ -242,8 +245,8 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                   icon: Icons.assignment_outlined,
                   color: const Color(0xFF117A65),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('سيتم فتح معالج الإجراءات الإدارية (المرحلة 6)')),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const CreateProcedureScreen()),
                     );
                   },
                 ),
@@ -253,8 +256,8 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                   icon: Icons.business_outlined,
                   color: const Color(0xFF9C640C),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('سيتم فتح معالج تأسيس الشركات (المرحلة 6)')),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const CreateCompanyWizard()),
                     );
                   },
                 ),
@@ -264,8 +267,8 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                   icon: Icons.description_outlined,
                   color: const Color(0xFF6C3483),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('سيتم فتح معالج تنظيم العقود (المرحلة 6)')),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const CreateContractScreen()),
                     );
                   },
                 ),

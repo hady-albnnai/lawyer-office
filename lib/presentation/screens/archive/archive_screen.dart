@@ -3,6 +3,9 @@ import '../../../core/constants/app_constants.dart';
 import '../persons/persons_list_screen.dart';
 import '../poa/poa_list_screen.dart';
 import '../cases/cases_list_screen.dart';
+import '../companies/companies_list_screen.dart';
+import '../contracts/contracts_list_screen.dart';
+import '../admin_procedures/procedures_list_screen.dart';
 
 /// شاشة الأرشيف العام لمكتب المحاماة السوري (ArchiveScreen)
 /// تصنف كل المدخلات في 6 فئات رئيسية (الدعاوى، الإجراءات، الشركات، العقود، الموكلون، والوكالات)
@@ -56,9 +59,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
             controller: _tabController,
             children: [
               const CasesListScreen(),
-              const Center(child: Text('أرشيف الإجراءات الإدارية (قيد التوصيل في المرحلة 6)')),
-              const Center(child: Text('أرشيف الشركات (قيد التوصيل في المرحلة 6)')),
-              const Center(child: Text('أرشيف العقود (قيد التوصيل في المرحلة 6)')),
+              const ProceduresListScreen(),
+              const CompaniesListScreen(),
+              const ContractsListScreen(),
               const PersonsListScreen(),
               const PoaListScreen(),
             ],

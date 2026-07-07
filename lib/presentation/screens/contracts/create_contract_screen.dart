@@ -1,0 +1,314 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:file_picker/file_picker.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../data/database/database.dart';
+import '../../providers/app_providers.dart';
+import 'contract_detail_screen.dart';
+
+/// شاشة تنظيم وإبرام عقد جديد أو رفع عقد سابق للتحرير والربط (CreateContractScreen V6.2)
+class CreateContractScreen extends ConsumerStatefulWidget {
+  const CreateContractScreen({super.key});
+
+  @override
+  ConsumerState<CreateContractScreen> createState() => _CreateContractScreenState();
+}
+
+class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  String _contractType = 'عقد بيع عقاري';
+  final _titleController = TextEditingController();
+  final _locationController = TextEditingController(text: 'سوريا - دمشق');
+  final _valueController = TextEditingController(text: '0');
+  String _currency = 'ل.س';
+
+  int? _party1PersonId;
+  int? _party2PersonId;
+
+  bool _isRenewable = false;
+  bool _needsFollowup = true;
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 365));
+
+  // التذكيرات الملتصقة
+  int _expiryDaysBefore = 30;
+  final _reminderPhoneController = TextEditingController();
+  final _reminderNoteController = TextEditingController(text: 'تذكير بموعد انتهاء/تجديد العقد وتحديد الموقف القانوني');
+
+  File? _wordFile;
+  bool _isSaving = false;
+
+  final List<String> _types = [
+    'عقد بيع عقاري',
+    'عقد إيجار سكني / تجاري',
+    'عقد عمل وخدمات مهنية',
+    'عقد شراكة تجارية',
+    'عقد مقاولة وتعهدات',
+    'عقد صلح وتسوية منازعات',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final personsAsync = ref.watch(allPersonsProvider(null));
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('تنظيم عقد جديد في المكتب مع ربط التنبيهات ونماذج Word'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('1. تصنيف العقد والعنوان:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _contractType,
+                        decoration: const InputDecoration(labelText: 'نوع العقد *'),
+                        items: _types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                        onChanged: (val) => setState(() => _contractType = val!),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(labelText: 'عنوان العقد المميز * (مثال: عقد بيع شقة بدمشق - المزة)'),
+                        validator: (val) => val == null || val.trim().isEmpty ? 'عنوان العقد إلزامي' : null,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                const Text('2. الأطراف المتعاقدة:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                const SizedBox(height: 12),
+                personsAsync.when(
+                  data: (persons) => Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _party1PersonId,
+                          decoration: const InputDecoration(labelText: 'الطرف الأول (البائع / المؤجر / صاحب العمل) *'),
+                          items: persons.map((p) => DropdownMenuItem(value: p.id, child: Text(p.fullName))).toList(),
+                          onChanged: (val) => setState(() => _party1PersonId = val),
+                          validator: (val) => val == null ? 'إلزامي' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          value: _party2PersonId,
+                          decoration: const InputDecoration(labelText: 'الطرف الثاني (المشتري / المستأجر / العامل) *'),
+                          items: persons.map((p) => DropdownMenuItem(value: p.id, child: Text(p.fullName))).toList(),
+                          onChanged: (val) => setState(() => _party2PersonId = val),
+                          validator: (val) => val == null ? 'إلزامي' : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  loading: () => const CircularProgressIndicator(),
+                  error: (_, __) => const Text('خطأ في تحميل أسماء الأطراف'),
+                ),
+                const SizedBox(height: 24),
+
+                const Text('3. القيم المالية والإبرام:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _valueController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'القيمة المالية الإجمالية *'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      width: 120,
+                      child: DropdownButtonFormField<String>(
+                        value: _currency,
+                        decoration: const InputDecoration(labelText: 'العملة'),
+                        items: ['ل.س', 'دولار', 'يورو'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                        onChanged: (val) => setState(() => _currency = val!),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _locationController,
+                        decoration: const InputDecoration(labelText: 'مكان إبرام العقد'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                const Text('4. التذكيرات والمتابعة الزمنية (الأتمتة مع جدول الأعمال اليومية):', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                const SizedBox(height: 12),
+                Card(
+                  color: AppConstants.primaryNavy.withOpacity(0.04),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        CheckboxListTile(
+                          value: _needsFollowup,
+                          title: const Text('هذا العقد يحتاج متابعة وتذكير بموعد انتهائه أو تجديده ⏰', style: TextStyle(fontWeight: FontWeight.bold)),
+                          onChanged: (val) => setState(() => _needsFollowup = val ?? false),
+                        ),
+                        if (_needsFollowup) ...[
+                          Row(
+                            children: [
+                              const Text('التذكير قبل: '),
+                              const SizedBox(width: 12),
+                              DropdownButton<int>(
+                                value: _expiryDaysBefore,
+                                items: [7, 15, 30, 60, 90].map((d) => DropdownMenuItem(value: d, child: Text('$d يوماً من الانتهاء'))).toList(),
+                                onChanged: (val) => setState(() => _expiryDaysBefore = val!),
+                              ),
+                              const SizedBox(width: 24),
+                              Checkbox(value: _isRenewable, onChanged: (val) => setState(() => _isRenewable = val ?? false)),
+                              const Text('العقد قابل للتجديد (إضافة تنبيه تجديد أيضاً)'),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _reminderPhoneController,
+                            decoration: const InputDecoration(labelText: 'رقم هاتف التواصل عند التذكير', prefixIcon: Icon(Icons.phone_in_talk)),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _reminderNoteController,
+                            decoration: const InputDecoration(labelText: 'ملاحظة التذكير (ستظهر في مهام اليوم عندما يحين الموعد)'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                const Text('5. إرفاق ملف العقد (نموذج Word أو PDF):', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(border: Border.all(color: AppConstants.accentGold), borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.description, color: AppConstants.accentGold, size: 32),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(_wordFile == null
+                            ? 'لم يتم رفع ملف (يمكنك الاختيار من القوالب أو رفع ملف .docx/.pdf خارجي)'
+                            : 'تم اختيار الملف: ${_wordFile!.path.split("/").last.split("\\").last}'),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold),
+                        onPressed: _pickFile,
+                        child: const Text('اختيار ملف Word'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.check_circle),
+                    label: Text(_isSaving ? 'جارٍ حفظ وتنظيم العقد...' : 'اعتماد وحفظ العقد وتفعيل التذكيرات الزمنية'),
+                    onPressed: _isSaving ? null : _saveContract,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFile() async {
+    final res = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx', 'doc', 'pdf']);
+    if (res != null && res.files.single.path != null) {
+      setState(() => _wordFile = File(res.files.single.path!));
+    }
+  }
+
+  Future<void> _saveContract() async {
+    if (!_formKey.currentState!.validate() || _party1PersonId == null || _party2PersonId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى اختيار الأطراف المتعاقدة وتعبئة الحقول المطلوبة!'), backgroundColor: AppConstants.statusDanger));
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(contractRepositoryProvider);
+
+      final contractCompanion = ContractsCompanion.insert(
+        title: _titleController.text.trim(),
+        contractType: _contractType,
+        dateSigned: drift.Value(_startDate),
+        dateStart: drift.Value(_startDate),
+        dateEnd: drift.Value(_endDate),
+        location: drift.Value(_locationController.text.trim()),
+        financialValue: drift.Value(double.tryParse(_valueController.text.trim()) ?? 0),
+        currency: drift.Value(_currency),
+        isRenewable: drift.Value(_isRenewable),
+        needsFollowup: drift.Value(_needsFollowup),
+      );
+
+      final parties = [
+        ContractPartiesCompanion.insert(contractId: 0, personId: _party1PersonId!, partyRole: const drift.Value('الطرف الأول (بائع/مؤجر/صاحب عمل)'), partyOrder: const drift.Value(1)),
+        ContractPartiesCompanion.insert(contractId: 0, personId: _party2PersonId!, partyRole: const drift.Value('الطرف الثاني (مشتري/مستأجر/عامل)'), partyOrder: const drift.Value(2)),
+      ];
+
+      final List<ContractRemindersCompanion> reminders = [];
+      if (_needsFollowup) {
+        final reminderDate = _endDate.subtract(Duration(days: _expiryDaysBefore));
+        reminders.add(ContractRemindersCompanion.insert(
+          contractId: 0,
+          reminderType: 'expiry',
+          reminderDate: reminderDate,
+          daysBefore: drift.Value(_expiryDaysBefore),
+          contactPhone: drift.Value(_reminderPhoneController.text.trim()),
+          reminderNote: drift.Value(_reminderNoteController.text.trim()),
+        ));
+      }
+
+      final contractId = await repo.createContract(
+        contract: contractCompanion,
+        parties: parties,
+        reminders: reminders,
+        wordFile: _wordFile,
+        userRef: AppConstants.defaultLawyerName,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تنظيم وحفظ العقد وتوليد التذكيرات بنجاح!'), backgroundColor: AppConstants.statusSuccess));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => ContractDetailScreen(contractId: contractId)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ أثناء تنظيم العقد: $e'), backgroundColor: AppConstants.statusDanger));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+}
