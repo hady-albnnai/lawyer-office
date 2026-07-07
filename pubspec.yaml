@@ -1,0 +1,54 @@
+name: lawyer_office
+description: تطبيق إدارة وأرشفة مكتب محاماة سوري متكامل (Offline-First V6.2)
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Database & Offline Storage (Drift + SQLCipher)
+  drift: ^2.14.0
+  sqlite3_flutter_libs: ^0.5.0
+  sqlcipher_flutter_libs: ^0.6.0
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  shared_preferences: ^2.2.3
+
+  # State Management & DI
+  flutter_riverpod: ^2.5.1
+
+  # Navigation & Routing
+  go_router: ^14.1.0
+
+  # Files, Attachments & Word/PDF Processing
+  archive: ^3.6.1
+  file_picker: ^8.0.3
+  open_filex: ^4.5.0
+  pdf: ^3.11.0
+  printing: ^5.13.1
+
+  # Formatting, Security & Localization
+  intl: ^0.19.0
+  uuid: ^4.4.0
+  crypto: ^3.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.9
+  drift_dev: ^2.14.0
+
+flutter:
+  uses-material-design: true
+
+  # أصول وأيقونات التطبيق
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
