@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../providers/office_settings_provider.dart';
+import 'archive/archive_screen.dart';
+import 'persons/persons_list_screen.dart';
 
 /// الشاشة الرئيسية وتخطيط الملاحة العام لتطبيقات إدارة مكتب المحاماة السوري (V6.2)
 class MainLayoutScreen extends ConsumerStatefulWidget {
@@ -124,11 +126,11 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
       case 0:
         return _buildNewWorkDashboard(settingsAsync);
       case 1:
-        return const Center(child: Text('تبويب الأرشيف العام 📁 (قيد البناء - المرحلة 4 و 6)'));
+        return const ArchiveScreen();
       case 2:
         return const Center(child: Text('تبويب الأعمال اليومية 📅 (قيد البناء - المرحلة 7)'));
       case 3:
-        return const Center(child: Text('تبويب فريق المكتب والموكلين 👥 (قيد البناء - المرحلة 4)'));
+        return const PersonsListScreen();
       case 4:
         return const Center(child: Text('تبويب البحث المتقدم 🔍 (قيد البناء - المرحلة 7)'));
       case 5:
