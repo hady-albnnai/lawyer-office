@@ -4,6 +4,7 @@ import '../../core/constants/app_constants.dart';
 import '../providers/office_settings_provider.dart';
 import 'archive/archive_screen.dart';
 import 'persons/persons_list_screen.dart';
+import 'cases/create_case_wizard.dart';
 
 /// الشاشة الرئيسية وتخطيط الملاحة العام لتطبيقات إدارة مكتب المحاماة السوري (V6.2)
 class MainLayoutScreen extends ConsumerStatefulWidget {
@@ -230,8 +231,8 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
                   icon: Icons.gavel,
                   color: const Color(0xFF1B4F72),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('سيتم فتح معالج إنشاء دعوى جديدة (المرحلة 5)')),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const CreateCaseWizard()),
                     );
                   },
                 ),
