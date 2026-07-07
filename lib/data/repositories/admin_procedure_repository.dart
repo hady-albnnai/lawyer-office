@@ -1,0 +1,55 @@
+import 'package:drift/drift.dart';
+import '../../core/enums/app_enums.dart';
+import '../database/database.dart';
+import '../database/daos/admin_procedure_dao.dart';
+import '../services/sequence_service.dart';
+
+/// مستودع إدارة الإجراءات الإدارية والمعاملات وخطوات الـ Checklist (AdminProcedureRepository)
+class AdminProcedureRepository {
+  final AdminProcedureDao _procedureDao;
+  final SequenceService _sequenceService;
+
+  AdminProcedureRepository(this._procedureDao, this._sequenceService);
+
+  Stream<List<AdminProcedure>> watchAllProcedures() => _procedureDao.watchAllProcedures();
+  Future<AdminProcedure?> getProcedureById(int id) => _procedureDao.getProcedureById(id);
+  Stream<List<AdminStep>> watchSteps(int procedureId) => _procedureDao.watchSteps(procedureId);
+  Stream<List<AdminProcedureType>> watchProcedureTypes({String? category}) => _procedureDao.watchProcedureTypes(category: category);
+
+  /// تسجيل إجراء إداري جديد وإضافة خطوات التنفيذ الافتراضية
+  Future<int> createProcedure({
+    required AdminProceduresCompanion procedure,
+    List<AdminStepsCompanion>? initialSteps,
+    required String userRef,
+  }) async {
+    return await _procedureDao.db.transaction(() async {
+      final String internalNum = await _sequenceService.generateNextInternalNumber();
+
+      final procId = await _procedureDao.insertProcedure(
+        procedure.copyWith(
+          internalNumber: Value(internalNum),
+          createdAt: Value(DateTime.now()),
+        ),
+      );
+
+      if (initialSteps != null) {
+        for (final step in initialSteps) {
+          await _procedureDao.insertStep(step.copyWith(procedureId: Value(procId)));
+        }
+      }
+
+      await _procedureDao.into(_procedureDao.db.timelineEvents).insert(
+        TimelineEventsCompanion.insert(
+          entityType: EntityType.adminProcedure,
+          entityId: procId,
+          eventType: 'procedure_created',
+          eventDate: Value(DateTime.now()),
+          description: 'تم تسجيل معاملة إدارية جديدة برقم: $internalNum - العنوان: ${procedure.title.value}',
+          userRef: Value(userRef),
+        ),
+      );
+
+      return procId;
+    });
+  }
+}
