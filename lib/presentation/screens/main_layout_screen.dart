@@ -8,6 +8,10 @@ import 'cases/create_case_wizard.dart';
 import 'companies/create_company_wizard.dart';
 import 'contracts/create_contract_screen.dart';
 import 'admin_procedures/create_procedure_screen.dart';
+import 'tasks/daily_tasks_screen.dart';
+import 'search/advanced_search_screen.dart';
+import 'reports/legal_printing_screen.dart';
+import 'settings/settings_screen.dart';
 
 /// الشاشة الرئيسية وتخطيط الملاحة العام لتطبيقات إدارة مكتب المحاماة السوري (V6.2)
 class MainLayoutScreen extends ConsumerStatefulWidget {
@@ -46,10 +50,19 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.print_outlined, color: AppConstants.accentGold),
+            tooltip: 'الطباعة القانونية الرسمية وتصدير PDF',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const LegalPrintingScreen()),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.notifications_active_outlined, color: AppConstants.accentGold),
             tooltip: 'تنبيهات المواعيد والنواقص',
             onPressed: () {
-              // سيتم ربط شاشة التنبيهات لاحقاً
+              setState(() => _selectedIndex = 2); // الانتقال للأعمال اليومية
             },
           ),
           const SizedBox(width: 8),
@@ -132,13 +145,13 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
       case 1:
         return const ArchiveScreen();
       case 2:
-        return const Center(child: Text('تبويب الأعمال اليومية 📅 (قيد البناء - المرحلة 7)'));
+        return const DailyTasksScreen();
       case 3:
         return const PersonsListScreen();
       case 4:
-        return const Center(child: Text('تبويب البحث المتقدم 🔍 (قيد البناء - المرحلة 7)'));
+        return const AdvancedSearchScreen();
       case 5:
-        return _buildSettingsPreview(settingsAsync);
+        return const SettingsScreen();
       default:
         return const Center(child: Text('شاشة غير معرفة'));
     }
