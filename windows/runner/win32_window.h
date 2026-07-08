@@ -26,6 +26,7 @@ class Win32Window {
 
   bool Create(const std::wstring& title, const Point& origin, const Size& size);
   HWND GetHandle();
+  bool Show();
   void Destroy();
   void SetChildContent(HWND content);
   RECT GetClientArea();

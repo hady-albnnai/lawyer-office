@@ -99,6 +99,10 @@ HWND Win32Window::GetHandle() {
   return window_handle_;
 }
 
+bool Win32Window::Show() {
+  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+}
+
 void Win32Window::SetChildContent(HWND content) {
   child_content_ = content;
   SetParent(content, window_handle_);

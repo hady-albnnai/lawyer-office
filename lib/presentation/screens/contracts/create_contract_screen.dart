@@ -195,7 +195,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                             decoration: const InputDecoration(labelText: 'ملاحظة التذكير (ستظهر في مهام اليوم عندما يحين الموعد)'),
                           ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
