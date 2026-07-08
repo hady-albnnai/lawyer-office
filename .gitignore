@@ -5,6 +5,8 @@
 .packages
 .pub/
 build/
+windows/flutter/ephemeral/
+windows/flutter/.plugin_symlinks/
 *.iml
 *.lock
 flutter_*.log
