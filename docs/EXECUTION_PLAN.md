@@ -258,6 +258,7 @@ lib/
 
 ---
 ## 📝 سجل الإنجاز والتوثيق (Changelog & Documentation Audit)
+- **2026-07-09 [مراجعة شاشة الأرشيف]:** إضافة مراجعة شاشة الأرشيف العام إلى `docs/UI_REVIEW_AND_REDESIGN_PLAN.md`، وتوثيق أن المطابقة الحالية تقارب 45% بسبب غياب البحث الموحد، فلاتر الملفات الناقصة والجلسات القريبة وبانتظار الأساس، ووجود تبويبات Placeholder في الأشخاص والوكالات.
 - **2026-07-09 [مراجعة الواجهات قبل التعديل]:** إنشاء وثيقة `docs/UI_REVIEW_AND_REDESIGN_PLAN.md` كملف مرجعي لمراجعة الشاشات شاشة شاشة، وتضمين مراجعة الشاشة الرئيسية الأولى، ونتائج البحث الأولي حول الثيمات العصرية وتوزيع التبويبات والملاحة قبل أي تعديل برمجي جديد.
 - **2026-07-08 [إصلاح تشغيل Windows/ICU]:** تصحيح مسار تثبيت ملف `icudtl.dat` ضمن `build/windows/x64/runner/Debug/data/` مباشرة بدل وضعه داخل `data/flutter_assets/`، لأن محرك Flutter يحتاجه في جذر مجلد `data` عند تشغيل `lawyer_office.exe`.
 - **2026-07-08 [إصلاح Windows Runner/C++]:** استبدال ملفات `win32_window.h/cpp` بقالب Flutter الرسمي الحديث وتصحيح صلاحية `WndProc` وواجهات نافذة Windows، لمعالجة أخطاء MSVC الخاصة بـ `private member WndProc` و `WindowClassRegistrar ambiguous symbol`.
