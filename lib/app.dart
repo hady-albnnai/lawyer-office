@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'core/theme/app_theme.dart';
+import 'presentation/theme/app_theme.dart';
 import 'presentation/navigation/app_router.dart';
 
 /// جذر التطبيق الرئيسي (LawyerOfficeApp)
