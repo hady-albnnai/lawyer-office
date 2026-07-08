@@ -40,7 +40,7 @@ class AdminProcedureRepository {
 
       await _procedureDao.into(_procedureDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: EntityType.adminProcedure,
+          entityType: EntityType.adminProcedure.index,
           entityId: procId,
           eventType: 'procedure_created',
           eventDate: Value(DateTime.now()),

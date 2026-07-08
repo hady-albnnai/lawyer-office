@@ -82,7 +82,7 @@ class ContractRepository {
 
       await _contractDao.into(_contractDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: EntityType.contract,
+          entityType: EntityType.contract.index,
           entityId: contractId,
           eventType: 'contract_created',
           eventDate: Value(DateTime.now()),

@@ -421,6 +421,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
       final repo = ref.read(companyRepositoryProvider);
 
       final companyCompanion = CompaniesCompanion.insert(
+        internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
         companyType: _companyType,
         legalStatus: drift.Value(_isNewEstablishment ? 'under_establishment' : 'active'),
         name: _nameController.text.trim(),

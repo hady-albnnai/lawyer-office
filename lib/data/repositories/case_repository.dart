@@ -59,7 +59,7 @@ class CaseRepository {
         CasePartiesCompanion.insert(
           caseId: caseId,
           personId: clientId,
-          partyRole: const Value('مدعي'),
+          partyRole: 'مدعي',
           isPrimary: const Value(true),
           isClient: const Value(true),
         ),
@@ -71,7 +71,7 @@ class CaseRepository {
           CasePartiesCompanion.insert(
             caseId: caseId,
             personId: opponentId,
-            partyRole: const Value('مدعى عليه'),
+            partyRole: 'مدعى عليه',
             isPrimary: const Value(true),
             isClient: const Value(false),
           ),
@@ -81,7 +81,7 @@ class CaseRepository {
       // 5. ربط الوكالة بالدعوى إن وجدت
       if (poaId != null) {
         await _caseDao.into(_caseDao.db.casePoaLinks).insert(
-          CasePoaLinksCompanion.insert(caseId: Value(caseId), poaId: Value(poaId)),
+          CasePoaLinksCompanion.insert(caseId: caseId, poaId: poaId),
         );
       }
 
@@ -134,7 +134,7 @@ class CaseRepository {
       // 9. تسجيل الحدث في الخط الزمني
       await _caseDao.into(_caseDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: EntityType.caseEntity,
+          entityType: EntityType.caseEntity.index,
           entityId: caseId,
           eventType: 'case_created',
           eventDate: Value(DateTime.now()),
@@ -239,7 +239,7 @@ class CaseRepository {
       // 6. تسجيل الحدث في الخط الزمني
       await _caseDao.into(_caseDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: EntityType.caseEntity,
+          entityType: EntityType.caseEntity.index,
           entityId: caseId,
           eventType: 'phase_transferred',
           eventDate: Value(DateTime.now()),
@@ -282,7 +282,7 @@ class CaseRepository {
 
       await _caseDao.into(_caseDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: EntityType.caseEntity,
+          entityType: EntityType.caseEntity.index,
           entityId: caseId,
           eventType: 'case_terminated',
           eventDate: Value(DateTime.now()),

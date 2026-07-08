@@ -68,7 +68,7 @@ class FinanceRepository {
 
       await _financeDao.into(_financeDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: entityType,
+          entityType: entityType.index,
           entityId: entityId,
           eventType: 'payment_received',
           eventDate: Value(DateTime.now()),
@@ -81,7 +81,7 @@ class FinanceRepository {
     });
   }
 
-  Stream<List<Expens>> watchExpensesByEntity(EntityType entityType, int entityId) {
+  Stream<List<Expense>> watchExpensesByEntity(EntityType entityType, int entityId) {
     return _financeDao.watchExpensesByEntity(entityType.index, entityId);
   }
 

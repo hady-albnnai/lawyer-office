@@ -53,7 +53,7 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
               data: (settings) => PdfPreview(
                 build: (format) => _generatePdfReport(format, settings),
                 allowPrinting: true,
-                allowShared: true,
+                allowSharing: true,
                 canChangeOrientation: false,
                 canChangePageFormat: false,
                 pdfFileName: 'SyrLawOffice_Report_${DateTime.now().millisecondsSinceEpoch}.pdf',
@@ -134,7 +134,7 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
 
   pw.Widget _buildPdfHeader(OfficeSettingsModel settings, pw.Font fontBold) {
     return pw.Container(
-      padding: const pw.EdgeInsets.bottom(10),
+      padding: const pw.EdgeInsets.only(bottom: 10),
       decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.blue900, width: 2))),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -162,7 +162,7 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
 
   pw.Widget _buildPdfFooter(pw.Context context, OfficeSettingsModel settings, pw.Font fontRegular) {
     return pw.Container(
-      padding: const pw.EdgeInsets.top(8),
+      padding: const pw.EdgeInsets.only(top: 8),
       decoration: const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(color: PdfColors.grey300, width: 0.8))),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -201,10 +201,6 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
         headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
         cellStyle: pw.TextStyle(font: fontRegular, fontSize: 10),
         cellAlignment: pw.Alignment.centerRight,
-        rowDecorations: [
-          const pw.BoxDecoration(color: PdfColors.white),
-          const pw.BoxDecoration(color: PdfColors.grey100),
-        ],
       );
     } else if (_selectedReportType == 'agenda_report') {
       return pw.Table.fromTextArray(

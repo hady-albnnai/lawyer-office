@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../../core/constants/app_constants.dart';
+import '../../core/enums/app_enums.dart';
 import 'schema.dart';
 import 'daos/case_dao.dart';
 import 'daos/person_dao.dart';

@@ -188,6 +188,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
       final repo = ref.read(adminProcedureRepositoryProvider);
 
       final companion = AdminProceduresCompanion.insert(
+        internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
         procedureType: _category,
         subType: drift.Value(_subType),
         clientId: _selectedClientId!,

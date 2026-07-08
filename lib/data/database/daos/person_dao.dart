@@ -125,7 +125,7 @@ class PersonDao extends DatabaseAccessor<AppDatabase> with _$PersonDaoMixin {
   /// ربط سند توكيل بملف دعوى قضائية
   Future<int> linkPoaToCase(int caseId, int poaId) {
     return into(casePoaLinks).insert(
-      CasePoaLinksCompanion.insert(caseId: Value(caseId), poaId: Value(poaId)),
+      CasePoaLinksCompanion.insert(caseId: caseId, poaId: poaId),
     );
   }
 }

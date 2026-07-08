@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as drift;
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
+import 'case_detail_screen.dart';
 
 /// معالج إنشاء دعوى قضائية جديدة بتسلسل الخطوات الإلزامي (CreateCaseWizard V6.2)
 class CreateCaseWizard extends ConsumerStatefulWidget {
@@ -375,6 +376,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
       final repo = ref.read(caseRepositoryProvider);
 
       final companion = CasesCompanion.insert(
+        internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
         year: int.tryParse(_yearController.text.trim()) ?? DateTime.now().year,
         caseType: _caseType,
         subType: drift.Value(_subType),

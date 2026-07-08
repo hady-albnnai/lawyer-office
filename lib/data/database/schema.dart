@@ -64,7 +64,7 @@ class YearlySequences extends Table {
 @DataClassName('PersonEntity')
 class Persons extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get type => integer().map(const PersonTypeConverter()).withDefault(const Constant(0))(); // 0: natural, 1: legal
+  IntColumn get type => integer().withDefault(const Constant(0))(); // 0: natural, 1: legal
   TextColumn get fullName => text()();
   TextColumn get fatherName => text().nullable()();
   TextColumn get motherName => text().nullable()();
@@ -98,7 +98,7 @@ class Persons extends Table {
 class LegalEntities extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get personId => integer().unique().references(Persons, #id, onDelete: KeyAction.cascade)();
-  TextColumn get entityName => text()();
+  TextColumn get legalEntityName => text().named('entity_name')();
   TextColumn get entityType => text().nullable()(); // شركة تضامن، مساهمة، جمعية...
   IntColumn get representativeId => integer().nullable().references(Persons, #id)();
   TextColumn get representativeCapacity => text().nullable()(); // مدير عام، مفوض بالتوقيع
@@ -112,7 +112,7 @@ class LegalEntities extends Table {
 class PersonRoles extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get personId => integer().references(Persons, #id, onDelete: KeyAction.cascade)();
-  IntColumn get roleType => integer().map(const PersonRoleTypeConverter())();
+  IntColumn get roleType => integer()();
   TextColumn get roleDetails => text().nullable()(); // JSON
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 }
@@ -121,7 +121,7 @@ class PersonRoles extends Table {
 class TeamMembers extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get personId => integer().unique().references(Persons, #id, onDelete: KeyAction.cascade)();
-  IntColumn get position => integer().map(const TeamPositionConverter())();
+  IntColumn get position => integer()();
   DateTimeColumn get joinDate => dateTime().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
   TextColumn get notes => text().nullable()();
@@ -160,7 +160,7 @@ class PowersOfAttorney extends Table {
   IntColumn get notaryId => integer().nullable().references(Notaries, #id)();
   IntColumn get delegateId => integer().nullable().references(Notaries, #id)();
   TextColumn get delegateBranch => text().nullable()(); // فرع النقابة الـ 14
-  IntColumn get poaType => integer().map(const PoaTypeConverter())();
+  IntColumn get poaType => integer()();
   TextColumn get scopeText => text().nullable()(); // وصف نطاق الوكالة الخاصة
   TextColumn get filePath => text().nullable()(); // مسار صورة سند التوكيل
   TextColumn get status => text().withDefault(const Constant('active'))(); // active, expired, revoked
@@ -303,7 +303,7 @@ class CaseSessions extends Table {
   TextColumn get nextAction => text().nullable()(); // المطلوب للجلسة القادمة
   DateTimeColumn get nextSessionDate => dateTime().nullable()(); // تاريخ الجلسة القادمة
   TextColumn get notes => text().nullable()();
-  IntColumn get status => integer().map(const LifecycleStatusConverter()).withDefault(const Constant(0))();
+  IntColumn get status => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -313,7 +313,7 @@ class CaseActions extends Table {
   IntColumn get caseId => integer().references(Cases, #id, onDelete: KeyAction.cascade)();
   TextColumn get actionType => text()(); // تبليغ، مراجعة نيابة، دفع رسم، كشف ومعاينة
   DateTimeColumn get actionDate => dateTime().nullable()();
-  IntColumn get status => integer().map(const LifecycleStatusConverter()).withDefault(const Constant(0))();
+  IntColumn get status => integer().withDefault(const Constant(0))();
   TextColumn get assignedTo => text().nullable()(); // المسند إليه من فريق المكتب
   TextColumn get notes => text().nullable()();
   DateTimeColumn get nextDate => dateTime().nullable()();
@@ -354,7 +354,7 @@ class CompanyPhases extends Table {
   IntColumn get companyId => integer().references(Companies, #id, onDelete: KeyAction.cascade)();
   TextColumn get phaseName => text()(); // صياغة العقد، النقابة، السجل، المالية، التأمينات...
   IntColumn get phaseOrder => integer()();
-  IntColumn get status => integer().map(const LifecycleStatusConverter()).withDefault(const Constant(0))();
+  IntColumn get status => integer().withDefault(const Constant(0))();
   DateTimeColumn get scheduledDate => dateTime().nullable()();
   DateTimeColumn get completedDate => dateTime().nullable()();
   TextColumn get refNumber => text().nullable()();
@@ -370,7 +370,7 @@ class CompanyManagement extends Table {
   TextColumn get actionCategory => text()(); // meeting, structure_change, renewal, contract, dissolution
   TextColumn get actionType => text()(); // اجتماع هيئة عامة، تعديل نظام، تجديد غرفة تجارة...
   DateTimeColumn get actionDate => dateTime().nullable()();
-  IntColumn get status => integer().map(const LifecycleStatusConverter()).withDefault(const Constant(0))();
+  IntColumn get status => integer().withDefault(const Constant(0))();
   TextColumn get filePath => text().nullable()(); // مسار محضر الاجتماع أو السند
   TextColumn get notes => text().nullable()();
   TextColumn get assignedTo => text().nullable()();
@@ -496,7 +496,7 @@ class AdminProcedures extends Table {
   IntColumn get clientId => integer().references(Persons, #id)();
   TextColumn get title => text()();
   DateTimeColumn get startDate => dateTime().nullable()();
-  IntColumn get status => integer().map(const LifecycleStatusConverter()).withDefault(const Constant(1))(); // inProgress
+  IntColumn get status => integer().withDefault(const Constant(1))(); // inProgress
   TextColumn get transactionNumber => text().nullable()(); // رقم المعاملة أو الطلب
   DateTimeColumn get regDate => dateTime().nullable()();
   TextColumn get department => text().nullable()(); // الدائرة أو السجل المدني / العقاري
@@ -516,7 +516,7 @@ class AdminSteps extends Table {
   TextColumn get assignedTo => text().nullable()();
   DateTimeColumn get nextDate => dateTime().nullable()();
   TextColumn get notes => text().nullable()();
-  IntColumn get status => integer().map(const LifecycleStatusConverter()).withDefault(const Constant(0))();
+  IntColumn get status => integer().withDefault(const Constant(0))();
 }
 
 /// جدول القوائم الجاهزة ونماذج الـ Checklist للإجراءات الإدارية
@@ -540,9 +540,9 @@ class DailyTasks extends Table {
   TextColumn get title => text()();
   DateTimeColumn get taskDate => dateTime()();
   TextColumn get taskTime => text().nullable()();
-  IntColumn get status => integer().map(const LifecycleStatusConverter()).withDefault(const Constant(0))();
+  IntColumn get status => integer().withDefault(const Constant(0))();
   TextColumn get assignedTo => text().nullable()(); // المكلف بالتنفيذ
-  IntColumn get priority => integer().map(const TaskPriorityConverter()).withDefault(const Constant(1))(); // normal
+  IntColumn get priority => integer().withDefault(const Constant(1))(); // normal
   TextColumn get sourceType => text().nullable()(); // cases, contracts, companies, admin_procedures, manual
   IntColumn get sourceId => integer().nullable()();
   BoolColumn get isAutoGenerated => boolean().withDefault(const Constant(false))(); // 1 إذا كان مولداً تلقائياً
@@ -575,8 +575,8 @@ class Documents extends Table {
   TextColumn get issuer => text().nullable()(); // الجهة المصدرة
   TextColumn get filePath => text().nullable()(); // مسار نسبي داخل AppData/LawOffice/files/
   TextColumn get fileType => text().nullable()(); // pdf, image, word, other
-  IntColumn get status => integer().map(const DocumentStatusConverter()).withDefault(const Constant(0))();
-  IntColumn get physicalLocation => integer().map(const PhysicalLocationConverter()).withDefault(const Constant(0))();
+  IntColumn get status => integer().withDefault(const Constant(0))();
+  IntColumn get physicalLocation => integer().withDefault(const Constant(0))();
   TextColumn get summary => text().nullable()();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
@@ -586,7 +586,7 @@ class Documents extends Table {
 class DocumentLinks extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get documentId => integer().references(Documents, #id, onDelete: KeyAction.cascade)();
-  IntColumn get entityType => integer().map(const EntityTypeConverter())();
+  IntColumn get entityType => integer()();
   IntColumn get entityId => integer()();
   TextColumn get linkType => text().nullable()(); // general, phase_attachment, session_attachment
 
@@ -601,7 +601,7 @@ class DocumentLinks extends Table {
 /// جدول اتفاقيات وعقود الأتعاب (منفصل لكل موكل حتى في نفس الدعوى)
 class FeeAgreements extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get entityType => integer().map(const EntityTypeConverter())(); // case, contract, company
+  IntColumn get entityType => integer()(); // case, contract, company
   IntColumn get entityId => integer()();
   IntColumn get partyId => integer().references(Persons, #id)(); // الموكل صاحب الأتعاب
   TextColumn get agreementType => text().withDefault(const Constant('fixed'))(); // fixed: مقطوع, percentage: نسبة, per_session: بالجلسة, free: مجاني
@@ -627,7 +627,7 @@ class FeePayments extends Table {
 /// جدول مصاريف ورسوم الملفات (رسوم محكمة، طوابع، مواصلات، خبرة، تصوير)
 class Expenses extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get entityType => integer().map(const EntityTypeConverter())(); // case, contract, company, admin_procedure
+  IntColumn get entityType => integer()(); // case, contract, company, admin_procedure
   IntColumn get entityId => integer()();
   TextColumn get expenseType => text()(); // رسم محكمة، طوابع، أتعاب خبرة، مواصلات، تصوير...
   RealColumn get amount => real()();
@@ -644,11 +644,11 @@ class Expenses extends Table {
 /// جدول النواقص التلقائي (غياب موعد الجلسة، رقم الأساس، سند التوكيل...)
 class Deficiencies extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get entityType => integer().map(const EntityTypeConverter())();
+  IntColumn get entityType => integer()();
   IntColumn get entityId => integer()();
   TextColumn get fieldName => text()(); // اسم الحقل الناقص (مثلاً: next_session_date, base_number, poa)
   TextColumn get description => text()(); // وصف النقص المعروض للمحامي
-  IntColumn get severity => integer().map(const DeficiencySeverityConverter()).withDefault(const Constant(0))(); // required, warning
+  IntColumn get severity => integer().withDefault(const Constant(0))(); // required, warning
   TextColumn get status => text().withDefault(const Constant('open'))(); // open: مفتوح, resolved: مكتمل, ignored: متجاهل
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get resolvedAt => dateTime().nullable()();
@@ -657,7 +657,7 @@ class Deficiencies extends Table {
 /// جدول الخط الزمني الشامل لكل حركات وتواريخ النظام (Chrono Log)
 class TimelineEvents extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get entityType => integer().map(const EntityTypeConverter())();
+  IntColumn get entityType => integer()();
   IntColumn get entityId => integer()();
   TextColumn get eventType => text()(); // created, session_scheduled, session_held, document_added, payment_received, phase_transferred...
   DateTimeColumn get eventDate => dateTime().withDefault(currentDateAndTime)();

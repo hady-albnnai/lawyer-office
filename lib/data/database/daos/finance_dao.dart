@@ -57,7 +57,7 @@ class FinanceDao extends DatabaseAccessor<AppDatabase> with _$FinanceDaoMixin {
   // ---------------------------------------------------------------------------
 
   /// مراقبة مصاريف ملف معين (دعوى، شركة، أو معاملة إدارية)
-  Stream<List<Expens>> watchExpensesByEntity(int entityType, int entityId) {
+  Stream<List<Expense>> watchExpensesByEntity(int entityType, int entityId) {
     return (select(expenses)
           ..where((t) => t.entityType.equals(entityType) & t.entityId.equals(entityId))
           ..orderBy([(t) => OrderingTerm(expression: t.expenseDate, mode: OrderingMode.desc)]))

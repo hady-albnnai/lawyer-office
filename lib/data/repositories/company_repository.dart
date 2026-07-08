@@ -56,7 +56,7 @@ class CompanyRepository {
       await _taskSyncService.syncCompanyPhase(
         phase: CompanyPhasesCompanion.insert(
           companyId: companyId,
-          phaseName: const Value('صياغة عقد التأسيس وتصديق النقابة'),
+          phaseName: 'صياغة عقد التأسيس وتصديق النقابة',
           phaseOrder: 1,
           status: const Value(0),
           scheduledDate: Value(DateTime.now().add(const Duration(days: 2))),
@@ -76,7 +76,7 @@ class CompanyRepository {
 
       await _companyDao.into(_companyDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: EntityType.company,
+          entityType: EntityType.company.index,
           entityId: companyId,
           eventType: 'company_created',
           eventDate: Value(DateTime.now()),

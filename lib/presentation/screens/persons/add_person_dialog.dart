@@ -72,13 +72,13 @@ class _AddPersonDialogState extends ConsumerState<AddPersonDialog> {
                     children: [
                       const Text('نوع السجل:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(width: 20),
-                      ChoiceChip<PersonType>(
+                      ChoiceChip(
                         label: const Text('شخص طبيعي'),
                         selected: _selectedType == PersonType.natural,
                         onSelected: (_) => setState(() => _selectedType = PersonType.natural),
                       ),
                       const SizedBox(width: 12),
-                      ChoiceChip<PersonType>(
+                      ChoiceChip(
                         label: const Text('شخص اعتباري (جهة / شركة)'),
                         selected: _selectedType == PersonType.legal,
                         onSelected: (_) => setState(() => _selectedType = PersonType.legal),
@@ -302,7 +302,7 @@ class _AddPersonDialogState extends ConsumerState<AddPersonDialog> {
       if (_selectedType == PersonType.legal) {
         legalCompanion = LegalEntitiesCompanion.insert(
           personId: 0, // سيتم تعيينه تلقائياً داخل المستودع
-          entityName: _entityNameController.text.trim(),
+          legalEntityName: _entityNameController.text.trim(),
           registrationNumber: drift.Value(_regNumController.text.trim()),
           taxNumber: drift.Value(_taxNumController.text.trim()),
           representativeCapacity: drift.Value(_capacityController.text.trim()),

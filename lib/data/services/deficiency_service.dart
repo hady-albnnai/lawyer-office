@@ -25,44 +25,44 @@ class DeficiencyService {
     // 1. فحص موعد الجلسة / الإجراء القادم (إلزامي حسب القاعدة الذهبية V6.2)
     if (!caseData.nextSessionDate.present || caseData.nextSessionDate.value == null) {
       list.add(DeficienciesCompanion.insert(
-        entityType: EntityType.caseEntity,
+        entityType: EntityType.caseEntity.index,
         entityId: caseId,
         fieldName: 'next_session_date',
         description: 'لم يتم تحديد موعد التنفيذ أو الجلسة القادمة للدعوى',
-        severity: const Value(DeficiencySeverity.required),
+        severity: Value(DeficiencySeverity.required.index),
       ));
     }
 
     // 2. فحص رقم الأساس في المحكمة
     if (!caseData.baseNumber.present || caseData.baseNumber.value == null || caseData.baseNumber.value!.trim().isEmpty) {
       list.add(DeficienciesCompanion.insert(
-        entityType: EntityType.caseEntity,
+        entityType: EntityType.caseEntity.index,
         entityId: caseId,
         fieldName: 'base_number',
         description: 'رقم الأساس القضائي غير مدخل بانتظار التسجيل في ديوان المحكمة',
-        severity: const Value(DeficiencySeverity.warning),
+        severity: Value(DeficiencySeverity.warning.index),
       ));
     }
 
     // 3. فحص إرفاق سند التوكيل (عام أو خاص)
     if (!hasPoa) {
       list.add(DeficienciesCompanion.insert(
-        entityType: EntityType.caseEntity,
+        entityType: EntityType.caseEntity.index,
         entityId: caseId,
         fieldName: 'poa_attachment',
         description: 'صورة سند التوكيل العام/الخاص غير مرفقة في الملف',
-        severity: const Value(DeficiencySeverity.required),
+        severity: Value(DeficiencySeverity.required.index),
       ));
     }
 
     // 4. فحص سند التمثيل إذا كان الموكل شخصاً اعتبارياً (شركة أو مؤسسة)
     if (isLegalEntityClient && !hasRepresentativeDoc) {
       list.add(DeficienciesCompanion.insert(
-        entityType: EntityType.caseEntity,
+        entityType: EntityType.caseEntity.index,
         entityId: caseId,
         fieldName: 'representative_doc',
         description: 'سند تمثيل الشخص الاعتباري (سجل تجاري / تفويض) غير مرفق',
-        severity: const Value(DeficiencySeverity.required),
+        severity: Value(DeficiencySeverity.required.index),
       ));
     }
 
@@ -86,31 +86,31 @@ class DeficiencyService {
 
     if (!companyData.registrationNumber.present || companyData.registrationNumber.value == null || companyData.registrationNumber.value!.isEmpty) {
       list.add(DeficienciesCompanion.insert(
-        entityType: EntityType.company,
+        entityType: EntityType.company.index,
         entityId: companyId,
         fieldName: 'registration_number',
         description: 'رقم السجل التجاري النهائي غير مدخل بانتظار صدوره',
-        severity: const Value(DeficiencySeverity.warning),
+        severity: Value(DeficiencySeverity.warning.index),
       ));
     }
 
     if (!hasPartners) {
       list.add(DeficienciesCompanion.insert(
-        entityType: EntityType.company,
+        entityType: EntityType.company.index,
         entityId: companyId,
         fieldName: 'partners_list',
         description: 'لم يتم إضافة الشركاء وتحديد حصصهم في رأس المال',
-        severity: const Value(DeficiencySeverity.required),
+        severity: Value(DeficiencySeverity.required.index),
       ));
     }
 
     if (!hasDirectors) {
       list.add(DeficienciesCompanion.insert(
-        entityType: EntityType.company,
+        entityType: EntityType.company.index,
         entityId: companyId,
         fieldName: 'directors_list',
         description: 'لم يتم تحديد المدير العام أو المفوضين بالتوقيع',
-        severity: const Value(DeficiencySeverity.required),
+        severity: Value(DeficiencySeverity.required.index),
       ));
     }
 

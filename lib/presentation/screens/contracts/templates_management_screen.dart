@@ -191,6 +191,7 @@ class _TemplatesManagementScreenState extends ConsumerState<TemplatesManagementS
 
                 await ref.read(contractRepositoryProvider).createContract(
                   contract: ContractsCompanion.insert(
+                    internalNumber: 'TEMPLATE-${DateTime.now().microsecondsSinceEpoch}',
                     title: 'قالب مرجعي: ${nameController.text.trim()}',
                     contractType: type,
                     status: const drift.Value('template_only'),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/enums/app_enums.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
 

@@ -260,6 +260,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
       final repo = ref.read(contractRepositoryProvider);
 
       final contractCompanion = ContractsCompanion.insert(
+        internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
         title: _titleController.text.trim(),
         contractType: _contractType,
         dateSigned: drift.Value(_startDate),
