@@ -17,7 +17,7 @@ import 'daos/admin_procedure_dao.dart';
 
 part 'database.g.dart';
 
-/// قاعدة البيانات الموحدة والمشفرة لنظام إدارة مكتب المحاماة السوري (Drift + SQLCipher)
+/// قاعدة البيانات المحلية الموحدة لنظام إدارة مكتب المحاماة السوري (Drift + SQLite)
 @DriftDatabase(
   tables: [
     // 1. النظام والإعدادات
@@ -159,7 +159,7 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-/// إنشاء الاتصال مع قاعدة البيانات المشفرة (SQLCipher في Isolate خلفي)
+/// إنشاء الاتصال مع قاعدة البيانات المحلية في Isolate خلفي على Windows دون اعتماد OpenSSL خارجي
 LazyDatabase _openDatabase() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
@@ -170,14 +170,10 @@ LazyDatabase _openDatabase() {
 
     final file = File(p.join(lawOfficeDir.path, AppConstants.defaultDatabaseName));
 
-    // مفتاح التشفير الافتراضي (في وضع Offline يمكن ربطه بكلمة مرور الأمان)
-    const String encryptionKey = "SyrLawOffice_Secure_Key_2026_V6.2";
-
     return NativeDatabase.createInBackground(
       file,
       setup: (rawDb) {
-        // تفعيل تشفير SQLCipher وفرض سلامة العلاقات الخارجية
-        rawDb.execute("PRAGMA key = '$encryptionKey';");
+        // فرض سلامة العلاقات الخارجية عند فتح قاعدة البيانات المحلية.
         rawDb.execute("PRAGMA foreign_keys = ON;");
       },
     );

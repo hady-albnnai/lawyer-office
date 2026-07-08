@@ -29,7 +29,7 @@ class Security extends Table {
 /// جدول سجل حركات وأنشطة النظام (Audit Log)
 class ActivityLog extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get tableName => text()();
+  TextColumn get affectedTable => text().named('table_name')();
   IntColumn get recordId => integer()();
   TextColumn get action => text()(); // insert, update, delete, login, export
   TextColumn get userRef => text().nullable()(); // اسم المحامي الأستاذ أو المتمرن أو الموظفة

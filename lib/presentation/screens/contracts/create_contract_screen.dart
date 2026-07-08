@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as path;
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
@@ -212,7 +213,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                       Expanded(
                         child: Text(_wordFile == null
                             ? 'لم يتم رفع ملف (يمكنك الاختيار من القوالب أو رفع ملف .docx/.pdf خارجي)'
-                            : 'تم اختيار الملف: ${_wordFile!.path.split("/").last.split("\\").last}'),
+                            : 'تم اختيار الملف: ${path.basename(_wordFile!.path)}'),
                       ),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold),

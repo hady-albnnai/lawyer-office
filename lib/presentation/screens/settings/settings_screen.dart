@@ -44,7 +44,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           tabs: const [
             Tab(icon: Icon(Icons.business), text: '1️⃣ بيانات المكتب الأساسية'),
-            Tab(icon: Icon(Icons.security), text: '2️⃣ الأمان وحماية SQLCipher'),
+            Tab(icon: Icon(Icons.security), text: '2️⃣ الأمان والنسخ الاحتياطي'),
             Tab(icon: Icon(Icons.backup), text: '3️⃣ النسخ الاحتياطي الذكي واستعادتها'),
             Tab(icon: Icon(Icons.list_alt), text: '4️⃣ إدارة القوائم السورية الجاهزة'),
           ],
@@ -134,7 +134,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   }
 
   // ---------------------------------------------------------------------------
-  // 2️⃣ تبويب الأمان والتشفير (SQLCipher)
+  // 2️⃣ تبويب الأمان والنسخ الاحتياطي
   // ---------------------------------------------------------------------------
   Widget _buildSecurityTab() {
     return SingleChildScrollView(
@@ -155,7 +155,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('تشفير قاعدة البيانات مفعّل أصولاً (SQLCipher)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Text('الحماية المحلية والنسخ الاحتياطي مفعّلان أصولاً', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                           SizedBox(height: 6),
                           Text('جميع البيانات، القضايا، والحسابات المخزنة محلياً على هذا الجهاز مشفرة تماماً بمفتاح أمان 256-bit ولا يمكن قراءتها من خارج التطبيق.', style: TextStyle(color: Colors.white70, fontSize: 13)),
                         ],
