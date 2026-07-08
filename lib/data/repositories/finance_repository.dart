@@ -68,7 +68,7 @@ class FinanceRepository {
 
       await _financeDao.into(_financeDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
-          entityType: entityType.index,
+          entityType: entityType,
           entityId: entityId,
           eventType: 'payment_received',
           eventDate: Value(DateTime.now()),
