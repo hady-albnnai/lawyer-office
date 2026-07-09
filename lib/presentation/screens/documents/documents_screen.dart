@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import 'document_viewer.dart';
 
 enum DocumentType { caseDocument, powerOfAttorney, contract, companyDocument, adminProcedure, receipt, memo, decision, courtRecord, other
 String get displayName => const ['مستندات الدعاوى','الوكالات','العقود','مستندات الشركات','مستندات الإجراءات','الإيصالات','المذكرات','القرارات','ضابط المحكمة','أخرى'][index]; }
@@ -21,11 +22,11 @@ class DocumentItem {
 }
 
 final documentsProvider = Provider<List<DocumentItem>>((ref) => [
-  DocumentItem(id: '1', title: 'وكالة عام 2026', documentType: DocumentType.powerOfAttorney, entityType: 'case', entityId: '1', entityTitle: 'الدعوى 2026/001', filePath: 'docs/poa/poa1.pdf', fileName: 'poa1.pdf', fileSize: 1024*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,5), uploadedBy: 'هادي البني', physicalLocation: 'ديوان المحامي'),
-  DocumentItem(id: '2', title: 'عقد بيع', documentType: DocumentType.contract, entityType: 'contract', entityId: '1', entityTitle: 'عقد 2026/CONT/001', filePath: 'docs/contracts/cont1.docx', fileName: 'cont1.docx', fileSize: 2*1024*1024, fileType: FileType.docx, uploadDate: DateTime(2026,7,8), uploadedBy: 'هادي البني', physicalLocation: 'مكتب المحامي'),
-  DocumentItem(id: '3', title: 'قرار المحكمة', documentType: DocumentType.decision, entityType: 'case', entityId: '1', entityTitle: 'الدعوى 2026/001', filePath: 'docs/cases/dec1.pdf', fileName: 'dec1.pdf', fileSize: 512*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,9), uploadedBy: 'أحمد محمد', physicalLocation: 'ديوان المحكمة'),
-  DocumentItem(id: '4', title: 'سند التوكيل', documentType: DocumentType.powerOfAttorney, entityType: 'case', entityId: '2', entityTitle: 'الدعوى 2026/002', filePath: 'docs/poa/poa2.pdf', fileName: 'poa2.pdf', fileSize: 1024*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,7), uploadedBy: 'هادي البني', physicalLocation: 'ديوان المحامي'),
-  DocumentItem(id: '5', title: 'إيصال دفع', documentType: DocumentType.receipt, entityType: 'case', entityId: '3', entityTitle: 'الدعوى 2026/003', filePath: 'docs/receipts/rec1.pdf', fileName: 'rec1.pdf', fileSize: 256*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,8), uploadedBy: 'محمد أحمد', physicalLocation: 'محكمة دمشق'),
+  DocumentItem(id: 'doc_1', title: 'وكالة عام 2026', documentType: DocumentType.powerOfAttorney, entityType: 'case', entityId: '1', entityTitle: 'الدعوى 2026/001', filePath: 'docs/poa/poa1.pdf', fileName: 'poa_2026_001.pdf', fileSize: 1024*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,5), uploadedBy: 'هادي البني', physicalLocation: 'ديوان المحامي'),
+  DocumentItem(id: 'doc_2', title: 'قرار المحكمة', documentType: DocumentType.decision, entityType: 'case', entityId: '1', entityTitle: 'الدعوى 2026/001', filePath: 'docs/cases/dec1.pdf', fileName: 'decision_2026_001.pdf', fileSize: 512*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,9), uploadedBy: 'أحمد محمد', physicalLocation: 'ديوان المحكمة'),
+  DocumentItem(id: 'doc_3', title: 'مذكرة قانونية', documentType: DocumentType.memo, entityType: 'case', entityId: '1', entityTitle: 'الدعوى 2026/001', filePath: 'docs/memos/memo1.docx', fileName: 'memo_2026_001.docx', fileSize: 256*1024, fileType: FileType.docx, uploadDate: DateTime(2026,7,8), uploadedBy: 'هادي البني', physicalLocation: 'مكتب المحامي'),
+  DocumentItem(id: 'doc_4', title: 'سند التوكيل', documentType: DocumentType.powerOfAttorney, entityType: 'case', entityId: '2', entityTitle: 'الدعوى 2026/002', filePath: 'docs/poa/poa2.pdf', fileName: 'poa_2026_002.pdf', fileSize: 1024*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,7), uploadedBy: 'هادي البني', physicalLocation: 'ديوان المحامي'),
+  DocumentItem(id: 'doc_5', title: 'عقد بيع', documentType: DocumentType.contract, entityType: 'contract', entityId: '1', entityTitle: 'عقد 2026/CONT/001', filePath: 'docs/contracts/cont1.docx', fileName: 'contract_2026_001.docx', fileSize: 2*1024*1024, fileType: FileType.docx, uploadDate: DateTime(2026,7,8), uploadedBy: 'هادي البني', physicalLocation: 'مكتب المحامي'),
 ]);
 
 class DocumentsScreen extends ConsumerWidget {
@@ -59,7 +60,7 @@ class DocCard extends StatelessWidget {
     return Card(margin: const EdgeInsets.only(bottom: 12), child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(children: [Icon(doc.fileType.icon, color: AppColors.primaryNavy, size: 24), const SizedBox(width: 8), Expanded(child: Text(doc.title, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold))), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: AppColors.backgroundLight, borderRadius: BorderRadius.circular(4)), child: Text(doc.fileType.displayName, style: AppTextStyles.bodySmallSecondary))]),
       const SizedBox(height: 8),
-      Row(children: [Icon(Icons.folder, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text('النوع: ${doc.documentType.displayName}', style: AppTextStyles.bodySmall), const SizedBox(width: 16), Icon(Icons.link, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text('مرتبط: ${doc.entityTitle}', style: AppTextStyles.bodySmall)]),
+      Row(children: [Icon(Icons.folder, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text('النوع: ${doc.documentType.displayName}', style: AppTextStyles.bodySmall), const SizedBox(width: 16), Icon(Icons.link, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: AppColors.primaryNavy.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Text('الملف: ${doc.entityTitle}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryNavy)))]),
       const SizedBox(height: 4),
       Row(children: [Icon(Icons.storage, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text('الحجم: ${doc.formattedSize}', style: AppTextStyles.bodySmallSecondary), const SizedBox(width: 16), Icon(Icons.calendar_today, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text('تاريخ: ${doc.uploadDate.year}-${doc.uploadDate.month.toString().padLeft(2,"0")}-${doc.uploadDate.day.toString().padLeft(2,"0")}', style: AppTextStyles.bodySmallSecondary)]),
       const SizedBox(height: 4),
@@ -67,15 +68,17 @@ class DocCard extends StatelessWidget {
       if(doc.isMissingOriginal) ...[const SizedBox(height: 8), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.warning, color: AppColors.error, size: 16), const SizedBox(width: 4), Text('بانتظار الأصل', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error))]))],
       if(doc.notes.isNotEmpty) ...[const SizedBox(height: 8), Text('ملاحظات: ${doc.notes}', style: AppTextStyles.bodySmallSecondary)],
       const SizedBox(height: 8),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton.icon(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فتح: ${doc.fileName}'), backgroundColor: AppColors.info)), icon: Icon(doc.fileType.icon, size: 16), label: const Text('فتح')), TextButton.icon(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ربط ب: ${doc.entityTitle}'), backgroundColor: AppColors.success)), icon: const Icon(Icons.link, size: 16), label: const Text('ربط')), IconButton(icon: const Icon(Icons.delete, color: AppColors.error), onPressed: () => showDialog(context: context, builder: (c) => AlertDialog(title: const Text('حذف'), content: Text('حذف ${doc.title}؟'), actions: [TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('إلغاء')), TextButton(onPressed: () { Navigator.of(c).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حذف ${doc.title}'), backgroundColor: AppColors.error)); }, style: TextButton.styleFrom(foregroundColor: AppColors.error), child: const Text('حذف'))]))])])
+      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton.icon(onPressed: () => openDocument(context, doc.id), icon: Icon(doc.fileType.icon, size: 16), label: const Text('فتح')), TextButton.icon(onPressed: () => _showMsg(context, 'الملف: ${doc.entityTitle}'), icon: const Icon(Icons.link, size: 16), label: const Text('الملف المرتبط')), IconButton(icon: const Icon(Icons.delete, color: AppColors.error), onPressed: () => _showDeleteDialog(context, doc), tooltip: 'حذف')])
     ])));
   }
+  void _showMsg(BuildContext c, String msg) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.info));
+  void _showDeleteDialog(BuildContext c, DocumentItem d) => showDialog(context: c, builder: (x) => AlertDialog(title: const Text('حذف'), content: Text('حذف ${d.title}؟'), actions: [TextButton(onPressed: () => Navigator.of(x).pop(), child: const Text('إلغاء')), TextButton(onPressed: () { Navigator.of(x).pop(); _showMsg(c, 'تم حذف ${d.title}'); }, style: TextButton.styleFrom(foregroundColor: AppColors.error), child: const Text('حذف'))]));
 }
 
 class UploadDocDialog extends StatefulWidget { const UploadDocDialog({super.key}); @override State<UploadDocDialog> createState() => _UploadDocDialogState(); }
 class _UploadDocDialogState extends State<UploadDocDialog> {
-  final _titleCtrl = TextEditingController(); String _type = 'case'; final _entityIdCtrl = TextEditingController();
-  FileType _fileType = FileType.pdf; DocumentType _docType = DocumentType.caseDocument;
+  final _titleCtrl = TextEditingController(); String _entityType = 'case'; final _entityIdCtrl = TextEditingController();
+  DocumentType _docType = DocumentType.caseDocument; FileType _fileType = FileType.pdf;
   final _locationCtrl = TextEditingController(); final _notesCtrl = TextEditingController();
   @override void dispose() { _titleCtrl.dispose(); _entityIdCtrl.dispose(); _locationCtrl.dispose(); _notesCtrl.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) {
@@ -86,7 +89,7 @@ class _UploadDocDialogState extends State<UploadDocDialog> {
       const SizedBox(height: 16),
       DropdownButtonFormField(value: _docType, items: DocumentType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(), onChanged: (v) => setState(() => _docType = v!), decoration: InputDecoration(labelText: 'نوع المستند', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
       const SizedBox(height: 16),
-      Row(children: [Expanded(child: DropdownButtonFormField(value: _type, items: const [DropdownMenuItem(value: 'case', child: Text('دعوى')), DropdownMenuItem(value: 'contract', child: Text('عقد')), DropdownMenuItem(value: 'company', child: Text('شركة')), DropdownMenuItem(value: 'procedure', child: Text('إجراء'))], onChanged: (v) => setState(() => _type = v!), decoration: InputDecoration(labelText: 'نوع الكيان', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 12), Expanded(child: TextField(controller: _entityIdCtrl, decoration: InputDecoration(labelText: 'رقم الكيان', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))]),
+      Row(children: [Expanded(child: DropdownButtonFormField(value: _entityType, items: const [DropdownMenuItem(value: 'case', child: Text('دعوى')), DropdownMenuItem(value: 'contract', child: Text('عقد')), DropdownMenuItem(value: 'company', child: Text('شركة')), DropdownMenuItem(value: 'procedure', child: Text('إجراء'))], onChanged: (v) => setState(() => _entityType = v!), decoration: InputDecoration(labelText: 'نوع الكيان', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 12), Expanded(child: TextField(controller: _entityIdCtrl, decoration: InputDecoration(labelText: 'رقم الكيان', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))))]),
       const SizedBox(height: 16),
       DropdownButtonFormField(value: _fileType, items: FileType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(), onChanged: (v) => setState(() => _fileType = v!), decoration: InputDecoration(labelText: 'نوع الملف', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
       const SizedBox(height: 16),
