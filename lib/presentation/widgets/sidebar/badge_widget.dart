@@ -6,8 +6,8 @@
 /// آخر تحديث: 2026-07-09
 
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 
 /// أنواع Badges حسب الأولوية
 enum BadgeType {

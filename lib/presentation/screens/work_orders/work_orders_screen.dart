@@ -53,7 +53,7 @@ class WOCard extends StatelessWidget {
         if(wo.status == WorkOrderStatus.draft) TextButton.icon(onPressed: () => showDialog(context: context, builder: (c) => PrintWorkOrderDialog(workOrder: wo)), icon: const Icon(Icons.print, size: 16), label: const Text('طباعة')),
         if(wo.status == WorkOrderStatus.printed) TextButton.icon(onPressed: () => showDialog(context: context, builder: (c) => WhatsAppDialog(workOrder: wo)), icon: const Icon(Icons.message, size: 16), label: const Text('واتساب')),
         if(wo.status == WorkOrderStatus.whatsappSent || wo.status == WorkOrderStatus.printed) TextButton.icon(onPressed: () => showDialog(context: context, builder: (c) => EnterWorkOrderResultDialog(workOrder: wo)), icon: const Icon(Icons.input, size: 16), label: const Text('نتيجة')),
-        if(wo.status == WorkOrderStatus.resultEntered) ElevatedButton.icon(onPressed: () => showDialog(context: context, builder: (c) => ApproveWorkOrderDialog(workOrder: wo)), icon: const Icon(Icons.check, size: 16), label: const Text('اعتماد'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white)),
+        if(wo.status == WorkOrderStatus.resultEntered) ElevatedButton.icon(onPressed: () => showDialog(context: context, builder: (c) => ApproveWorkOrderDialog(workOrder: wo)), icon: const Icon(Icons.check, size: 16), label: const Text('اعتماد'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: AppColors.textOnLight)),
       ])
     ])));
   }

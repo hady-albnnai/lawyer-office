@@ -8,9 +8,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../theme/custom_icons.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../theme/custom_icons.dart';
 import 'sidebar_item.dart';
 import 'badge_widget.dart';
 
@@ -82,7 +82,7 @@ class NavSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(sidebarStateProvider);
     final isExpanded = state.isExpanded;
-    final selectedRoute = state.selectedRoute ?? GoRouterState.of(context).location;
+    final selectedRoute = state.selectedRoute ?? GoRouterState.of(context).uri.toString();
     
     return Container(
       width: isExpanded ? expandedWidth : collapsedWidth,
@@ -205,16 +205,16 @@ class AppSidebar extends NavSidebar {
   Widget build(BuildContext context, WidgetRef ref) {
     return NavSidebar(
       items: items,
-      header: _buildHeader(context),
-      footer: _buildFooter(context),
+      header: _buildHeader(context, ref),
+      footer: _buildFooter(context, ref),
       expandedWidth: expandedWidth,
       collapsedWidth: collapsedWidth,
       onExpandedChanged: onExpandedChanged,
     );
   }
   
-  Widget _buildHeader(BuildContext context) {
-    final isExpanded = context.read(sidebarStateProvider).isExpanded;
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+    final isExpanded = ref.watch(sidebarStateProvider).isExpanded;
     
     if (!isExpanded) {
       return logo ?? Icon(
@@ -253,8 +253,8 @@ class AppSidebar extends NavSidebar {
     );
   }
   
-  Widget _buildFooter(BuildContext context) {
-    final isExpanded = context.read(sidebarStateProvider).isExpanded;
+  Widget _buildFooter(BuildContext context, WidgetRef ref) {
+    final isExpanded = ref.watch(sidebarStateProvider).isExpanded;
     
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,

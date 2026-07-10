@@ -3,16 +3,70 @@
 > **مرجع:** [../STAGE_5_IMPLEMENTATION_PLAN.md](../STAGE_5_IMPLEMENTATION_PLAN.md)
 > **آخر تحديث:** 2026-07-10 09:31
 > **المسؤول:** وكيل الذكي (Agent)
-> **الحالة:** جاري التنفيذ (60% مكتملة)
+> **الحالة:** جاري التنفيذ (تنفيذ شاشة التفاصيل منجز برمجياً - اختبار Windows متبقٍ)
 > **الموقع:** docs/STAGE_5_EXECUTION_LOG.md
 
 ---
+
+## تحديث 2026-07-10 - تنفيذ شاشة تفاصيل الدعوى
+
+| البند | الحالة | ملاحظات |
+|------|--------|---------|
+| تطوير `case_detail_screen.dart` | ✅ منجز برمجياً | تنفيذ 9 تبويبات كاملة مع Riverpod وModels من `case_models.dart` ودعم RTL وثيم موحد |
+| ربط GoRouter `/cases/:caseId` | ✅ منجز | أضيفت مسارات `/cases` و`/cases/create` و`/cases/:caseId` |
+| ربط قائمة الدعاوى بالتفاصيل | ✅ منجز | `CaseCard` ينتقل إلى `/cases/{id}` |
+| المستندات | ✅ منجز | إنشاء `document_models.dart` وربط/رفع/حذف/فتح المستندات عبر `DocumentViewer` |
+| تنظيف الكود القديم | ✅ منجز جزئياً | حذف `cases_list_screen.dart` القديم وتحديث `archive_screen.dart` لاستخدام `CasesScreen` |
+| اختبار ثابت داخل Arena | ✅ منجز | تم إنشاء `STAGE_5_STATIC_VALIDATION_LOG.md` وجميع فحوصات Stage 5 نجحت |
+| اختبار Flutter/Windows | ⚠️ غير منفذ داخل البيئة الحالية | بيئة Arena الحالية لا تحتوي `flutter` أو `dart`؛ تم تسجيل ذلك في `STAGE_5_WINDOWS_TEST_LOG.md` |
+| الرفع إلى GitHub | ✅ مكتمل | تم رفع Commit المرحلة 5 إلى `origin/main` بعد التحقق من صلاحية الكتابة |
+
+### الملفات المعدلة في هذا التحديث
+- `lib/presentation/screens/cases/case_detail_screen.dart`
+- `lib/presentation/screens/cases/case_models.dart`
+- `lib/presentation/screens/cases/cases_screen.dart`
+- `lib/presentation/screens/cases/create_case_wizard.dart`
+- `lib/presentation/navigation/app_router.dart`
+- `lib/presentation/screens/documents/document_models.dart`
+- `lib/presentation/screens/documents/documents_screen.dart`
+- `lib/presentation/screens/archive/archive_screen.dart`
+- تنظيفات داعمة: `files_screen.dart`، `work_order_models.dart`، `work_order_dialogs.dart`، `work_orders_screen.dart`، `agenda_screen.dart`، `app_colors.dart`، وملفات sidebar.
+
+### نتيجة فحص Stage 5 الثابت
+```text
+PASS - فحص مسارات الاستيراد النسبية
+PASS - case_detail يستخدم AppTheme.lightTheme
+PASS - case_detail يستخدم AppColors
+PASS - case_detail يستخدم AppTextStyles
+PASS - case_detail يستخدم Riverpod
+PASS - case_detail يحتوي 9 تبويبات
+PASS - case_detail بلا ألوان/أنماط hard-coded
+PASS - GoRouter يحتوي /cases/:caseId
+PASS - GoRouter يحتوي /cases/create
+PASS - حذف cases_list_screen.dart القديم
+```
+
+> ملاحظة دستورية: لا يتم إعلان اكتمال المرحلة 5 نهائياً قبل تشغيل اختبار Windows الحقيقي بنجاح.
+
+---
+
+
+### الرفع إلى GitHub
+
+- ✅ تم إنشاء Commit محلي بعنوان `feat(cases): implement case detail tabs`.
+- ✅ تم التحقق من صلاحية بيانات الاعتماد وصلاحية الكتابة على المستودع.
+- ✅ تم رفع التغييرات إلى GitHub على الفرع `main`.
+- تم توثيق ذلك في `STAGE_5_GITHUB_PUSH_LOG.md`.
+- الحالة الدستورية: خطوة الرفع مكتملة، ويبقى اختبار Windows الحقيقي متبقياً قبل إعلان اكتمال المرحلة 5 نهائياً.
+
+---
+
 
 ## 📊 ملخص الحالة
 
 | المؤشر | القيمة |
 |--------|--------|
-| **تقدم المرحلة** | 60% |
+| **تقدم المرحلة** | 85% (برمجة شاشة التفاصيل منجزة، الاختبار/الرفع متبقيان) |
 | **المهام المكتملة** | 2/4 |
 | **السطور المبرمجة** | 105,405 سطر |
 | **المهام المتبقية** | 2 |

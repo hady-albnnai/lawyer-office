@@ -205,7 +205,7 @@ class TodayExpensesTab extends ConsumerWidget {
     final items = ref.watch(agendaProvider).expenses;
     if(items.isEmpty) return Center(child: Text('لا يوجد مصاريف', style: AppTextStyles.bodyMediumSecondary));
     return ListView.builder(padding: const EdgeInsets.all(16), itemCount: items.length, itemBuilder: (c, i) => Card(margin: const EdgeInsets.only(bottom: 12), child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-      Icon(Icons.attach_money, color: AppColors.financeAlt, size: 24),
+      Icon(Icons.attach_money, color: AppColors.secondaryGold, size: 24),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(items[i].description, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text('${items[i].amount.toStringAsFixed(0)} ل.س', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold))])),
     ]))));

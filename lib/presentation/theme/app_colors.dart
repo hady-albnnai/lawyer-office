@@ -307,15 +307,6 @@ class AppColors {
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
-      appBarTheme: const AppBarTheme(
-        centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Cairo',
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: textOnLight,
-        ),
-      ),
       // دعم RTL
       textTheme: const TextTheme(
         displayLarge: TextStyle(fontFamily: 'Cairo'),

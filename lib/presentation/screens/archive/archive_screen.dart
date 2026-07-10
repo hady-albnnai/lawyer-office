@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../persons/persons_list_screen.dart';
 import '../poa/poa_list_screen.dart';
-import '../cases/cases_list_screen.dart';
+import '../cases/cases_screen.dart';
 import '../companies/companies_list_screen.dart';
 import '../contracts/contracts_list_screen.dart';
 import '../admin_procedures/procedures_list_screen.dart';
@@ -58,7 +58,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
           child: TabBarView(
             controller: _tabController,
             children: [
-              const CasesListScreen(),
+              const CasesScreen(),
               const ProceduresListScreen(),
               const CompaniesListScreen(),
               const ContractsListScreen(),

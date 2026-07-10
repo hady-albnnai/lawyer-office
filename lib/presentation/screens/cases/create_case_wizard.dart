@@ -170,7 +170,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.textOnLight,
                         ),
                       )
                     : const Text('إنشاء الدعوى'),
@@ -361,7 +361,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : Colors.transparent,
+                color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : AppColors.cardBackground,
                 border: Border.all(color: AppColors.cardBorder, width: 0.5),
               ),
               child: Row(
@@ -489,7 +489,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : Colors.transparent,
+                color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : AppColors.cardBackground,
                 border: Border.all(color: AppColors.cardBorder, width: 0.5),
               ),
               child: Row(
@@ -866,7 +866,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : Colors.transparent,
+                color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : AppColors.cardBackground,
                 border: Border.all(color: AppColors.cardBorder, width: 0.5),
               ),
               child: Row(
@@ -1305,31 +1305,6 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
         ),
       );
     }
-  }
-
-  // ===========================================================================
-  // حوارات إضافة
-  // ===========================================================================
-  
-  void _showAddClientDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const AddClientDialog(),
-    );
-  }
-  
-  void _showAddPoaDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const AddPoaDialog(),
-    );
-  }
-  
-  void _showAddOpponentDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const AddOpponentDialog(),
-    );
   }
 }
 

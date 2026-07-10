@@ -86,7 +86,7 @@ class ApproveWorkOrderDialog extends StatelessWidget {
       const SizedBox(height: 24),
       Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.warning, width: 0.5)), child: Row(children: [Icon(Icons.info_outline, color: AppColors.warning, size: 20), const SizedBox(width: 8), Expanded(child: Text('بعد الاعتماد، سيتم معالجتها تلقائياً', style: AppTextStyles.bodySmall))])),
       const SizedBox(height: 24),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم الاعتماد'), backgroundColor: AppColors.success)); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white), child: const Text('اعتماد'))])
+      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم الاعتماد'), backgroundColor: AppColors.success)); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: AppColors.textOnLight), child: const Text('اعتماد'))])
     ])));
   }
 }
@@ -124,7 +124,7 @@ class WhatsAppDialog extends StatelessWidget {
       const SizedBox(height: 16),
       Row(children: [Icon(Icons.phone, color: AppColors.textSecondary, size: 18), const SizedBox(width: 8), Text('إلى: ${workOrder.assignedToName} - ${workOrder.assignedToPhone}', style: AppTextStyles.bodySmall)]),
       const SizedBox(height: 24),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton.icon(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إرسال واتساب'), backgroundColor: AppColors.success)); }, icon: const Icon(Icons.message), label: const Text('إرسال واتساب'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white))])
+      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton.icon(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إرسال واتساب'), backgroundColor: AppColors.success)); }, icon: const Icon(Icons.message), label: const Text('إرسال واتساب'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: AppColors.textOnLight))])
     ])));
   }
 }

@@ -4,13 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../documents/document_models.dart' as doc_models;
 import '../documents/document_viewer.dart';
 
-enum FileType { case, contract, company, adminProcedure, agency
+enum FileType { caseFile, contract, company, adminProcedure, agency;
 String get displayName => const ['دعوى','عقد','شركة','إجراء إداري','وكالة'][index]; }
-enum FileStatus { active, completed, archived
+enum FileStatus { active, completed, archived;
 String get displayName => const ['عاملة','منتهية','مؤرشفة'][index];
-Color get color => const [Color(0xFF17A2B8), Colors.green, Colors.grey][index]; }
+Color get color => const [AppColors.info, AppColors.success, AppColors.textSecondary][index]; }
 
 class FileItem {
   final String id, fileNumber, title, court;
@@ -24,9 +25,9 @@ class FileItem {
 }
 
 final filesProvider = Provider<List<FileItem>>((ref) => [
-  FileItem(id: '1', fileNumber: '2026/001', title: 'دعوى تعويض', type: FileType.case, court: 'محكمة دمشق الأولى', status: FileStatus.active, hasDeficiencies: true, deficiencyCount: 2, nextSessionDate: DateTime(2026, 7, 15), hasBaseNumber: true, baseNumber: '12345', createdAt: DateTime(2026, 7, 1), lastUpdated: DateTime(2026, 7, 9), documentCount: 3, documentIds: ['doc_1', 'doc_2', 'doc_3']),
-  FileItem(id: '2', fileNumber: '2026/002', title: 'دعوى استئناف', type: FileType.case, court: 'محكمة الاستئناف', status: FileStatus.active, hasDeficiencies: true, deficiencyCount: 1, nextSessionDate: DateTime(2026, 7, 10), hasBaseNumber: false, createdAt: DateTime(2026, 7, 2), lastUpdated: DateTime(2026, 7, 8), documentCount: 2, documentIds: ['doc_4', 'doc_5']),
-  FileItem(id: '3', fileNumber: '2026/003', title: 'دعوى تجارية', type: FileType.case, court: 'محكمة دمشق الأولى', status: FileStatus.completed, hasDeficiencies: false, nextSessionDate: null, hasBaseNumber: true, baseNumber: '67890', createdAt: DateTime(2026, 6, 15), lastUpdated: DateTime(2026, 7, 5), documentCount: 5, documentIds: ['doc_6', 'doc_7', 'doc_8', 'doc_9', 'doc_10']),
+  FileItem(id: '1', fileNumber: '2026/001', title: 'دعوى تعويض', type: FileType.caseFile, court: 'محكمة دمشق الأولى', status: FileStatus.active, hasDeficiencies: true, deficiencyCount: 2, nextSessionDate: DateTime(2026, 7, 15), hasBaseNumber: true, baseNumber: '12345', createdAt: DateTime(2026, 7, 1), lastUpdated: DateTime(2026, 7, 9), documentCount: 3, documentIds: ['doc_1', 'doc_2', 'doc_3']),
+  FileItem(id: '2', fileNumber: '2026/002', title: 'دعوى استئناف', type: FileType.caseFile, court: 'محكمة الاستئناف', status: FileStatus.active, hasDeficiencies: true, deficiencyCount: 1, nextSessionDate: DateTime(2026, 7, 10), hasBaseNumber: false, createdAt: DateTime(2026, 7, 2), lastUpdated: DateTime(2026, 7, 8), documentCount: 2, documentIds: ['doc_4', 'doc_5']),
+  FileItem(id: '3', fileNumber: '2026/003', title: 'دعوى تجارية', type: FileType.caseFile, court: 'محكمة دمشق الأولى', status: FileStatus.completed, hasDeficiencies: false, nextSessionDate: null, hasBaseNumber: true, baseNumber: '67890', createdAt: DateTime(2026, 6, 15), lastUpdated: DateTime(2026, 7, 5), documentCount: 5, documentIds: ['doc_6', 'doc_7', 'doc_8', 'doc_9', 'doc_10']),
 ]);
 
 class FilesScreen extends ConsumerWidget {
@@ -64,7 +65,7 @@ class FileCard extends StatelessWidget {
       const SizedBox(height: 8),
       Text(file.title, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
       const SizedBox(height: 4),
-      if(file.type == FileType.case && file.court.isNotEmpty) ...[Row(children: [Icon(Icons.balance, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text(file.court, style: AppTextStyles.bodySmallSecondary)]), const SizedBox(height: 4)],
+      if(file.type == FileType.caseFile && file.court.isNotEmpty) ...[Row(children: [Icon(Icons.balance, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text(file.court, style: AppTextStyles.bodySmallSecondary)]), const SizedBox(height: 4)],
       if(file.hasBaseNumber && file.baseNumber != null) ...[Row(children: [Icon(Icons.confirmation_number, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text('رقم الأساس: ${file.baseNumber}', style: AppTextStyles.bodySmallSecondary)]), const SizedBox(height: 4)] else ...[Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Text('بانتظار رقم أساس', style: AppTextStyles.bodySmall.copyWith(color: AppColors.warning))), const SizedBox(height: 4)],
       if(file.nextSessionDate != null) ...[Row(children: [Icon(Icons.calendar_today, color: AppColors.textSecondary, size: 16), const SizedBox(width: 4), Text('الجلسة: ${file.nextSessionDate!.year}-${file.nextSessionDate!.month.toString().padLeft(2,"0")}-${file.nextSessionDate!.day.toString().padLeft(2,"0")}', style: AppTextStyles.bodySmall.copyWith(color: file.isOverdue ? AppColors.error : AppColors.textPrimary, fontWeight: file.isOverdue ? FontWeight.bold : FontWeight.normal))]), const SizedBox(height: 4)],
       if(file.hasDeficiencies) ...[Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Text('نواقص: ${file.deficiencyCount}', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error))), const SizedBox(height: 4)],
@@ -84,15 +85,15 @@ class FileDocsDialog extends StatelessWidget {
   @override Widget build(BuildContext context) {
     final docs = _getDocs(file);
     return Dialog(insetPadding: const EdgeInsets.all(16), child: Container(constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.primaryNavy, borderRadius: const BorderRadius.vertical(top: Radius.circular(8))), child: Row(children: [Icon(Icons.attach_file, color: Colors.white, size: 24), const SizedBox(width: 8), Text('مستندات الملف: ${file.fileNumber}', style: AppTextStyles.headline6.copyWith(color: Colors.white))])),
+      Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppColors.primaryNavy, borderRadius: const BorderRadius.vertical(top: Radius.circular(8))), child: Row(children: [Icon(Icons.attach_file, color: AppColors.textOnLight, size: 24), const SizedBox(width: 8), Text('مستندات الملف: ${file.fileNumber}', style: AppTextStyles.headline6.copyWith(color: AppColors.textOnLight))])),
       Expanded(child: ListView.builder(padding: const EdgeInsets.all(16), itemCount: docs.length, itemBuilder: (c, i) => ListTile(leading: Icon(docs[i].fileType.icon, color: AppColors.primaryNavy, size: 24), title: Text(docs[i].title, style: AppTextStyles.bodyMedium), subtitle: Text('${docs[i].fileType.displayName} - ${docs[i].formattedSize}', style: AppTextStyles.bodySmallSecondary), trailing: IconButton(icon: const Icon(Icons.open_in_new, size: 18), onPressed: () => openDocument(context, docs[i].id), tooltip: 'فتح'), onTap: () => openDocument(context, docs[i].id)))),
       Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.cardBackground, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)), border: Border.all(color: AppColors.cardBorder, width: 0.5)), child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إغلاق'))]))
     ])));
   }
-  List<DocumentItem> _getDocs(FileItem f) => [
-    DocumentItem(id: f.documentIds![0], title: 'وكالة ${f.fileNumber}', documentType: DocumentType.powerOfAttorney, entityType: f.type.name, entityId: f.id, entityTitle: f.title, filePath: 'docs/poa/${f.id}_1.pdf', fileName: 'poa_${f.id}_1.pdf', fileSize: 1024*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,5), uploadedBy: 'هادي البني', physicalLocation: 'ديوان المحامي'),
-    DocumentItem(id: f.documentIds![1], title: 'قرار ${f.fileNumber}', documentType: DocumentType.decision, entityType: f.type.name, entityId: f.id, entityTitle: f.title, filePath: 'docs/cases/dec${f.id}_1.pdf', fileName: 'dec_${f.id}_1.pdf', fileSize: 512*1024, fileType: FileType.pdf, uploadDate: DateTime(2026,7,9), uploadedBy: 'أحمد محمد', physicalLocation: 'ديوان المحكمة'),
-    if(f.documentIds!.length > 2) DocumentItem(id: f.documentIds![2], title: 'مذكرة ${f.fileNumber}', documentType: DocumentType.memo, entityType: f.type.name, entityId: f.id, entityTitle: f.title, filePath: 'docs/memos/memo${f.id}_1.docx', fileName: 'memo_${f.id}_1.docx', fileSize: 256*1024, fileType: FileType.docx, uploadDate: DateTime(2026,7,8), uploadedBy: 'هادي البني', physicalLocation: 'مكتب المحامي'),
+  List<doc_models.DocumentItem> _getDocs(FileItem f) => [
+    doc_models.DocumentItem(id: f.documentIds![0], title: 'وكالة ${f.fileNumber}', documentType: doc_models.DocumentType.powerOfAttorney, entityType: f.type.name, entityId: f.id, entityTitle: f.title, filePath: 'docs/poa/${f.id}_1.pdf', fileName: 'poa_${f.id}_1.pdf', fileSize: 1024*1024, fileType: doc_models.FileType.pdf, uploadDate: DateTime(2026,7,5), uploadedBy: 'هادي البني', physicalLocation: 'ديوان المحامي'),
+    doc_models.DocumentItem(id: f.documentIds![1], title: 'قرار ${f.fileNumber}', documentType: doc_models.DocumentType.decision, entityType: f.type.name, entityId: f.id, entityTitle: f.title, filePath: 'docs/cases/dec${f.id}_1.pdf', fileName: 'dec_${f.id}_1.pdf', fileSize: 512*1024, fileType: doc_models.FileType.pdf, uploadDate: DateTime(2026,7,9), uploadedBy: 'أحمد محمد', physicalLocation: 'ديوان المحكمة'),
+    if(f.documentIds!.length > 2) doc_models.DocumentItem(id: f.documentIds![2], title: 'مذكرة ${f.fileNumber}', documentType: doc_models.DocumentType.memo, entityType: f.type.name, entityId: f.id, entityTitle: f.title, filePath: 'docs/memos/memo${f.id}_1.docx', fileName: 'memo_${f.id}_1.docx', fileSize: 256*1024, fileType: doc_models.FileType.docx, uploadDate: DateTime(2026,7,8), uploadedBy: 'هادي البني', physicalLocation: 'مكتب المحامي'),
   ];
 }
 

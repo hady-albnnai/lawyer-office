@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../screens/main_layout_screen.dart';
 
-/// تكوين نظام الملاحة والتوجيه الموحد في التطبيق باستخدام GoRouter
+import '../screens/cases/case_detail_screen.dart';
+import '../screens/cases/cases_screen.dart';
+import '../screens/cases/create_case_wizard.dart';
+import '../screens/main_layout_screen.dart';
+import '../screens/new_work/new_work_screen.dart';
+import '../screens/search_reports/search_reports_screen.dart';
+
+/// تكوين نظام الملاحة والتوجيه الموحد في التطبيق باستخدام GoRouter.
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
   routes: [
@@ -11,6 +17,42 @@ final GoRouter appRouter = GoRouter(
       name: 'dashboard',
       builder: (BuildContext context, GoRouterState state) {
         return const MainLayoutScreen();
+      },
+    ),
+    GoRoute(
+      path: '/new-work',
+      name: 'new-work',
+      builder: (BuildContext context, GoRouterState state) {
+        return const NewWorkScreen();
+      },
+    ),
+    GoRoute(
+      path: '/search-reports',
+      name: 'search-reports',
+      builder: (BuildContext context, GoRouterState state) {
+        return const SearchReportsScreen();
+      },
+    ),
+    GoRoute(
+      path: '/cases',
+      name: 'cases',
+      builder: (BuildContext context, GoRouterState state) {
+        return const CasesScreen();
+      },
+    ),
+    GoRoute(
+      path: '/cases/create',
+      name: 'case-create',
+      builder: (BuildContext context, GoRouterState state) {
+        return const CreateCaseWizard();
+      },
+    ),
+    GoRoute(
+      path: '/cases/:caseId',
+      name: 'case-detail',
+      builder: (BuildContext context, GoRouterState state) {
+        final caseId = int.tryParse(state.pathParameters['caseId'] ?? '0') ?? 0;
+        return CaseDetailScreen(caseId: caseId);
       },
     ),
   ],

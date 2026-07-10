@@ -1,24 +1,698 @@
-import 'dart:io';
+/// شاشة تفاصيل الدعوى - المرحلة 5.
+///
+/// تنفذ ملف الدعوى الكامل بتسعة تبويبات: الملخص، الأطراف، المراحل، الجلسات،
+/// المستندات، المالية، النواقص، الخط الزمني، والإنهاء. تعتمد الشاشة على
+/// Riverpod لإدارة حالة الدعوى وتستخدم AppTheme/AppColors/AppTextStyles فقط.
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' as drift;
-import 'package:file_picker/file_picker.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/enums/app_enums.dart';
-import '../../../data/database/database.dart';
-import '../../providers/app_providers.dart';
 
-/// شاشة ملف الدعوى الموحد مع تبويباته التسعة وشريط الحالة الدائم (CaseDetailScreen V6.2)
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
+import '../documents/document_models.dart';
+import '../documents/document_viewer.dart';
+import 'case_models.dart';
+import 'cases_screen.dart' show casesProvider;
+
+/// نتيجة إغلاق الدعوى.
+enum CaseClosureResult {
+  win,
+  loss,
+  settlement,
+  cancellation;
+
+  String get displayName => const [
+        'فوز لصالح الموكل',
+        'خسارة الدعوى',
+        'تصالح / تسوية',
+        'إلغاء / شطب',
+      ][index];
+
+  String get timelineCode => const [
+        'termination_win',
+        'termination_loss',
+        'termination_settlement',
+        'termination_cancellation',
+      ][index];
+
+  Color get color => const [
+        AppColors.success,
+        AppColors.error,
+        AppColors.info,
+        AppColors.warning,
+      ][index];
+}
+
+/// فلتر الخط الزمني.
+enum TimelineFilter {
+  all,
+  phases,
+  sessions,
+  documents,
+  finance,
+  deficiencies,
+  termination;
+
+  String get displayName => const [
+        'جميع الأحداث',
+        'المراحل القضائية',
+        'الجلسات والإجراءات',
+        'المستندات',
+        'المالية',
+        'النواقص',
+        'الإنهاء',
+      ][index];
+
+  bool accepts(String eventType) {
+    switch (this) {
+      case TimelineFilter.all:
+        return true;
+      case TimelineFilter.phases:
+        return eventType.contains('phase');
+      case TimelineFilter.sessions:
+        return eventType.contains('session') || eventType.contains('action');
+      case TimelineFilter.documents:
+        return eventType.contains('document');
+      case TimelineFilter.finance:
+        return eventType.contains('fee') || eventType.contains('expense') || eventType.contains('finance');
+      case TimelineFilter.deficiencies:
+        return eventType.contains('deficiency');
+      case TimelineFilter.termination:
+        return eventType.contains('termination');
+    }
+  }
+}
+
+/// طرف في الدعوى لعرض الموكلين والخصوم.
+class CasePartyView {
+  final String id;
+  final String name;
+  final String role;
+  final String phone;
+  final String address;
+  final bool isPrimary;
+
+  const CasePartyView({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.phone,
+    required this.address,
+    this.isPrimary = false,
+  });
+}
+
+/// وكالة مرتبطة بالدعوى.
+class CaseAgencyView {
+  final String id;
+  final String number;
+  final String type;
+  final String principal;
+  final String agent;
+  final DateTime issuedAt;
+  final DateTime? expiresAt;
+  final bool isActive;
+
+  const CaseAgencyView({
+    required this.id,
+    required this.number,
+    required this.type,
+    required this.principal,
+    required this.agent,
+    required this.issuedAt,
+    this.expiresAt,
+    this.isActive = true,
+  });
+}
+
+/// حالة شاشة تفاصيل الدعوى.
+class CaseDetailState {
+  final Case? caseItem;
+  final List<CasePartyView> clients;
+  final List<CasePartyView> opponents;
+  final List<CaseAgencyView> agencies;
+  final List<CasePhase> phases;
+  final List<CaseSession> sessions;
+  final List<CaseAction> actions;
+  final List<DocumentItem> documents;
+  final List<CaseDeficiency> deficiencies;
+  final List<CaseTimelineEvent> timeline;
+  final TimelineFilter timelineFilter;
+  final bool isTerminated;
+  final CaseClosureResult? closureResult;
+  final String closureSummary;
+  final DateTime? closedAt;
+
+  const CaseDetailState({
+    required this.caseItem,
+    this.clients = const [],
+    this.opponents = const [],
+    this.agencies = const [],
+    this.phases = const [],
+    this.sessions = const [],
+    this.actions = const [],
+    this.documents = const [],
+    this.deficiencies = const [],
+    this.timeline = const [],
+    this.timelineFilter = TimelineFilter.all,
+    this.isTerminated = false,
+    this.closureResult,
+    this.closureSummary = '',
+    this.closedAt,
+  });
+
+  int get openDeficienciesCount =>
+      deficiencies.where((item) => !item.isResolved).length;
+
+  double get totalFees => caseItem?.totalFees ?? 0;
+
+  double get totalExpenses => caseItem?.totalExpenses ?? 0;
+
+  double get balance => totalFees - totalExpenses;
+
+  List<CaseTimelineEvent> get filteredTimeline {
+    final filtered = timeline
+        .where((event) => timelineFilter.accepts(event.eventType))
+        .toList()
+      ..sort((a, b) => b.eventDate.compareTo(a.eventDate));
+    return filtered;
+  }
+
+  CaseSession? get nextSession {
+    final upcoming = sessions
+        .where((session) => session.sessionDate.isAfter(DateTime.now()))
+        .toList()
+      ..sort((a, b) => a.sessionDate.compareTo(b.sessionDate));
+    return upcoming.firstOrNull;
+  }
+
+  CaseDetailState copyWith({
+    Case? caseItem,
+    List<CasePartyView>? clients,
+    List<CasePartyView>? opponents,
+    List<CaseAgencyView>? agencies,
+    List<CasePhase>? phases,
+    List<CaseSession>? sessions,
+    List<CaseAction>? actions,
+    List<DocumentItem>? documents,
+    List<CaseDeficiency>? deficiencies,
+    List<CaseTimelineEvent>? timeline,
+    TimelineFilter? timelineFilter,
+    bool? isTerminated,
+    CaseClosureResult? closureResult,
+    String? closureSummary,
+    DateTime? closedAt,
+  }) {
+    return CaseDetailState(
+      caseItem: caseItem ?? this.caseItem,
+      clients: clients ?? this.clients,
+      opponents: opponents ?? this.opponents,
+      agencies: agencies ?? this.agencies,
+      phases: phases ?? this.phases,
+      sessions: sessions ?? this.sessions,
+      actions: actions ?? this.actions,
+      documents: documents ?? this.documents,
+      deficiencies: deficiencies ?? this.deficiencies,
+      timeline: timeline ?? this.timeline,
+      timelineFilter: timelineFilter ?? this.timelineFilter,
+      isTerminated: isTerminated ?? this.isTerminated,
+      closureResult: closureResult ?? this.closureResult,
+      closureSummary: closureSummary ?? this.closureSummary,
+      closedAt: closedAt ?? this.closedAt,
+    );
+  }
+}
+
+/// مزود تفاصيل الدعوى بحسب رقم المسار /cases/:caseId.
+final caseDetailProvider =
+    StateNotifierProvider.family<CaseDetailNotifier, CaseDetailState, int>(
+  (ref, caseId) {
+    final caseItems = ref.watch(casesProvider);
+    final documents = ref.watch(documentsProvider);
+    final caseItem = caseItems.firstWhereOrNull((item) => item.id == '$caseId');
+    return CaseDetailNotifier(caseItem, documents);
+  },
+);
+
+/// Notifier لإدارة كل عمليات الشاشة محلياً لحين الربط النهائي بمستودع Drift.
+class CaseDetailNotifier extends StateNotifier<CaseDetailState> {
+  CaseDetailNotifier(Case? caseItem, List<DocumentItem> allDocuments)
+      : super(_initialState(caseItem, allDocuments));
+
+  static CaseDetailState _initialState(
+    Case? caseItem,
+    List<DocumentItem> allDocuments,
+  ) {
+    if (caseItem == null) {
+      return const CaseDetailState(caseItem: null);
+    }
+
+    final relatedDocuments = allDocuments
+        .where((document) =>
+            document.entityType == 'case' && document.entityId == caseItem.id)
+        .toList();
+
+    final documents = relatedDocuments.isNotEmpty
+        ? relatedDocuments
+        : caseItem.documentIds
+            .map(
+              (documentId) => DocumentItem(
+                id: documentId,
+                title: 'مستند الدعوى $documentId',
+                documentType: DocumentType.caseDocument,
+                entityType: 'case',
+                entityId: caseItem.id,
+                entityTitle: caseItem.title,
+                filePath: 'docs/cases/$documentId.pdf',
+                fileName: '${caseItem.caseNumber}_$documentId.pdf',
+                fileSize: 512 * 1024,
+                fileType: FileType.pdf,
+                uploadDate: caseItem.lastUpdated ?? caseItem.creationDate,
+                uploadedBy: 'مكتب المحامي',
+                physicalLocation: 'أرشيف الدعوى',
+              ),
+            )
+            .toList();
+
+    final clients = _buildParties(
+      ids: caseItem.clientIds,
+      names: const ['أحمد محمد', 'شركة الأمانة للتجارة', 'هادي فيصل البني'],
+      rolePrefix: 'موكل',
+      primaryRole: 'مدعي أصلي',
+    );
+    final opponents = _buildParties(
+      ids: caseItem.opponentIds,
+      names: const ['محمد أحمد', 'شركة التطوير الحديث', 'سامي عبد الله'],
+      rolePrefix: 'خصم',
+      primaryRole: 'مدعى عليه',
+    );
+    final agencies = _buildAgencies(caseItem, clients);
+    final phases = caseItem.phases.isNotEmpty
+        ? caseItem.phases
+        : [
+            CasePhase(
+              id: 'phase_${caseItem.id}_1',
+              type: CasePhaseType.initial,
+              court: caseItem.court,
+              baseNumber: caseItem.baseNumber,
+              baseYear: caseItem.baseYear,
+              startDate: caseItem.creationDate,
+              description: 'افتتاح الدعوى وتسجيلها أمام ${caseItem.court}',
+            ),
+          ];
+    final actions = caseItem.actions.isNotEmpty
+        ? caseItem.actions
+        : [
+            CaseAction(
+              id: 'action_${caseItem.id}_1',
+              title: 'مراجعة ديوان المحكمة',
+              description: 'متابعة قيد الملف وتأكيد المرفقات الأساسية.',
+              actionDate: caseItem.creationDate.add(const Duration(days: 1)),
+              dueDate: caseItem.nextSession?.sessionDate,
+              assignedTo: 'المعقب',
+              status: 'pending',
+            ),
+          ];
+
+    return CaseDetailState(
+      caseItem: caseItem,
+      clients: clients,
+      opponents: opponents,
+      agencies: agencies,
+      phases: phases,
+      sessions: caseItem.sessions,
+      actions: actions,
+      documents: documents,
+      deficiencies: caseItem.deficiencies,
+      timeline: _buildTimeline(
+        caseItem: caseItem,
+        phases: phases,
+        sessions: caseItem.sessions,
+        actions: actions,
+        documents: documents,
+        deficiencies: caseItem.deficiencies,
+      ),
+    );
+  }
+
+  static List<CasePartyView> _buildParties({
+    required List<String> ids,
+    required List<String> names,
+    required String rolePrefix,
+    required String primaryRole,
+  }) {
+    if (ids.isEmpty) {
+      return [
+        CasePartyView(
+          id: '${rolePrefix}_1',
+          name: '$rolePrefix افتراضي',
+          role: primaryRole,
+          phone: 'غير محدد',
+          address: 'غير محدد',
+          isPrimary: true,
+        ),
+      ];
+    }
+
+    return ids.asMap().entries.map((entry) {
+      final index = entry.key;
+      return CasePartyView(
+        id: entry.value,
+        name: names[index % names.length],
+        role: index == 0 ? primaryRole : '$rolePrefix إضافي',
+        phone: '09${(90000000 + index * 224411).toString().padLeft(8, '0')}',
+        address: index.isEven ? 'دمشق - المزة' : 'السويداء - المركز',
+        isPrimary: index == 0,
+      );
+    }).toList();
+  }
+
+  static List<CaseAgencyView> _buildAgencies(
+    Case caseItem,
+    List<CasePartyView> clients,
+  ) {
+    final ids = caseItem.poaIds.isNotEmpty ? caseItem.poaIds : ['poa_${caseItem.id}'];
+    return ids.asMap().entries.map((entry) {
+      return CaseAgencyView(
+        id: entry.value,
+        number: 'وكالة-${caseItem.baseYear ?? caseItem.creationDate.year}-${(entry.key + 1).toString().padLeft(3, '0')}',
+        type: entry.key.isEven ? 'وكالة قضائية عامة' : 'وكالة خاصة بالدعوى',
+        principal: clients.isEmpty ? 'الموكل' : clients.first.name,
+        agent: 'الأستاذ هادي فيصل البني',
+        issuedAt: caseItem.creationDate.subtract(Duration(days: 7 + entry.key)),
+        expiresAt: caseItem.creationDate.add(Duration(days: 365 + entry.key * 30)),
+        isActive: true,
+      );
+    }).toList();
+  }
+
+  static List<CaseTimelineEvent> _buildTimeline({
+    required Case caseItem,
+    required List<CasePhase> phases,
+    required List<CaseSession> sessions,
+    required List<CaseAction> actions,
+    required List<DocumentItem> documents,
+    required List<CaseDeficiency> deficiencies,
+  }) {
+    final events = <CaseTimelineEvent>[
+      ...caseItem.timeline,
+      CaseTimelineEvent(
+        id: 'timeline_created_${caseItem.id}',
+        eventDate: caseItem.creationDate,
+        eventType: 'case_created',
+        description: 'تم فتح ملف الدعوى رقم ${caseItem.caseNumber}.',
+        createdBy: 'مكتب المحامي',
+      ),
+      ...phases.map(
+        (phase) => CaseTimelineEvent(
+          id: 'timeline_phase_${phase.id}',
+          eventDate: phase.startDate,
+          eventType: 'phase_started',
+          description: 'بدء مرحلة ${phase.type.displayName} أمام ${phase.court}.',
+          createdBy: 'النظام',
+          documents: phase.documents,
+        ),
+      ),
+      ...sessions.map(
+        (session) => CaseTimelineEvent(
+          id: 'timeline_session_${session.id}',
+          eventDate: session.sessionDate,
+          eventType: 'session_${session.status.name}',
+          description: 'جلسة ${session.type.displayName} في ${session.court} - ${session.decision.isEmpty ? 'بانتظار النتيجة' : session.decision}.',
+          createdBy: 'جدول الجلسات',
+          documents: session.documents,
+        ),
+      ),
+      ...actions.map(
+        (action) => CaseTimelineEvent(
+          id: 'timeline_action_${action.id}',
+          eventDate: action.actionDate,
+          eventType: 'action_${action.status}',
+          description: '${action.title}: ${action.description}',
+          createdBy: action.assignedTo.isEmpty ? 'المكتب' : action.assignedTo,
+          documents: action.documents,
+        ),
+      ),
+      ...documents.map(
+        (document) => CaseTimelineEvent(
+          id: 'timeline_document_${document.id}',
+          eventDate: document.uploadDate,
+          eventType: 'document_added',
+          description: 'تم ربط المستند: ${document.title}.',
+          createdBy: document.uploadedBy,
+          documents: [document.id],
+        ),
+      ),
+      ...deficiencies.map(
+        (deficiency) => CaseTimelineEvent(
+          id: 'timeline_deficiency_${deficiency.id}',
+          eventDate: deficiency.createdAt,
+          eventType: deficiency.isResolved
+              ? 'deficiency_resolved'
+              : 'deficiency_opened',
+          description: deficiency.description,
+          createdBy: 'نظام النواقص',
+        ),
+      ),
+      ...caseItem.fees.map(
+        (fee) => CaseTimelineEvent(
+          id: 'timeline_fee_${fee.id}',
+          eventDate: fee.paymentDate ?? fee.agreementDate,
+          eventType: fee.status == 'paid' ? 'fee_paid' : 'fee_agreed',
+          description: 'اتفاق أتعاب بقيمة ${fee.amount.toStringAsFixed(0)} ${fee.currency}.',
+          createdBy: 'الإدارة المالية',
+        ),
+      ),
+      ...caseItem.expenses.map(
+        (expense) => CaseTimelineEvent(
+          id: 'timeline_expense_${expense.id}',
+          eventDate: expense.expenseDate,
+          eventType: 'expense_added',
+          description: 'مصروف: ${expense.description} بقيمة ${expense.amount.toStringAsFixed(0)} ${expense.currency}.',
+          createdBy: expense.paidBy.isEmpty ? 'الإدارة المالية' : expense.paidBy,
+          documents: expense.receipts,
+        ),
+      ),
+    ];
+
+    events.sort((a, b) => b.eventDate.compareTo(a.eventDate));
+    return events;
+  }
+
+  void addSession({
+    required DateTime sessionDate,
+    required TimeOfDay sessionTime,
+    required SessionType type,
+    required String decision,
+    required String notes,
+  }) {
+    final caseItem = state.caseItem;
+    if (caseItem == null) {
+      return;
+    }
+
+    final session = CaseSession(
+      id: 'session_${DateTime.now().microsecondsSinceEpoch}',
+      sessionDate: sessionDate,
+      sessionTime: sessionTime,
+      type: type,
+      status: SessionStatus.scheduled,
+      court: caseItem.court,
+      decision: decision,
+      result: SessionResult(notes: notes, decision: decision),
+      attendees: const ['المحامي الوكيل'],
+    );
+
+    _appendTimeline(
+      CaseTimelineEvent(
+        id: 'timeline_${session.id}',
+        eventDate: sessionDate,
+        eventType: 'session_added',
+        description: 'تمت إضافة جلسة ${type.displayName} بتاريخ ${_formatDateValue(sessionDate)}.',
+        createdBy: 'مكتب المحامي',
+      ),
+      sessions: [...state.sessions, session],
+    );
+  }
+
+  void addDocument(DocumentItem document) {
+    _appendTimeline(
+      CaseTimelineEvent(
+        id: 'timeline_document_${document.id}',
+        eventDate: document.uploadDate,
+        eventType: 'document_added',
+        description: 'تم رفع / ربط المستند: ${document.title}.',
+        createdBy: document.uploadedBy,
+        documents: [document.id],
+      ),
+      documents: [...state.documents, document],
+    );
+  }
+
+  void deleteDocument(String documentId) {
+    final document = state.documents.firstWhereOrNull((item) => item.id == documentId);
+    final updatedDocuments = state.documents
+        .where((item) => item.id != documentId)
+        .toList(growable: false);
+
+    _appendTimeline(
+      CaseTimelineEvent(
+        id: 'timeline_document_deleted_$documentId',
+        eventDate: DateTime.now(),
+        eventType: 'document_deleted',
+        description: 'تم حذف ربط المستند: ${document?.title ?? documentId}.',
+        createdBy: 'مكتب المحامي',
+      ),
+      documents: updatedDocuments,
+    );
+  }
+
+  void addDeficiency({
+    required String field,
+    required String description,
+    required String severity,
+  }) {
+    final deficiency = CaseDeficiency(
+      id: 'def_${DateTime.now().microsecondsSinceEpoch}',
+      field: field,
+      description: description,
+      severity: severity,
+      createdAt: DateTime.now(),
+    );
+
+    _appendTimeline(
+      CaseTimelineEvent(
+        id: 'timeline_${deficiency.id}',
+        eventDate: deficiency.createdAt,
+        eventType: 'deficiency_opened',
+        description: description,
+        createdBy: 'نظام النواقص',
+      ),
+      deficiencies: [...state.deficiencies, deficiency],
+    );
+  }
+
+  void resolveDeficiency(String deficiencyId) {
+    final updated = state.deficiencies.map((item) {
+      if (item.id != deficiencyId) {
+        return item;
+      }
+      return CaseDeficiency(
+        id: item.id,
+        field: item.field,
+        description: item.description,
+        severity: item.severity,
+        createdAt: item.createdAt,
+        resolvedAt: DateTime.now(),
+        isResolved: true,
+      );
+    }).toList();
+
+    _appendTimeline(
+      CaseTimelineEvent(
+        id: 'timeline_resolved_$deficiencyId',
+        eventDate: DateTime.now(),
+        eventType: 'deficiency_resolved',
+        description: 'تم استكمال النقص رقم $deficiencyId وإغلاقه.',
+        createdBy: 'مكتب المحامي',
+      ),
+      deficiencies: updated,
+    );
+  }
+
+  void addPhase(CasePhase phase) {
+    _appendTimeline(
+      CaseTimelineEvent(
+        id: 'timeline_phase_${phase.id}',
+        eventDate: phase.startDate,
+        eventType: 'phase_added',
+        description: 'تم نقل الدعوى إلى مرحلة ${phase.type.displayName}.',
+        createdBy: 'مكتب المحامي',
+      ),
+      phases: [...state.phases, phase],
+    );
+  }
+
+  void setTimelineFilter(TimelineFilter filter) {
+    state = state.copyWith(timelineFilter: filter);
+  }
+
+  void terminateCase({
+    required CaseClosureResult result,
+    required String decisionNumber,
+    required String summary,
+    required DateTime closedAt,
+  }) {
+    _appendTimeline(
+      CaseTimelineEvent(
+        id: 'timeline_termination_${DateTime.now().microsecondsSinceEpoch}',
+        eventDate: closedAt,
+        eventType: result.timelineCode,
+        description: 'تم إنهاء الدعوى: ${result.displayName}. رقم القرار: ${decisionNumber.isEmpty ? 'غير مدخل' : decisionNumber}. $summary',
+        createdBy: 'مكتب المحامي',
+      ),
+      isTerminated: true,
+      closureResult: result,
+      closureSummary: summary,
+      closedAt: closedAt,
+    );
+  }
+
+  void _appendTimeline(
+    CaseTimelineEvent event, {
+    List<CasePhase>? phases,
+    List<CaseSession>? sessions,
+    List<CaseAction>? actions,
+    List<DocumentItem>? documents,
+    List<CaseDeficiency>? deficiencies,
+    bool? isTerminated,
+    CaseClosureResult? closureResult,
+    String? closureSummary,
+    DateTime? closedAt,
+  }) {
+    final updatedTimeline = [event, ...state.timeline]
+      ..sort((a, b) => b.eventDate.compareTo(a.eventDate));
+    state = state.copyWith(
+      phases: phases,
+      sessions: sessions,
+      actions: actions,
+      documents: documents,
+      deficiencies: deficiencies,
+      timeline: updatedTimeline,
+      isTerminated: isTerminated,
+      closureResult: closureResult,
+      closureSummary: closureSummary,
+      closedAt: closedAt,
+    );
+  }
+
+  static String _formatDateValue(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+}
+
+/// شاشة تفاصيل الدعوى مع 9 تبويبات.
 class CaseDetailScreen extends ConsumerStatefulWidget {
   final int caseId;
-  const CaseDetailScreen({super.key, required this.caseId});
+
+  const CaseDetailScreen({
+    super.key,
+    required this.caseId,
+  });
 
   @override
   ConsumerState<CaseDetailScreen> createState() => _CaseDetailScreenState();
 }
 
-class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  final TextEditingController _terminationNumberController = TextEditingController();
+  final TextEditingController _terminationSummaryController = TextEditingController();
+  CaseClosureResult _selectedClosureResult = CaseClosureResult.win;
+  bool _terminationConfirmed = false;
 
   @override
   void initState() {
@@ -29,559 +703,673 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen> with Single
   @override
   void dispose() {
     _tabController.dispose();
+    _terminationNumberController.dispose();
+    _terminationSummaryController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final caseRepo = ref.watch(caseRepositoryProvider);
+    final detailState = ref.watch(caseDetailProvider(widget.caseId));
+    final caseItem = detailState.caseItem;
 
-    return FutureBuilder<Case?>(
-      future: caseRepo.getCaseById(widget.caseId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
-        }
-        final c = snapshot.data;
-        if (c == null) {
-          return Scaffold(
-            appBar: AppBar(title: const Text('الملف غير موجود')),
-            body: const Center(child: Text('لم يتم العثور على ملف هذه الدعوى في قاعدة البيانات.')),
-          );
-        }
-
-        // مراقبة النواقص لهذا الملف لعرض شارة التنبيه في شريط الحالة
-        final defsAsync = ref.watch(openDeficienciesProvider((type: EntityType.caseEntity, id: c.id)));
-        final hasDeficiencies = defsAsync.maybeWhen(
-          data: (defs) => defs.isNotEmpty,
-          orElse: () => false,
-        );
-
-        return Scaffold(
-          appBar: AppBar(
-            title: Text('ملف دعوى رقم: [${c.internalNumber}] • ${c.caseType}'),
-            bottom: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              indicatorColor: AppConstants.accentGold,
-              labelColor: AppConstants.accentGold,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              tabs: [
-                const Tab(text: '1️⃣ الملخص'),
-                const Tab(text: '2️⃣ الأطراف والوكالات'),
-                const Tab(text: '3️⃣ المراحل القضائية'),
-                const Tab(text: '4️⃣ الجلسات والإجراءات'),
-                const Tab(text: '5️⃣ المستندات'),
-                const Tab(text: '6️⃣ المالية'),
-                Tab(
-                  child: Row(
-                    children: [
-                      const Text('7️⃣ النواقص '),
-                      if (hasDeficiencies)
-                        const Icon(Icons.error, color: AppConstants.statusDanger, size: 16),
-                    ],
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: caseItem == null
+            ? _buildNotFoundScaffold()
+            : Scaffold(
+                appBar: AppBar(
+                  title: Text(
+                    'ملف الدعوى ${caseItem.caseNumber}',
+                    style: AppTextStyles.headline5.copyWith(
+                      color: AppColors.textOnLight,
+                    ),
+                  ),
+                  actions: [
+                    IconButton(
+                      tooltip: 'تحديث البيانات',
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () => ref.invalidate(caseDetailProvider(widget.caseId)),
+                    ),
+                    IconButton(
+                      tooltip: 'العودة',
+                      icon: const Icon(Icons.arrow_forward),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  ],
+                  bottom: PreferredSize(
+                    preferredSize: const Size.fromHeight(56),
+                    child: Container(
+                      color: AppColors.cardBackground,
+                      child: TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        labelStyle: AppTextStyles.labelMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        unselectedLabelStyle: AppTextStyles.labelMedium,
+                        labelColor: AppColors.primaryNavy,
+                        unselectedLabelColor: AppColors.textSecondary,
+                        indicatorColor: AppColors.secondaryGold,
+                        tabs: const [
+                          Tab(text: '1 الملخص'),
+                          Tab(text: '2 الأطراف والوكالات'),
+                          Tab(text: '3 المراحل القضائية'),
+                          Tab(text: '4 الجلسات والإجراءات'),
+                          Tab(text: '5 المستندات'),
+                          Tab(text: '6 المالية'),
+                          Tab(text: '7 النواقص'),
+                          Tab(text: '8 الخط الزمني'),
+                          Tab(text: '9 الإنهاء'),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const Tab(text: '8️⃣ الخط الزمني'),
-                const Tab(text: '9️⃣ الإنهاء'),
-              ],
-            ),
-          ),
-          body: Column(
-            children: [
-              // شريط الحالة الدائم أعلى الملف دائمًا
-              _buildStatusBar(c, hasDeficiencies),
-              
-              // محتوى التبويبات التسعة
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
+                body: Column(
                   children: [
-                    _buildSummaryTab(c),
-                    _buildPartiesTab(c.id),
-                    _buildPhasesTab(c),
-                    _buildSessionsTab(c),
-                    _buildDocumentsTab(c.id),
-                    _buildFinancesTab(c.id),
-                    _buildDeficienciesTab(c.id),
-                    _buildTimelineTab(c.id),
-                    _buildTerminationTab(c),
+                    _buildStatusBar(detailState),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildSummaryTab(detailState),
+                          _buildPartiesTab(detailState),
+                          _buildPhasesTab(detailState),
+                          _buildSessionsTab(detailState),
+                          _buildDocumentsTab(detailState),
+                          _buildFinanceTab(detailState),
+                          _buildDeficienciesTab(detailState),
+                          _buildTimelineTab(detailState),
+                          _buildTerminationTab(detailState),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-        );
-      },
+      ),
     );
   }
 
-  /// شريط الحالة العلوي الثابت في ملف الدعوى
-  Widget _buildStatusBar(Case c, bool hasDeficiencies) {
+  Scaffold _buildNotFoundScaffold() {
+    return Scaffold(
+      appBar: AppBar(title: const Text('الدعوى غير موجودة')),
+      body: _emptyState(
+        icon: Icons.search_off,
+        title: 'لم يتم العثور على الدعوى',
+        subtitle: 'رقم الدعوى المطلوب غير موجود ضمن بيانات المرحلة الحالية.',
+      ),
+    );
+  }
+
+  Widget _buildStatusBar(CaseDetailState state) {
+    final caseItem = state.caseItem!;
+    final nextSession = state.nextSession;
+    final statusColor = state.isTerminated
+        ? AppColors.error
+        : state.openDeficienciesCount > 0
+            ? AppColors.warning
+            : caseItem.status.color;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: hasDeficiencies ? AppConstants.statusDanger.withOpacity(0.1) : AppConstants.primaryNavy.withOpacity(0.08),
-        border: Border(bottom: BorderSide(color: hasDeficiencies ? AppConstants.statusDanger : AppConstants.primaryNavy.withOpacity(0.2))),
+        color: AppColors.cardBackground,
+        border: Border(
+          bottom: BorderSide(color: AppColors.cardBorder, width: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadowLight,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Row(
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          _statusItem(Icons.folder, 'الرقم الداخلي:', c.internalNumber, AppConstants.primaryNavy),
-          _statusItem(Icons.category, 'النوع:', '${c.caseType} (${c.subType ?? ""})', AppConstants.primaryNavy),
-          _statusItem(Icons.numbers, 'الأساس:', c.baseNumber ?? 'بانتظار التسجيل', c.baseNumber == null ? AppConstants.statusDanger : AppConstants.textDark),
-          _statusItem(
+          _statusChip(Icons.gavel, 'النوع', caseItem.type.displayName, AppColors.primaryNavy),
+          _statusChip(Icons.balance, 'المحكمة', caseItem.court, AppColors.primaryNavy),
+          _statusChip(
+            Icons.confirmation_number,
+            'رقم الأساس',
+            caseItem.baseNumber ?? 'بانتظار التسجيل',
+            caseItem.baseNumber == null ? AppColors.warning : AppColors.success,
+          ),
+          _statusChip(
             Icons.event,
-            'الجلسة القادمة:',
-            c.nextSessionDate?.toString().substring(0, 10) ?? 'غير محددة ⚠️',
-            c.nextSessionDate == null ? AppConstants.statusDanger : AppConstants.statusSuccess,
+            'الجلسة القادمة',
+            nextSession == null ? 'غير محددة' : _formatDate(nextSession.sessionDate),
+            nextSession == null ? AppColors.warning : AppColors.info,
           ),
-          const Spacer(),
-          if (hasDeficiencies)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: AppConstants.statusDanger, borderRadius: BorderRadius.circular(12)),
-              child: const Text('الملف ناقص ثبوتيات / مواعيد ⚠️', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: AppConstants.statusSuccess, borderRadius: BorderRadius.circular(12)),
-              child: const Text('الملف مكتمل ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-            ),
+          _statusChip(
+            Icons.rule_folder,
+            'النواقص',
+            '${state.openDeficienciesCount}',
+            state.openDeficienciesCount > 0 ? AppColors.error : AppColors.success,
+          ),
+          _badge(
+            state.isTerminated ? 'منتهية' : caseItem.status.displayName,
+            statusColor,
+            icon: state.isTerminated ? Icons.lock : Icons.verified,
+          ),
         ],
       ),
     );
   }
 
-  Widget _statusItem(IconData icon, String label, String value, Color valueColor) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 20),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: AppConstants.accentGold),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppConstants.textMuted)),
-          const SizedBox(width: 4),
-          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: valueColor)),
-        ],
-      ),
-    );
-  }
+  Widget _buildSummaryTab(CaseDetailState state) {
+    final caseItem = state.caseItem!;
+    final nextSession = state.nextSession;
 
-  // ---------------------------------------------------------------------------
-  // 1️⃣ تبويب الملخص (Summary Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildSummaryTab(Case c) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('الإجراءات السريعة للملف:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
-          const SizedBox(height: 12),
-          Row(
+          _sectionHeader(
+            title: 'الإجراءات السريعة',
+            subtitle: 'تنفيذ أكثر العمليات استخداماً داخل ملف الدعوى.',
+            icon: Icons.flash_on,
+          ),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
               ElevatedButton.icon(
-                icon: const Icon(Icons.calendar_month),
-                label: const Text('إضافة جلسة مرافعة جديدة'),
-                onPressed: () => _openAddSessionDialog(c),
+                onPressed: () => _showAddSessionDialog(context),
+                icon: const Icon(Icons.add_alarm),
+                label: const Text('إضافة جلسة'),
               ),
-              const SizedBox(width: 12),
               OutlinedButton.icon(
-                icon: const Icon(Icons.upload_file),
-                label: const Text('إرفاق مستند أو مذكرة'),
                 onPressed: () => _tabController.animateTo(4),
+                icon: const Icon(Icons.upload_file),
+                label: const Text('رفع مستند'),
               ),
-              const SizedBox(width: 12),
               OutlinedButton.icon(
-                icon: const Icon(Icons.upgrade),
-                label: const Text('نقل للمرحلة القضائية التالية'),
-                onPressed: () => _openTransferPhaseDialog(c),
+                onPressed: () => _showAddPhaseDialog(context, state),
+                icon: const Icon(Icons.account_tree),
+                label: const Text('نقل مرحلة'),
+              ),
+              TextButton.icon(
+                onPressed: () => _tabController.animateTo(8),
+                icon: const Icon(Icons.lock_outline),
+                label: const Text('إنهاء الدعوى'),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          Card(
-            elevation: 3,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('موضوع الدعوى والطلبات الختامية:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Divider(height: 24),
-                  Text('الموضوع: ${c.subject ?? "غير مدخل"}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  Text('التفاصيل: ${c.subjectDetails ?? "لا توجد تفاصيل إضافية"}', style: const TextStyle(color: AppConstants.textMuted, height: 1.5)),
-                ],
-              ),
-            ),
+          const SizedBox(height: 16),
+          _responsiveCards([
+            _metricCard('رقم الدعوى', caseItem.caseNumber, Icons.numbers, AppColors.primaryNavy),
+            _metricCard('تاريخ الإنشاء', _formatDate(caseItem.creationDate), Icons.calendar_today, AppColors.info),
+            _metricCard('نوع الدعوى', caseItem.type.displayName, Icons.category, AppColors.secondaryGold),
+            _metricCard('الحالة', state.isTerminated ? 'منتهية' : caseItem.status.displayName, Icons.verified, caseItem.status.color),
+            _metricCard('عدد المستندات', '${state.documents.length}', Icons.description, AppColors.primaryNavy),
+            _metricCard('الرصيد', _formatCurrency(state.balance), Icons.account_balance_wallet, state.balance >= 0 ? AppColors.success : AppColors.error),
+          ]),
+          const SizedBox(height: 16),
+          _infoCard(
+            title: 'موضوع الدعوى والطلبات',
+            icon: Icons.article,
+            children: [
+              _infoRow('العنوان', caseItem.title),
+              _infoRow('الموضوع', caseItem.subject.isEmpty ? 'غير مدخل' : caseItem.subject),
+              _infoRow('الطلبات', caseItem.claim.isEmpty ? 'غير مدخل' : caseItem.claim),
+              _infoRow('الملاحظات', caseItem.notes.isEmpty ? 'لا توجد ملاحظات' : caseItem.notes),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _infoCard(
+            title: 'الموعد القادم',
+            icon: Icons.event_available,
+            children: [
+              if (nextSession == null)
+                _alertBox(
+                  icon: Icons.warning_amber,
+                  title: 'لا توجد جلسة قادمة محددة',
+                  message: 'ينصح بإضافة موعد قادم أو إنشاء نقص لمتابعته من لوحة اليوم.',
+                  color: AppColors.warning,
+                )
+              else ...[
+                _infoRow('التاريخ', _formatDate(nextSession.sessionDate)),
+                _infoRow('الوقت', _formatTime(nextSession.sessionTime)),
+                _infoRow('نوع الجلسة', nextSession.type.displayName),
+                _infoRow('المحكمة', nextSession.court),
+              ],
+            ],
           ),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // 2️⃣ تبويب الأطراف والوكالات (Parties Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildPartiesTab(int caseId) {
-    final partiesStream = ref.watch(caseRepositoryProvider).watchCaseParties(caseId);
-
-    return StreamBuilder<List<CaseParty>>(
-      stream: partiesStream,
-      builder: (context, snapshot) {
-        final parties = snapshot.data ?? [];
-        final clients = parties.where((p) => p.isClient).toList();
-        final opponents = parties.where((p) => !p.isClient).toList();
-
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            const Text('موکلو المكتب في هذه القضية:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
-            const SizedBox(height: 8),
-            ...clients.map((p) => Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(backgroundColor: AppConstants.primaryNavy, child: Icon(Icons.person, color: AppConstants.accentGold)),
-                    title: Text('طرف موكل رقم [ID: ${p.personId}] • الصفة: ${p.partyRole}'),
-                    subtitle: Text(p.isPrimary ? 'الموكل الرئيسي في الملف' : 'موكل تابع / إضافي'),
-                    trailing: const Icon(Icons.verified, color: AppConstants.statusSuccess),
-                  ),
-                )),
-            const SizedBox(height: 24),
-            const Text('الخصوم وأطراف الدعوى الآخرون:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.statusDanger)),
-            const SizedBox(height: 8),
-            ...opponents.map((p) => Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(backgroundColor: AppConstants.statusDanger, child: Icon(Icons.person_off, color: Colors.white)),
-                    title: Text('طرف خصم رقم [ID: ${p.personId}] • الصفة: ${p.partyRole}'),
-                    subtitle: Text(p.isPrimary ? 'الخصم الرئيسي في الدعوى' : 'خصم إضافي / مدخل'),
-                  ),
-                )),
-          ],
-        );
-      },
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 3️⃣ تبويب المراحل القضائية (Phases Tab) - مع زر النقل التلقائي
-  // ---------------------------------------------------------------------------
-  Widget _buildPhasesTab(Case c) {
-    final phasesStream = ref.watch(caseRepositoryProvider).watchCasePhases(c.id);
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: AppConstants.surfaceWhite,
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text('التسلسل الهرمي للمراحل القضائية (صلح ← بداية ← استئناف ← نقض):',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: AppConstants.primaryNavy),
-                icon: const Icon(Icons.upgrade),
-                label: const Text('نقل للمرحلة التالية (مع القرارات والمبرزات)'),
-                onPressed: () => _openTransferPhaseDialog(c),
-              ),
-            ],
+  Widget _buildPartiesTab(CaseDetailState state) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionHeader(
+            title: 'الأطراف والوكالات',
+            subtitle: 'قائمة الموكلين والخصوم وسندات الوكالة المرتبطة بالدعوى.',
+            icon: Icons.groups,
           ),
-        ),
-        Expanded(
-          child: StreamBuilder<List<CasePhase>>(
-            stream: phasesStream,
-            builder: (context, snapshot) {
-              final phases = snapshot.data ?? [];
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: phases.length,
-                itemBuilder: (context, index) {
-                  final phase = phases[index];
-                  return Card(
-                    elevation: phase.isTransferred ? 1 : 3,
-                    color: phase.isTransferred ? Colors.grey.withOpacity(0.08) : AppConstants.surfaceWhite,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: phase.isTransferred ? Colors.grey : AppConstants.accentGold,
-                                child: Text('${phase.phaseOrder}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
-                              ),
-                              const SizedBox(width: 12),
-                              Text('مرحلة: [${phase.phaseType}] • سنة ${phase.year ?? ""}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              const Spacer(),
-                              if (phase.isTransferred)
-                                const Chip(label: Text('منتقلة للمرحلة الأعلى ↗️'), backgroundColor: Colors.black12)
-                              else
-                                const Chip(label: Text('المرحلة النشطة حالياً ⭐'), backgroundColor: AppConstants.accentGold),
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          Text('رقم الأساس: ${phase.baseNumber ?? "غير مدخل"} • تاريخ البدء: ${phase.startDate?.toString().substring(0, 10) ?? ""}'),
-                          const SizedBox(height: 8),
-                          Text('ملخص القرار الصادر في المرحلة: ${phase.decisionText ?? "لم يصدر حكم بعد"}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 4️⃣ تبويب الجلسات والإجراءات (Sessions Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildSessionsTab(Case c) {
-    final sessionsStream = ref.watch(caseRepositoryProvider).watchCaseSessions(c.id);
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: AppConstants.surfaceWhite,
-          child: Row(
-            children: [
-              const Expanded(child: Text('سجل جلسات المحاكمة والمرافعة:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('تسجيل جلسة جديدة'),
-                onPressed: () => _openAddSessionDialog(c),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: StreamBuilder<List<CaseSession>>(
-            stream: sessionsStream,
-            builder: (context, snapshot) {
-              final sessions = snapshot.data ?? [];
-              if (sessions.isEmpty) return const Center(child: Text('لا توجد جلسات مسجلة بعد'));
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: sessions.length,
-                itemBuilder: (context, index) {
-                  final s = sessions[index];
-                  final statusEnum = LifecycleStatus.values[s.status];
-
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.event, color: AppConstants.primaryNavy),
-                              const SizedBox(width: 8),
-                              Text('جلسة بتاريخ: ${s.sessionDate.toString().substring(0, 10)} (${s.sessionType ?? "مرافعة"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              const Spacer(),
-                              Chip(label: Text(statusEnum.label), backgroundColor: statusEnum == LifecycleStatus.completed ? AppConstants.statusSuccess.withOpacity(0.2) : AppConstants.statusWarning.withOpacity(0.2)),
-                            ],
-                          ),
-                          const Divider(height: 16),
-                          Text('قرار المحكمة في الجلسة: ${s.decision ?? "بانتظار القرار"}'),
-                          const SizedBox(height: 8),
-                          Text('المطلوب للموعد القادم: ${s.nextAction ?? "غير محدد"} • التاريخ التالي: ${s.nextSessionDate?.toString().substring(0, 10) ?? "بدون"}', style: const TextStyle(color: AppConstants.primaryNavy, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 5️⃣ تبويب المستندات (Documents Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildDocumentsTab(int caseId) {
-    return const Center(child: Text('المستندات المبرزة في إضبارة هذه القضية (أصلي / صورة / في خزنة المكتب)'));
-  }
-
-  // ---------------------------------------------------------------------------
-  // 6️⃣ تبويب المالية (Finances Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildFinancesTab(int caseId) {
-    return const Center(child: Text('حسابات أتعاب الموكلين ومصاريف الرسوم والطوابع لهذه القضية'));
-  }
-
-  // ---------------------------------------------------------------------------
-  // 7️⃣ تبويب النواقص (Deficiencies Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildDeficienciesTab(int caseId) {
-    final defsStream = ref.watch(taskRepositoryProvider).watchOpenDeficiencies(entityType: EntityType.caseEntity, entityId: caseId);
-
-    return StreamBuilder<List<Deficiency>>(
-      stream: defsStream,
-      builder: (context, snapshot) {
-        final defs = snapshot.data ?? [];
-        if (defs.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.verified, size: 64, color: AppConstants.statusSuccess),
-                SizedBox(height: 16),
-                Text('الملف مكتمل بنسبة 100% ولا توجد أي نواقص مفتوحة ✓', style: TextStyle(fontSize: 18, color: AppConstants.statusSuccess, fontWeight: FontWeight.bold)),
-              ],
+          _twoColumnLayout(
+            first: _partySection(
+              title: 'الموكلون',
+              parties: state.clients,
+              icon: Icons.person,
+              color: AppColors.success,
             ),
-          );
-        }
+            second: _partySection(
+              title: 'الخصوم',
+              parties: state.opponents,
+              icon: Icons.person_off,
+              color: AppColors.error,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _infoCard(
+            title: 'الوكالات القضائية',
+            icon: Icons.verified_user,
+            trailing: TextButton.icon(
+              onPressed: () => _showSnack('سيتم ربط الوكالات من شاشة المستندات العالمية.'),
+              icon: const Icon(Icons.link),
+              label: const Text('ربط وكالة'),
+            ),
+            children: [
+              if (state.agencies.isEmpty)
+                _emptyState(
+                  icon: Icons.assignment_late,
+                  title: 'لا توجد وكالة مرتبطة',
+                  subtitle: 'يمكن ربط وكالة من المستندات العالمية أو رفع وكالة جديدة.',
+                  compact: true,
+                )
+              else
+                ...state.agencies.map(_agencyTile),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: defs.length,
-          itemBuilder: (context, index) {
-            final d = defs[index];
-            return Card(
-              color: AppConstants.statusDanger.withOpacity(0.08),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: AppConstants.statusDanger)),
-              child: ListTile(
-                leading: const Icon(Icons.error_outline, color: AppConstants.statusDanger, size: 36),
-                title: Text('نقص مرصود: [${d.fieldName}]', style: const TextStyle(fontWeight: FontWeight.bold, color: AppConstants.statusDanger)),
-                subtitle: Text(d.description),
-                trailing: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppConstants.statusSuccess),
-                  child: const Text('استكمال وإغلاق النقص'),
-                  onPressed: () async {
-                    await ref.read(taskRepositoryProvider).resolveDeficiency(d.id);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إغلاق النقص!'), backgroundColor: AppConstants.statusSuccess));
-                    }
+  Widget _buildPhasesTab(CaseDetailState state) {
+    return Column(
+      children: [
+        _tabHeader(
+          title: 'المراحل القضائية',
+          subtitle: 'تتبع تسلسل الدعوى من البداية حتى مراحل الطعن والتنفيذ.',
+          icon: Icons.account_tree,
+          action: ElevatedButton.icon(
+            onPressed: () => _showAddPhaseDialog(context, state),
+            icon: const Icon(Icons.add),
+            label: const Text('نقل للمرحلة التالية'),
+          ),
+        ),
+        Expanded(
+          child: state.phases.isEmpty
+              ? _emptyState(
+                  icon: Icons.account_tree_outlined,
+                  title: 'لا توجد مراحل قضائية',
+                  subtitle: 'أضف المرحلة الأولى لتبدأ متابعة الدعوى.',
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: state.phases.length,
+                  itemBuilder: (context, index) {
+                    final phase = state.phases[index];
+                    final isActive = phase.endDate == null && index == state.phases.length - 1;
+                    return _phaseTile(phase, index, isActive);
                   },
                 ),
-              ),
-            );
-          },
-        );
-      },
+        ),
+      ],
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // 8️⃣ تبويب الخط الزمني (Timeline Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildTimelineTab(int caseId) {
-    final timelineStream = ref.watch(taskRepositoryProvider).watchTimelineEvents(EntityType.caseEntity, caseId);
+  Widget _buildSessionsTab(CaseDetailState state) {
+    final orderedSessions = [...state.sessions]
+      ..sort((a, b) => b.sessionDate.compareTo(a.sessionDate));
+    final orderedActions = [...state.actions]
+      ..sort((a, b) => b.actionDate.compareTo(a.actionDate));
 
-    return StreamBuilder<List<TimelineEvent>>(
-      stream: timelineStream,
-      builder: (context, snapshot) {
-        final events = snapshot.data ?? [];
-        if (events.isEmpty) return const Center(child: Text('لا توجد أحداث في الخط الزمني بعد'));
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: events.length,
-          itemBuilder: (context, index) {
-            final e = events[index];
-            return Card(
-              child: ListTile(
-                leading: const CircleAvatar(backgroundColor: AppConstants.primaryNavy, child: Icon(Icons.history, color: AppConstants.accentGold)),
-                title: Text(e.description, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('النوع: ${e.eventType} • التاريخ: ${e.eventDate.toString().substring(0, 16)} • بواسطة: ${e.userRef ?? "المكتب"}'),
-              ),
-            );
-          },
-        );
-      },
+    return Column(
+      children: [
+        _tabHeader(
+          title: 'الجلسات والإجراءات',
+          subtitle: 'سجل جلسات المحكمة والإجراءات الخارجية مع النتائج والملاحظات.',
+          icon: Icons.event_note,
+          action: ElevatedButton.icon(
+            onPressed: () => _showAddSessionDialog(context),
+            icon: const Icon(Icons.add),
+            label: const Text('إضافة جلسة جديدة'),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _infoCard(
+                  title: 'سجل الجلسات',
+                  icon: Icons.gavel,
+                  children: [
+                    if (orderedSessions.isEmpty)
+                      _emptyState(
+                        icon: Icons.event_busy,
+                        title: 'لا توجد جلسات مسجلة',
+                        subtitle: 'اضغط إضافة جلسة جديدة لتسجيل أول موعد.',
+                        compact: true,
+                      )
+                    else
+                      ...orderedSessions.map(_sessionTile),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _infoCard(
+                  title: 'الإجراءات الخارجية',
+                  icon: Icons.checklist,
+                  children: [
+                    if (orderedActions.isEmpty)
+                      _emptyState(
+                        icon: Icons.playlist_add_check,
+                        title: 'لا توجد إجراءات خارجية',
+                        subtitle: 'الإجراءات ستظهر هنا عند تسجيلها.',
+                        compact: true,
+                      )
+                    else
+                      ...orderedActions.map(_actionTile),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // 9️⃣ تبويب الإنهاء (Termination Tab)
-  // ---------------------------------------------------------------------------
-  Widget _buildTerminationTab(Case c) {
-    if (c.status == 'closed') {
+  Widget _buildDocumentsTab(CaseDetailState state) {
+    final documents = [...state.documents]
+      ..sort((a, b) => b.uploadDate.compareTo(a.uploadDate));
+
+    return Column(
+      children: [
+        _tabHeader(
+          title: 'مستندات الدعوى',
+          subtitle: 'رفع، حذف، فتح، وربط مستندات الدعوى بالمستندات العالمية.',
+          icon: Icons.folder_copy,
+          action: Wrap(
+            spacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _linkGlobalDocument(state),
+                icon: const Icon(Icons.link),
+                label: const Text('ربط عالمي'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _pickAndAddDocument(state),
+                icon: const Icon(Icons.upload_file),
+                label: const Text('رفع مستند'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: documents.isEmpty
+              ? _emptyState(
+                  icon: Icons.folder_off,
+                  title: 'لا توجد مستندات مرتبطة',
+                  subtitle: 'ارفع مستنداً أو اربط مستنداً من الأرشيف العالمي.',
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: documents.length,
+                  itemBuilder: (context, index) => _documentTile(documents[index]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFinanceTab(CaseDetailState state) {
+    final caseItem = state.caseItem!;
+    final paidFees = caseItem.fees
+        .where((fee) => fee.status == 'paid')
+        .fold<double>(0, (sum, fee) => sum + fee.amount);
+    final unpaidFees = state.totalFees - paidFees;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionHeader(
+            title: 'المالية',
+            subtitle: 'الأتعاب، المصروفات القضائية، الدفعات، الرصيد، والتقرير المالي.',
+            icon: Icons.account_balance_wallet,
+          ),
+          _responsiveCards([
+            _metricCard('إجمالي الأتعاب', _formatCurrency(state.totalFees), Icons.payments, AppColors.primaryNavy),
+            _metricCard('المدفوع', _formatCurrency(paidFees), Icons.done_all, AppColors.success),
+            _metricCard('غير المدفوع', _formatCurrency(unpaidFees), Icons.pending_actions, AppColors.warning),
+            _metricCard('المصروفات', _formatCurrency(state.totalExpenses), Icons.money_off, AppColors.error),
+            _metricCard('الرصيد', _formatCurrency(state.balance), Icons.trending_up, state.balance >= 0 ? AppColors.success : AppColors.error),
+          ]),
+          const SizedBox(height: 16),
+          _twoColumnLayout(
+            first: _financeList(
+              title: 'اتفاقيات الأتعاب والدفعات',
+              icon: Icons.receipt_long,
+              emptyTitle: 'لا توجد أتعاب مسجلة',
+              children: caseItem.fees.map(_feeTile).toList(),
+            ),
+            second: _financeList(
+              title: 'المصروفات القضائية',
+              icon: Icons.request_quote,
+              emptyTitle: 'لا توجد مصروفات مسجلة',
+              children: caseItem.expenses.map(_expenseTile).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: () => _showFinancialReport(state),
+              icon: const Icon(Icons.summarize),
+              label: const Text('إصدار تقرير مالي مختصر'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeficienciesTab(CaseDetailState state) {
+    final deficiencies = [...state.deficiencies]
+      ..sort((a, b) {
+        if (a.isResolved != b.isResolved) {
+          return a.isResolved ? 1 : -1;
+        }
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+    return Column(
+      children: [
+        _tabHeader(
+          title: 'النواقص',
+          subtitle: 'متابعة النواقص حسب النوع، الأولوية، تاريخ الاستحقاق، والحالة.',
+          icon: Icons.rule,
+          action: ElevatedButton.icon(
+            onPressed: () => _showAddDeficiencyDialog(context),
+            icon: const Icon(Icons.add_alert),
+            label: const Text('إضافة نقص'),
+          ),
+        ),
+        Expanded(
+          child: deficiencies.isEmpty
+              ? _emptyState(
+                  icon: Icons.verified,
+                  title: 'ملف مكتمل',
+                  subtitle: 'لا توجد نواقص مفتوحة أو مغلقة لهذه الدعوى.',
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: deficiencies.length,
+                  itemBuilder: (context, index) => _deficiencyTile(deficiencies[index]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimelineTab(CaseDetailState state) {
+    final events = state.filteredTimeline;
+
+    return Column(
+      children: [
+        _tabHeader(
+          title: 'الخط الزمني',
+          subtitle: 'كل أحداث الدعوى بترتيب زمني مع فلترة حسب النوع.',
+          icon: Icons.timeline,
+          action: DropdownButton<TimelineFilter>(
+            value: state.timelineFilter,
+            items: TimelineFilter.values
+                .map(
+                  (filter) => DropdownMenuItem(
+                    value: filter,
+                    child: Text(filter.displayName),
+                  ),
+                )
+                .toList(),
+            onChanged: (filter) {
+              if (filter != null) {
+                ref.read(caseDetailProvider(widget.caseId).notifier).setTimelineFilter(filter);
+              }
+            },
+          ),
+        ),
+        Expanded(
+          child: events.isEmpty
+              ? _emptyState(
+                  icon: Icons.history_toggle_off,
+                  title: 'لا توجد أحداث مطابقة',
+                  subtitle: 'غيّر الفلتر أو أضف أحداثاً من تبويبات الدعوى.',
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: events.length,
+                  itemBuilder: (context, index) => _timelineTile(events[index]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTerminationTab(CaseDetailState state) {
+    if (state.isTerminated) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.lock, size: 64, color: AppConstants.statusDanger),
-            const SizedBox(height: 16),
-            const Text('هذه الدعوى منتهية ومغلقة في أرشيف المكتب', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppConstants.statusDanger)),
-            const SizedBox(height: 12),
-            Text(c.notes ?? '', style: const TextStyle(fontSize: 16)),
-          ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: _infoCard(
+            title: 'الدعوى منتهية',
+            icon: Icons.lock,
+            children: [
+              _alertBox(
+                icon: Icons.archive,
+                title: state.closureResult?.displayName ?? 'تم الإغلاق',
+                message: 'تاريخ الإنهاء: ${state.closedAt == null ? 'غير محدد' : _formatDate(state.closedAt!)}\n${state.closureSummary}',
+                color: state.closureResult?.color ?? AppColors.primaryNavy,
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    final reasonController = TextEditingController(text: 'حكم قضائي قطعي نهائي');
-    final numController = TextEditingController();
-    final summaryController = TextEditingController();
-    File? decisionFile;
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
-      child: Card(
-        color: AppConstants.statusDanger.withOpacity(0.05),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppConstants.statusDanger)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: _infoCard(
+            title: 'إنهاء الدعوى',
+            icon: Icons.gavel,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.gavel, color: AppConstants.statusDanger, size: 32),
-                  SizedBox(width: 12),
-                  Text('إنهاء الدعوى وإغلاق الملف في أرشيف المكتب:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppConstants.statusDanger)),
-                ],
+              _alertBox(
+                icon: Icons.warning_amber,
+                title: 'إجراء حساس',
+                message: 'سيتم اعتبار الدعوى منتهية بعد التأكيد. يجب تحديد نتيجة الإنهاء وملخص القرار النهائي.',
+                color: AppColors.warning,
               ),
-              const Divider(height: 32),
-              TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'سبب الإنهاء * (حكم نهائي / صلح / اعتزال توكيل)')),
               const SizedBox(height: 16),
-              TextField(controller: numController, decoration: const InputDecoration(labelText: 'رقم قرار الحكم النهائي *')),
-              const SizedBox(height: 16),
-              TextField(controller: summaryController, maxLines: 4, decoration: const InputDecoration(labelText: 'ملخص ومنطوق الحكم الصادر *')),
-              const SizedBox(height: 24),
-              const Text('تطبيقاً لصرامة الدستور (V6.2): إرفاق صورة قرار الحكم إلزامي لإنهاء الملف!', style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.statusDanger)),
+              DropdownButtonFormField<CaseClosureResult>(
+                value: _selectedClosureResult,
+                decoration: const InputDecoration(
+                  labelText: 'نتيجة الإنهاء',
+                  prefixIcon: Icon(Icons.flag),
+                ),
+                items: CaseClosureResult.values
+                    .map(
+                      (result) => DropdownMenuItem(
+                        value: result,
+                        child: Text(result.displayName),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (result) {
+                  if (result != null) {
+                    setState(() => _selectedClosureResult = result);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _terminationNumberController,
+                decoration: const InputDecoration(
+                  labelText: 'رقم قرار الحكم / محضر الصلح',
+                  prefixIcon: Icon(Icons.numbers),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _terminationSummaryController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'ملخص ومنطوق القرار النهائي',
+                  prefixIcon: Icon(Icons.subject),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                value: _terminationConfirmed,
+                onChanged: (value) => setState(() => _terminationConfirmed = value ?? false),
+                title: Text(
+                  'أؤكد مراجعة الملف والمستندات المالية قبل إنهاء الدعوى.',
+                  style: AppTextStyles.bodyMedium,
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                height: 50,
                 child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppConstants.statusDanger),
-                  icon: const Icon(Icons.archive),
-                  label: const Text('اعتماد الحكم النهائي وإغلاق القضية'),
-                  onPressed: () async {
-                    if (summaryController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ملخص الحكم إلزامي!'), backgroundColor: AppConstants.statusDanger));
-                      return;
-                    }
-                    await ref.read(caseRepositoryProvider).terminateCase(
-                      caseId: c.id,
-                      terminationReason: reasonController.text.trim(),
-                      decisionNumber: numController.text.trim(),
-                      summary: summaryController.text.trim(),
-                      decisionFile: decisionFile,
-                      userRef: AppConstants.defaultLawyerName,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إغلاق القضية بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-                      setState(() {});
-                    }
-                  },
+                  onPressed: () => _terminateCase(state),
+                  icon: const Icon(Icons.lock),
+                  label: const Text('اعتماد الإنهاء وإغلاق الدعوى'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: AppColors.textOnLight,
+                  ),
                 ),
               ),
             ],
@@ -591,104 +1379,1190 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen> with Single
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // دوال الإجراءات المنبثقة (Dialogs)
-  // ---------------------------------------------------------------------------
-  void _openAddSessionDialog(Case c) {
-    final nextActionController = TextEditingController(text: 'مرافعة / سماع شهود');
-    final decisionController = TextEditingController(text: 'تأجيل للجلسة القادمة');
-    DateTime sessionDate = DateTime.now();
-    DateTime? nextDate = DateTime.now().add(const Duration(days: 14));
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تسجيل جلسة قضائية جديدة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: decisionController, decoration: const InputDecoration(labelText: 'قرار المحكمة في هذه الجلسة')),
-            const SizedBox(height: 12),
-            TextField(controller: nextActionController, decoration: const InputDecoration(labelText: 'المطلوب للجلسة القادمة')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            child: const Text('حفظ وترحيل الموعد القادم'),
-            onPressed: () async {
-              await ref.read(caseRepositoryProvider).addSession(
-                session: CaseSessionsCompanion.insert(
-                  caseId: c.id,
-                  sessionDate: sessionDate,
-                  decision: drift.Value(decisionController.text.trim()),
-                  nextAction: drift.Value(nextActionController.text.trim()),
-                  nextSessionDate: drift.Value(nextDate),
-                ),
-                caseTitle: '[${c.internalNumber}] - ${c.subject ?? ""}',
-                userRef: AppConstants.defaultLawyerName,
-              );
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل الجلسة وترحيل المهمة اليومية بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-              }
-            },
+  Widget _statusChip(IconData icon, String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.35), width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 6),
+          Text('$label: ', style: AppTextStyles.labelSmall),
+          Text(
+            value,
+            style: AppTextStyles.labelMedium.copyWith(color: color),
           ),
         ],
       ),
     );
   }
 
-  void _openTransferPhaseDialog(Case c) {
-    String newPhaseType = 'استئناف';
-    final baseController = TextEditingController();
-    final yearController = TextEditingController(text: DateTime.now().year.toString());
-    int? newCourtId = c.courtId;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('نقل القضية للمرحلة القضائية الأعلى ↗️'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('القاعدة الذهبية (V6.2): سينتقل نص القرار السابق وكل المبرزات تلقائياً للمحكمة الجديدة.', style: TextStyle(color: AppConstants.accentGoldDark, fontSize: 13, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: newPhaseType,
-              decoration: const InputDecoration(labelText: 'المرحلة الجديدة *'),
-              items: ['استئناف', 'نقض', 'إعادة محاكمة'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-              onChanged: (val) => newPhaseType = val!,
-            ),
-            const SizedBox(height: 12),
-            TextField(controller: baseController, decoration: const InputDecoration(labelText: 'رقم الأساس الجديد في محكمة الاستئناف/النقض')),
-            const SizedBox(height: 12),
-            TextField(controller: yearController, decoration: const InputDecoration(labelText: 'سنة الأساس')),
+  Widget _badge(String label, Color color, {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: AppColors.textOnLight, size: 16),
+            const SizedBox(width: 4),
           ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-          ElevatedButton(
-            child: const Text('اعتماد ونقل القضية الآن'),
-            onPressed: () async {
-              await ref.read(caseRepositoryProvider).transferToNextPhase(
-                caseId: c.id,
-                newPhaseType: newPhaseType,
-                newCourtId: newCourtId ?? 1,
-                newBaseNumber: baseController.text.trim(),
-                newYear: int.tryParse(yearController.text.trim()),
-                userRef: AppConstants.defaultLawyerName,
-              );
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نقل القضية ومبرزاتها للمرحلة الجديدة بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-                setState(() {});
-              }
-            },
+          Text(
+            label,
+            style: AppTextStyles.badgeText,
           ),
         ],
       ),
     );
+  }
+
+  Widget _sectionHeader({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primaryNavy.withOpacity(0.1),
+            child: Icon(icon, color: AppColors.primaryNavy),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTextStyles.headline4),
+                const SizedBox(height: 2),
+                Text(subtitle, style: AppTextStyles.bodySmallSecondary),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabHeader({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    Widget? action,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        border: Border(
+          bottom: BorderSide(color: AppColors.cardBorder, width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primaryNavy.withOpacity(0.1),
+            child: Icon(icon, color: AppColors.primaryNavy),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTextStyles.headline5),
+                const SizedBox(height: 2),
+                Text(subtitle, style: AppTextStyles.bodySmallSecondary),
+              ],
+            ),
+          ),
+          if (action != null) action,
+        ],
+      ),
+    );
+  }
+
+  Widget _responsiveCards(List<Widget> cards) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 900;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: cards
+              .map(
+                (card) => SizedBox(
+                  width: isWide ? (constraints.maxWidth - 48) / 5 : 260,
+                  child: card,
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _metricCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 24),
+                const Spacer(),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(title, style: AppTextStyles.bodySmallSecondary),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: AppTextStyles.headline5.copyWith(color: color),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+    Widget? trailing,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppColors.primaryNavy),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AppTextStyles.headline5.copyWith(color: AppColors.primaryNavy),
+                  ),
+                ),
+                if (trailing != null) trailing,
+              ],
+            ),
+            const Divider(height: 24),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(label, style: AppTextStyles.labelMedium),
+          ),
+          Expanded(
+            child: Text(value, style: AppTextStyles.bodyMedium),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertBox({
+    required IconData icon,
+    required String title,
+    required String message,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.09),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.45), width: 0.7),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTextStyles.labelLarge.copyWith(color: color)),
+                const SizedBox(height: 4),
+                Text(message, style: AppTextStyles.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _twoColumnLayout({required Widget first, required Widget second}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 820) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [first, const SizedBox(height: 16), second],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: first),
+            const SizedBox(width: 16),
+            Expanded(child: second),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _partySection({
+    required String title,
+    required List<CasePartyView> parties,
+    required IconData icon,
+    required Color color,
+  }) {
+    return _infoCard(
+      title: title,
+      icon: icon,
+      children: parties.map((party) => _partyTile(party, color)).toList(),
+    );
+  }
+
+  Widget _partyTile(CasePartyView party, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25), width: 0.5),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.15),
+            child: Icon(Icons.person, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(party.name, style: AppTextStyles.labelLarge),
+                Text('${party.role} • ${party.phone}', style: AppTextStyles.bodySmallSecondary),
+                Text(party.address, style: AppTextStyles.bodySmallSecondary),
+              ],
+            ),
+          ),
+          if (party.isPrimary) _badge('رئيسي', color),
+        ],
+      ),
+    );
+  }
+
+  Widget _agencyTile(CaseAgencyView agency) {
+    final color = agency.isActive ? AppColors.success : AppColors.error;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.assignment_ind, color: AppColors.primaryNavy),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(agency.number, style: AppTextStyles.labelLarge),
+              ),
+              _badge(agency.isActive ? 'سارية' : 'منتهية', color),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _infoRow('النوع', agency.type),
+          _infoRow('الموكل', agency.principal),
+          _infoRow('الوكيل', agency.agent),
+          _infoRow('تاريخ الإصدار', _formatDate(agency.issuedAt)),
+          _infoRow('انتهاء الصلاحية', agency.expiresAt == null ? 'غير محدد' : _formatDate(agency.expiresAt!)),
+        ],
+      ),
+    );
+  }
+
+  Widget _phaseTile(CasePhase phase, int index, bool isActive) {
+    final color = isActive ? AppColors.success : AppColors.primaryNavy;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: color,
+              child: Text(
+                '${index + 1}',
+                style: AppTextStyles.labelLarge.copyWith(color: AppColors.textOnLight),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          phase.type.displayName,
+                          style: AppTextStyles.headline5.copyWith(color: color),
+                        ),
+                      ),
+                      _badge(isActive ? 'نشطة' : 'سابقة', color),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _infoRow('المحكمة', phase.court),
+                  _infoRow('رقم الأساس', phase.baseNumber ?? 'غير مدخل'),
+                  _infoRow('سنة الأساس', phase.baseYear?.toString() ?? 'غير محددة'),
+                  _infoRow('تاريخ البداية', _formatDate(phase.startDate)),
+                  _infoRow('تاريخ النهاية', phase.endDate == null ? 'مستمرة' : _formatDate(phase.endDate!)),
+                  if (phase.description.isNotEmpty) _infoRow('الوصف', phase.description),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sessionTile(CaseSession session) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: session.status.color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: session.status.color.withOpacity(0.35), width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event, color: session.status.color),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${session.type.displayName} • ${_formatDate(session.sessionDate)} • ${_formatTime(session.sessionTime)}',
+                  style: AppTextStyles.labelLarge,
+                ),
+              ),
+              _badge(session.status.displayName, session.status.color),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _infoRow('المحكمة', session.court),
+          _infoRow('النتيجة', session.decision.isEmpty ? 'بانتظار النتيجة' : session.decision),
+          if (session.result?.nextRequired.isNotEmpty ?? false)
+            _infoRow('المطلوب القادم', session.result!.nextRequired),
+          if (session.result?.notes.isNotEmpty ?? false)
+            _infoRow('ملاحظات', session.result!.notes),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionTile(CaseAction action) {
+    final color = action.status == 'completed' ? AppColors.success : AppColors.warning;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.35), width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.task_alt, color: color),
+              const SizedBox(width: 8),
+              Expanded(child: Text(action.title, style: AppTextStyles.labelLarge)),
+              _badge(_statusArabic(action.status), color),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _infoRow('التاريخ', _formatDate(action.actionDate)),
+          _infoRow('المكلف', action.assignedTo.isEmpty ? 'غير محدد' : action.assignedTo),
+          _infoRow('الوصف', action.description.isEmpty ? 'لا يوجد وصف' : action.description),
+          _infoRow('الاستحقاق', action.dueDate == null ? 'غير محدد' : _formatDate(action.dueDate!)),
+        ],
+      ),
+    );
+  }
+
+  Widget _documentTile(DocumentItem document) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: AppColors.primaryNavy.withOpacity(0.1),
+              child: Icon(document.fileType.icon, color: AppColors.primaryNavy),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(document.title, style: AppTextStyles.labelLarge),
+                  Text(
+                    '${document.documentType.displayName} • ${document.fileType.displayName} • ${document.formattedSize}',
+                    style: AppTextStyles.bodySmallSecondary,
+                  ),
+                  Text(
+                    'أضيف بتاريخ ${_formatDate(document.uploadDate)} • ${document.physicalLocation}',
+                    style: AppTextStyles.bodySmallSecondary,
+                  ),
+                ],
+              ),
+            ),
+            if (document.isMissingOriginal)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _badge('بانتظار الأصل', AppColors.warning),
+              ),
+            IconButton(
+              tooltip: 'فتح',
+              icon: const Icon(Icons.open_in_new),
+              onPressed: () => openDocument(context, document.id),
+            ),
+            IconButton(
+              tooltip: 'حذف الربط',
+              icon: Icon(Icons.delete_outline, color: AppColors.error),
+              onPressed: () => _confirmDeleteDocument(document),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _financeList({
+    required String title,
+    required IconData icon,
+    required String emptyTitle,
+    required List<Widget> children,
+  }) {
+    return _infoCard(
+      title: title,
+      icon: icon,
+      children: children.isEmpty
+          ? [
+              _emptyState(
+                icon: icon,
+                title: emptyTitle,
+                subtitle: 'يمكن إضافة البيانات المالية لاحقاً من شاشة المالية الموحدة.',
+                compact: true,
+              ),
+            ]
+          : children,
+    );
+  }
+
+  Widget _feeTile(CaseFee fee) {
+    final isPaid = fee.status == 'paid';
+    final color = isPaid ? AppColors.success : AppColors.warning;
+    return ListTile(
+      leading: Icon(Icons.payments, color: color),
+      title: Text(_formatCurrency(fee.amount), style: AppTextStyles.labelLarge),
+      subtitle: Text('الموكل: ${fee.clientId} • الاتفاق: ${_formatDate(fee.agreementDate)}', style: AppTextStyles.bodySmallSecondary),
+      trailing: _badge(isPaid ? 'مدفوع' : 'غير مدفوع', color),
+    );
+  }
+
+  Widget _expenseTile(CaseExpense expense) {
+    return ListTile(
+      leading: Icon(Icons.receipt, color: AppColors.error),
+      title: Text(expense.description, style: AppTextStyles.labelLarge),
+      subtitle: Text(_formatDate(expense.expenseDate), style: AppTextStyles.bodySmallSecondary),
+      trailing: Text(_formatCurrency(expense.amount), style: AppTextStyles.numberText.copyWith(color: AppColors.error)),
+    );
+  }
+
+  Widget _deficiencyTile(CaseDeficiency deficiency) {
+    final color = deficiency.isResolved ? AppColors.success : _severityColor(deficiency.severity);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.12),
+              child: Icon(deficiency.isResolved ? Icons.verified : Icons.error_outline, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(deficiency.field, style: AppTextStyles.labelLarge)),
+                      _badge(deficiency.isResolved ? 'مكتمل' : _severityLabel(deficiency.severity), color),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(deficiency.description, style: AppTextStyles.bodyMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    'تاريخ الرصد: ${_formatDate(deficiency.createdAt)}${deficiency.resolvedAt == null ? '' : ' • الإغلاق: ${_formatDate(deficiency.resolvedAt!)}'}',
+                    style: AppTextStyles.bodySmallSecondary,
+                  ),
+                ],
+              ),
+            ),
+            if (!deficiency.isResolved)
+              TextButton.icon(
+                onPressed: () => ref
+                    .read(caseDetailProvider(widget.caseId).notifier)
+                    .resolveDeficiency(deficiency.id),
+                icon: const Icon(Icons.done),
+                label: const Text('إغلاق'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timelineTile(CaseTimelineEvent event) {
+    final color = _timelineColor(event.eventType);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            CircleAvatar(
+              backgroundColor: color,
+              child: Icon(_timelineIcon(event.eventType), color: AppColors.textOnLight, size: 20),
+            ),
+            Container(width: 2, height: 58, color: AppColors.cardBorder),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(event.description, style: AppTextStyles.bodyMedium)),
+                      _badge(_eventArabic(event.eventType), color),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_formatDate(event.eventDate)} • ${event.createdBy ?? 'النظام'}',
+                    style: AppTextStyles.bodySmallSecondary,
+                  ),
+                  if (event.documents?.isNotEmpty ?? false) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      children: event.documents!
+                          .map((documentId) => ActionChip(
+                                avatar: const Icon(Icons.description, size: 16),
+                                label: Text(documentId),
+                                onPressed: () => openDocument(context, documentId),
+                              ))
+                          .toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _emptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    bool compact = false,
+  }) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 12 : 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+          children: [
+            Icon(icon, size: compact ? 42 : 72, color: AppColors.textSecondary),
+            SizedBox(height: compact ? 8 : 16),
+            Text(title, style: compact ? AppTextStyles.headline6 : AppTextStyles.headline4),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: AppTextStyles.bodySmallSecondary,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddSessionDialog(BuildContext context) async {
+    final decisionController = TextEditingController();
+    final notesController = TextEditingController();
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
+    SessionType selectedType = SessionType.ordinary;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: const Text('إضافة جلسة جديدة'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<SessionType>(
+                      value: selectedType,
+                      decoration: const InputDecoration(labelText: 'نوع الجلسة'),
+                      items: SessionType.values
+                          .map((type) => DropdownMenuItem(value: type, child: Text(type.displayName)))
+                          .toList(),
+                      onChanged: (type) {
+                        if (type != null) {
+                          setLocalState(() => selectedType = type);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: Text('التاريخ: ${_formatDate(selectedDate)}', style: AppTextStyles.bodyMedium)),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2035),
+                            );
+                            if (picked != null) {
+                              setLocalState(() => selectedDate = picked);
+                            }
+                          },
+                          icon: const Icon(Icons.calendar_today),
+                          label: const Text('اختيار'),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(child: Text('الوقت: ${_formatTime(selectedTime)}', style: AppTextStyles.bodyMedium)),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: selectedTime,
+                            );
+                            if (picked != null) {
+                              setLocalState(() => selectedTime = picked);
+                            }
+                          },
+                          icon: const Icon(Icons.access_time),
+                          label: const Text('اختيار'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: decisionController,
+                      decoration: const InputDecoration(labelText: 'النتيجة / القرار المتوقع'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: notesController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(labelText: 'ملاحظات'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('إلغاء')),
+                ElevatedButton(
+                  onPressed: () {
+                    ref.read(caseDetailProvider(widget.caseId).notifier).addSession(
+                          sessionDate: selectedDate,
+                          sessionTime: selectedTime,
+                          type: selectedType,
+                          decision: decisionController.text.trim(),
+                          notes: notesController.text.trim(),
+                        );
+                    Navigator.of(dialogContext).pop();
+                    _showSnack('تمت إضافة الجلسة بنجاح.');
+                  },
+                  child: const Text('حفظ'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    decisionController.dispose();
+    notesController.dispose();
+  }
+
+  Future<void> _showAddPhaseDialog(BuildContext context, CaseDetailState state) async {
+    CasePhaseType selectedType = CasePhaseType.appeal;
+    final courtController = TextEditingController(text: state.caseItem?.court ?? '');
+    final baseController = TextEditingController();
+    final yearController = TextEditingController(text: DateTime.now().year.toString());
+    final descriptionController = TextEditingController(text: 'نقل للمرحلة القضائية التالية مع المبرزات السابقة.');
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('نقل الدعوى إلى مرحلة قضائية'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<CasePhaseType>(
+                  value: selectedType,
+                  decoration: const InputDecoration(labelText: 'المرحلة الجديدة'),
+                  items: CasePhaseType.values
+                      .map((type) => DropdownMenuItem(value: type, child: Text(type.displayName)))
+                      .toList(),
+                  onChanged: (type) {
+                    if (type != null) {
+                      setLocalState(() => selectedType = type);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: courtController, decoration: const InputDecoration(labelText: 'المحكمة')),
+                const SizedBox(height: 12),
+                TextField(controller: baseController, decoration: const InputDecoration(labelText: 'رقم الأساس الجديد')),
+                const SizedBox(height: 12),
+                TextField(controller: yearController, decoration: const InputDecoration(labelText: 'سنة الأساس')),
+                const SizedBox(height: 12),
+                TextField(controller: descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'الوصف')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: () {
+                final phase = CasePhase(
+                  id: 'phase_${DateTime.now().microsecondsSinceEpoch}',
+                  type: selectedType,
+                  court: courtController.text.trim().isEmpty ? state.caseItem!.court : courtController.text.trim(),
+                  baseNumber: baseController.text.trim().isEmpty ? null : baseController.text.trim(),
+                  baseYear: int.tryParse(yearController.text.trim()),
+                  startDate: DateTime.now(),
+                  description: descriptionController.text.trim(),
+                );
+                ref.read(caseDetailProvider(widget.caseId).notifier).addPhase(phase);
+                Navigator.of(dialogContext).pop();
+                _showSnack('تمت إضافة المرحلة القضائية.');
+              },
+              child: const Text('حفظ المرحلة'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    courtController.dispose();
+    baseController.dispose();
+    yearController.dispose();
+    descriptionController.dispose();
+  }
+
+  Future<void> _pickAndAddDocument(CaseDetailState state) async {
+    final caseItem = state.caseItem!;
+    final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+    final file = result?.files.firstOrNull;
+    final now = DateTime.now();
+    final document = DocumentItem(
+      id: 'doc_${now.microsecondsSinceEpoch}',
+      title: file == null ? 'مستند جديد' : file.name,
+      documentType: DocumentType.caseDocument,
+      entityType: 'case',
+      entityId: caseItem.id,
+      entityTitle: caseItem.title,
+      filePath: file?.path ?? 'docs/cases/manual_${now.microsecondsSinceEpoch}.pdf',
+      fileName: file?.name ?? 'manual_upload.pdf',
+      fileSize: file?.size ?? 256 * 1024,
+      fileType: inferFileType(file?.extension),
+      uploadDate: now,
+      uploadedBy: 'مكتب المحامي',
+      physicalLocation: 'الأرشيف الإلكتروني',
+    );
+
+    ref.read(caseDetailProvider(widget.caseId).notifier).addDocument(document);
+    _showSnack('تم رفع وربط المستند بالدعوى.');
+  }
+
+  void _linkGlobalDocument(CaseDetailState state) {
+    final caseItem = state.caseItem!;
+    final now = DateTime.now();
+    final document = DocumentItem(
+      id: 'global_${now.microsecondsSinceEpoch}',
+      title: 'مستند مرتبط من الأرشيف العالمي',
+      documentType: DocumentType.memo,
+      entityType: 'case',
+      entityId: caseItem.id,
+      entityTitle: caseItem.title,
+      filePath: 'docs/global/linked_document.pdf',
+      fileName: 'linked_document.pdf',
+      fileSize: 384 * 1024,
+      fileType: FileType.pdf,
+      uploadDate: now,
+      uploadedBy: 'الأرشيف العالمي',
+      physicalLocation: 'مكتب المحامي',
+      notes: 'تم ربطه من المستندات العالمية.',
+    );
+    ref.read(caseDetailProvider(widget.caseId).notifier).addDocument(document);
+    _showSnack('تم ربط مستند عالمي بالدعوى.');
+  }
+
+  Future<void> _confirmDeleteDocument(DocumentItem document) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف ربط المستند'),
+        content: Text('هل تريد حذف ربط المستند "${document.title}" من الدعوى؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      ref.read(caseDetailProvider(widget.caseId).notifier).deleteDocument(document.id);
+      _showSnack('تم حذف ربط المستند.');
+    }
+  }
+
+  Future<void> _showAddDeficiencyDialog(BuildContext context) async {
+    final fieldController = TextEditingController();
+    final descriptionController = TextEditingController();
+    String severity = 'medium';
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('إضافة نقص جديد'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: fieldController, decoration: const InputDecoration(labelText: 'نوع النقص')),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: severity,
+                  decoration: const InputDecoration(labelText: 'الأولوية'),
+                  items: const [
+                    DropdownMenuItem(value: 'low', child: Text('منخفضة')),
+                    DropdownMenuItem(value: 'medium', child: Text('متوسطة')),
+                    DropdownMenuItem(value: 'high', child: Text('عالية')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setLocalState(() => severity = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'الوصف')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: () {
+                final field = fieldController.text.trim();
+                final description = descriptionController.text.trim();
+                if (field.isEmpty || description.isEmpty) {
+                  _showSnack('يرجى إدخال نوع النقص والوصف.', isError: true);
+                  return;
+                }
+                ref.read(caseDetailProvider(widget.caseId).notifier).addDeficiency(
+                      field: field,
+                      description: description,
+                      severity: severity,
+                    );
+                Navigator.of(dialogContext).pop();
+                _showSnack('تمت إضافة النقص.');
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    fieldController.dispose();
+    descriptionController.dispose();
+  }
+
+  void _showFinancialReport(CaseDetailState state) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تقرير مالي مختصر'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoRow('إجمالي الأتعاب', _formatCurrency(state.totalFees)),
+            _infoRow('إجمالي المصروفات', _formatCurrency(state.totalExpenses)),
+            _infoRow('الرصيد الحالي', _formatCurrency(state.balance)),
+            const SizedBox(height: 8),
+            Text('التقرير جاهز للطباعة أو التصدير من شاشة المالية الموحدة.', style: AppTextStyles.bodySmallSecondary),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('إغلاق')),
+        ],
+      ),
+    );
+  }
+
+  void _terminateCase(CaseDetailState state) {
+    if (!_terminationConfirmed) {
+      _showSnack('يجب تأكيد مراجعة الملف قبل الإنهاء.', isError: true);
+      return;
+    }
+    final summary = _terminationSummaryController.text.trim();
+    if (summary.isEmpty) {
+      _showSnack('ملخص القرار النهائي إلزامي.', isError: true);
+      return;
+    }
+
+    ref.read(caseDetailProvider(widget.caseId).notifier).terminateCase(
+          result: _selectedClosureResult,
+          decisionNumber: _terminationNumberController.text.trim(),
+          summary: summary,
+          closedAt: DateTime.now(),
+        );
+    setState(() => _terminationConfirmed = false);
+    _showSnack('تم إنهاء الدعوى وإضافة الحدث إلى الخط الزمني.');
+  }
+
+  void _showSnack(String message, {bool isError = false}) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTime(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatCurrency(double amount) {
+    return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match[1]},')} ل.س';
+  }
+
+  String _statusArabic(String status) {
+    switch (status) {
+      case 'completed':
+        return 'مكتمل';
+      case 'cancelled':
+        return 'ملغى';
+      case 'pending':
+      default:
+        return 'قيد المتابعة';
+    }
+  }
+
+  Color _severityColor(String severity) {
+    switch (severity) {
+      case 'high':
+        return AppColors.error;
+      case 'low':
+        return AppColors.info;
+      case 'medium':
+      default:
+        return AppColors.warning;
+    }
+  }
+
+  String _severityLabel(String severity) {
+    switch (severity) {
+      case 'high':
+        return 'عالية';
+      case 'low':
+        return 'منخفضة';
+      case 'medium':
+      default:
+        return 'متوسطة';
+    }
+  }
+
+  IconData _timelineIcon(String eventType) {
+    if (eventType.contains('session')) {
+      return Icons.event;
+    }
+    if (eventType.contains('document')) {
+      return Icons.description;
+    }
+    if (eventType.contains('fee') || eventType.contains('expense')) {
+      return Icons.payments;
+    }
+    if (eventType.contains('deficiency')) {
+      return Icons.rule;
+    }
+    if (eventType.contains('termination')) {
+      return Icons.lock;
+    }
+    if (eventType.contains('phase')) {
+      return Icons.account_tree;
+    }
+    return Icons.history;
+  }
+
+  Color _timelineColor(String eventType) {
+    if (eventType.contains('session')) {
+      return AppColors.info;
+    }
+    if (eventType.contains('document')) {
+      return AppColors.primaryNavy;
+    }
+    if (eventType.contains('fee')) {
+      return AppColors.success;
+    }
+    if (eventType.contains('expense')) {
+      return AppColors.error;
+    }
+    if (eventType.contains('deficiency')) {
+      return eventType.contains('resolved') ? AppColors.success : AppColors.warning;
+    }
+    if (eventType.contains('termination')) {
+      return AppColors.error;
+    }
+    if (eventType.contains('phase')) {
+      return AppColors.secondaryGold;
+    }
+    return AppColors.textSecondary;
+  }
+
+  String _eventArabic(String eventType) {
+    if (eventType.contains('created')) {
+      return 'إنشاء';
+    }
+    if (eventType.contains('session')) {
+      return 'جلسة';
+    }
+    if (eventType.contains('document')) {
+      return 'مستند';
+    }
+    if (eventType.contains('fee') || eventType.contains('expense')) {
+      return 'مالية';
+    }
+    if (eventType.contains('deficiency')) {
+      return 'نقص';
+    }
+    if (eventType.contains('termination')) {
+      return 'إنهاء';
+    }
+    if (eventType.contains('phase')) {
+      return 'مرحلة';
+    }
+    return 'حدث';
+  }
+}
+
+extension _FirstWhereOrNullExtension<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T item) test) {
+    for (final item in this) {
+      if (test(item)) {
+        return item;
+      }
+    }
+    return null;
   }
 }
