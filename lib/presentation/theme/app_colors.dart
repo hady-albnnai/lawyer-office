@@ -206,7 +206,7 @@ class AppColors {
         elevation: 4,
         shadowColor: shadowMedium,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardBackground,
         surfaceTintColor: cardBackground,
         elevation: 2,
@@ -298,7 +298,7 @@ class AppColors {
         elevation: 4,
         shape: CircleBorder(),
       ),
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         backgroundColor: cardBackground,
         surfaceTintColor: cardBackground,
         elevation: 8,

@@ -4,7 +4,7 @@
 /// المستندات، المالية، النواقص، الخط الزمني، والإنهاء. تعتمد الشاشة على
 /// Riverpod لإدارة حالة الدعوى وتستخدم AppTheme/AppColors/AppTextStyles فقط.
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -2246,7 +2246,7 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
 
   Future<void> _pickAndAddDocument(CaseDetailState state) async {
     final caseItem = state.caseItem!;
-    final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+    final result = await file_picker.FilePicker.platform.pickFiles(allowMultiple: false);
     final file = result?.files.firstOrNull;
     final now = DateTime.now();
     final document = DocumentItem(

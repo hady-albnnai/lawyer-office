@@ -83,6 +83,20 @@ PASS - حذف cases_list_screen.dart القديم
 
 ---
 
+
+### تحديث 2026-07-10 - إصلاح أخطاء أول تشغيل Windows CI
+
+- ❌ فشل أول تشغيل لـ GitHub Actions في خطوة `flutter analyze`.
+- ✅ تم جلب سجل الأخطاء من GitHub Actions وتحليلها.
+- ✅ إصلاح تعارض `FileType` مع `file_picker`.
+- ✅ إصلاح أخطاء الأقواس في `cases_screen.dart` و`documents_screen.dart` و`files_screen.dart` عبر إعادة تنظيم الملفات.
+- ✅ إضافة الدالة المفقودة `_buildStepHeader` في `create_case_wizard.dart`.
+- ✅ تحديث الثيم ليتوافق مع Flutter الحالي (`CardThemeData`, `DialogThemeData`, `TabBarThemeData`).
+- ✅ إصلاح أيقونات غير موجودة في `custom_icons.dart`.
+- ⏳ سيتم دفع الإصلاحات وتشغيل CI مرة ثانية.
+
+---
+
 ## 📊 ملخص الحالة
 
 | المؤشر | القيمة |

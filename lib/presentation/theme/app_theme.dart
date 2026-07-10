@@ -58,7 +58,7 @@ class AppTheme {
       // =========================================================================
       // Card Theme
       // =========================================================================
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.cardBackground,
         surfaceTintColor: AppColors.cardBackground,
         elevation: 2,
@@ -211,7 +211,7 @@ class AppTheme {
       // =========================================================================
       // Dialog Theme
       // =========================================================================
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         backgroundColor: AppColors.cardBackground,
         surfaceTintColor: AppColors.cardBackground,
         elevation: 8,
@@ -254,7 +254,7 @@ class AppTheme {
       // =========================================================================
       // Tab Bar Theme
       // =========================================================================
-      tabBarTheme: const TabBarTheme(
+      tabBarTheme: const TabBarThemeData(
         labelColor: AppColors.primaryNavy,
         unselectedLabelColor: AppColors.textSecondary,
         indicator: UnderlineTabIndicator(
@@ -494,7 +494,7 @@ class AppTheme {
         elevation: 4,
         centerTitle: true,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: const Color(0xFF1E1E1E),
         surfaceTintColor: const Color(0xFF1E1E1E),
         elevation: 2,

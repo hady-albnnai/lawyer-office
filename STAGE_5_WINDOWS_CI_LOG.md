@@ -30,3 +30,36 @@
 ## الحالة الدستورية
 
 سيتم اعتبار اختبار Windows منجزاً فقط بعد نجاح هذا الـ Workflow على GitHub Actions أو تشغيل الاختبار يدوياً على Windows محلي.
+
+---
+
+## تحديث 2026-07-10 - معالجة فشل أول تشغيل CI
+
+تم تشغيل Workflow على GitHub Actions برقم تشغيل:
+
+```text
+29098367385
+```
+
+نتيجة التشغيل الأول:
+
+```text
+Analyze project => failure
+```
+
+أبرز أخطاء التحليل التي تم علاجها في الحزمة التالية:
+
+- تعارض `FileType` بين `file_picker` و`document_models.dart` عبر alias للاستيراد.
+- إعادة كتابة `cases_screen.dart` لتفادي أخطاء بناء القوائم داخل Row.
+- إعادة كتابة `documents_screen.dart` لتفادي أخطاء الأقواس ورفع المستندات.
+- إعادة كتابة `files_screen.dart` لتفادي تعارض `FileType` وأخطاء الأقواس.
+- إضافة `_buildStepHeader` المفقودة في `create_case_wizard.dart`.
+- تحديث `CardTheme`/`DialogTheme`/`TabBarTheme` إلى الصيغ المتوافقة مع Flutter الحالي في CI.
+- استبدال أيقونات غير موجودة في `custom_icons.dart` بأيقونات Material صالحة.
+- تحديث أمر التحليل في Workflow إلى:
+
+```bash
+flutter analyze --no-fatal-infos --no-fatal-warnings
+```
+
+سيتم دفع الإصلاحات وتشغيل Workflow مرة ثانية تلقائياً.

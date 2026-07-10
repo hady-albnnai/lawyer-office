@@ -91,7 +91,7 @@ class CustomIcons {
   static const IconData todaySessions = Icons.gavel;
   
   /// مراجعات اليوم
-  static const IconData todayReviews = Icons.review;
+  static const IconData todayReviews = Icons.rate_review;
   
   /// أوامر عمل بانتظار نتيجة
   static const IconData pendingWorkOrders = Icons.hourglass_empty;
@@ -200,7 +200,7 @@ class CustomIcons {
   static const IconData opponents = Icons.person_off;
   
   /// محامو خصوم
-  static const IconData opponentLawyers = Icons.legal;
+  static const IconData opponentLawyers = Icons.gavel;
   
   /// كتاب عدل
   static const IconData notaries = Icons.verified;
@@ -362,7 +362,7 @@ class CustomIcons {
   static const IconData logo = Icons.image;
   
   /// التوقيع
-  static const IconData signature = Icons.signature;
+  static const IconData signature = Icons.draw;
   
   /// الخطوط
   static const IconData fonts = Icons.font_download;
