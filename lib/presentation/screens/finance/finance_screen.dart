@@ -1,8 +1,19 @@
 /// شاشة المالية الموحدة - المرحلة 7.
+///
+/// تغطي: لوحة مالية، اتفاقيات الأتعاب، سندات القبض مع طباعة إيصال PDF،
+/// المصاريف (بما فيها مصاريف المعقبين وأوامر العمل)، الأرصدة،
+/// ذمم الموكلين، والتقارير مع تصدير PDF offline.
+
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
+import '../../../core/constants/app_constants.dart';
+import '../../providers/office_settings_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -16,13 +27,14 @@ class FinanceScreen extends ConsumerStatefulWidget {
   ConsumerState<FinanceScreen> createState() => _FinanceScreenState();
 }
 
-class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTickerProviderStateMixin {
+class _FinanceScreenState extends ConsumerState<FinanceScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -46,17 +58,31 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
               IconButton(
                 tooltip: 'إضافة اتفاق أتعاب',
                 icon: const Icon(Icons.note_add),
-                onPressed: () => showDialog<void>(context: context, builder: (context) => const AddAgreementDialog()),
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => const AddAgreementDialog(),
+                ),
               ),
               IconButton(
                 tooltip: 'إضافة دفعة',
                 icon: const Icon(Icons.payments),
-                onPressed: () => showDialog<void>(context: context, builder: (context) => const AddPaymentDialog()),
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => const AddPaymentDialog(),
+                ),
               ),
               IconButton(
                 tooltip: 'إضافة مصروف',
                 icon: const Icon(Icons.receipt_long),
-                onPressed: () => showDialog<void>(context: context, builder: (context) => const AddExpenseDialog()),
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => const AddExpenseDialog(),
+                ),
+              ),
+              IconButton(
+                tooltip: 'تصدير تقرير PDF',
+                icon: const Icon(Icons.picture_as_pdf),
+                onPressed: () => _exportFinanceReportPdf(state),
               ),
             ],
             bottom: TabBar(
@@ -72,6 +98,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
                 Tab(text: 'سندات القبض'),
                 Tab(text: 'المصاريف'),
                 Tab(text: 'الأرصدة'),
+                Tab(text: 'ذمم الموكلين'),
                 Tab(text: 'التقارير'),
               ],
             ),
@@ -88,6 +115,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
                     _paymentsTab(state),
                     _expensesTab(state),
                     _balancesTab(state),
+                    _clientsTab(state),
                     _reportsTab(state),
                   ],
                 ),
@@ -111,7 +139,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
           Expanded(
             child: TextField(
               decoration: const InputDecoration(
-                hintText: 'بحث باسم الموكل، الملف، رقم الكيان...',
+                hintText: 'بحث باسم الموكل، الملف، رقم الكيان، رقم الإيصال...',
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (value) => ref.read(financeProvider.notifier).setSearchQuery(value),
@@ -123,7 +151,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
             items: [
               const DropdownMenuItem<FinanceEntityType?>(value: null, child: Text('كل الملفات')),
               ...FinanceEntityType.values.map(
-                (type) => DropdownMenuItem<FinanceEntityType?>(value: type, child: Text(type.displayName)),
+                (type) => DropdownMenuItem<FinanceEntityType?>(
+                  value: type,
+                  child: Text(type.displayName),
+                ),
               ),
             ],
             onChanged: (value) => ref.read(financeProvider.notifier).setEntityFilter(value),
@@ -135,6 +166,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
 
   Widget _dashboardTab(FinanceState state) {
     final summary = state.summary;
+    final expediterExpenses = state.filteredExpenses
+        .where((e) =>
+            e.category == ExpenseCategory.expediter ||
+            e.entityType == FinanceEntityType.workOrder)
+        .fold(0.0, (sum, e) => sum + e.amount);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -144,11 +181,42 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
             spacing: 12,
             runSpacing: 12,
             children: [
-              _metricCard('إجمالي الأتعاب', _formatCurrency(summary.agreementsTotal), Icons.assignment_turned_in, AppColors.primaryNavy),
-              _metricCard('المقبوض', _formatCurrency(summary.paymentsTotal), Icons.payments, AppColors.success),
-              _metricCard('المتبقي', _formatCurrency(summary.remainingFees), Icons.pending_actions, AppColors.warning),
-              _metricCard('المصاريف', _formatCurrency(summary.expensesTotal), Icons.receipt, AppColors.error),
-              _metricCard('الصافي', _formatCurrency(summary.netBalance), Icons.account_balance_wallet, summary.netBalance >= 0 ? AppColors.success : AppColors.error),
+              _metricCard(
+                'إجمالي الأتعاب',
+                _formatCurrency(summary.agreementsTotal),
+                Icons.assignment_turned_in,
+                AppColors.primaryNavy,
+              ),
+              _metricCard(
+                'المقبوض',
+                _formatCurrency(summary.paymentsTotal),
+                Icons.payments,
+                AppColors.success,
+              ),
+              _metricCard(
+                'المتبقي',
+                _formatCurrency(summary.remainingFees),
+                Icons.pending_actions,
+                AppColors.warning,
+              ),
+              _metricCard(
+                'المصاريف',
+                _formatCurrency(summary.expensesTotal),
+                Icons.receipt,
+                AppColors.error,
+              ),
+              _metricCard(
+                'مصاريف المعقبين',
+                _formatCurrency(expediterExpenses),
+                Icons.directions_walk,
+                AppColors.info,
+              ),
+              _metricCard(
+                'الصافي',
+                _formatCurrency(summary.netBalance),
+                Icons.account_balance_wallet,
+                summary.netBalance >= 0 ? AppColors.success : AppColors.error,
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -156,9 +224,26 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
             title: 'تنبيهات مالية',
             icon: Icons.notifications_active,
             children: [
-              _alertLine(Icons.warning_amber, 'اتفاقيات غير مسددة بالكامل: ${_unpaidAgreements(state).length}', AppColors.warning),
-              _alertLine(Icons.receipt_long, 'مصاريف دون إيصال: ${state.filteredExpenses.where((expense) => !expense.hasReceipt).length}', AppColors.error),
-              _alertLine(Icons.description, 'اتفاقيات دون عقد أتعاب مرفق: ${state.filteredAgreements.where((agreement) => !agreement.hasContractDocument).length}', AppColors.info),
+              _alertLine(
+                Icons.warning_amber,
+                'اتفاقيات غير مسددة بالكامل: ${_unpaidAgreements(state).length}',
+                AppColors.warning,
+              ),
+              _alertLine(
+                Icons.people_alt,
+                'موكلون لديهم ذمم: ${state.clientReceivables.where((c) => !c.isSettled).length}',
+                AppColors.warning,
+              ),
+              _alertLine(
+                Icons.receipt_long,
+                'مصاريف دون إيصال: ${state.filteredExpenses.where((e) => !e.hasReceipt).length}',
+                AppColors.error,
+              ),
+              _alertLine(
+                Icons.description,
+                'اتفاقيات دون عقد أتعاب مرفق: ${state.filteredAgreements.where((a) => !a.hasContractDocument).length}',
+                AppColors.info,
+              ),
             ],
           ),
         ],
@@ -167,9 +252,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
   }
 
   Widget _agreementsTab(FinanceState state) {
-    final agreements = [...state.filteredAgreements]..sort((a, b) => b.agreementDate.compareTo(a.agreementDate));
+    final agreements = [...state.filteredAgreements]
+      ..sort((a, b) => b.agreementDate.compareTo(a.agreementDate));
     if (agreements.isEmpty) {
-      return _emptyState(Icons.assignment, 'لا توجد اتفاقيات أتعاب', 'أضف اتفاق أتعاب جديد من الشريط العلوي.');
+      return _emptyState(
+        Icons.assignment,
+        'لا توجد اتفاقيات أتعاب',
+        'أضف اتفاق أتعاب جديد من الشريط العلوي.',
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -179,9 +269,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
   }
 
   Widget _paymentsTab(FinanceState state) {
-    final payments = [...state.payments]..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+    final payments = [...state.filteredPayments]
+      ..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
     if (payments.isEmpty) {
-      return _emptyState(Icons.payments, 'لا توجد سندات قبض', 'سجل دفعة جديدة من الشريط العلوي.');
+      return _emptyState(
+        Icons.payments,
+        'لا توجد سندات قبض',
+        'سجل دفعة جديدة من الشريط العلوي.',
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -191,9 +286,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
   }
 
   Widget _expensesTab(FinanceState state) {
-    final expenses = [...state.filteredExpenses]..sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+    final expenses = [...state.filteredExpenses]
+      ..sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
     if (expenses.isEmpty) {
-      return _emptyState(Icons.receipt_long, 'لا توجد مصاريف', 'أضف مصروفاً جديداً من الشريط العلوي.');
+      return _emptyState(
+        Icons.receipt_long,
+        'لا توجد مصاريف',
+        'أضف مصروفاً جديداً من الشريط العلوي.',
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -205,7 +305,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
   Widget _balancesTab(FinanceState state) {
     final agreements = state.filteredAgreements;
     if (agreements.isEmpty) {
-      return _emptyState(Icons.account_balance_wallet, 'لا توجد أرصدة', 'لا توجد اتفاقيات ضمن الفلتر الحالي.');
+      return _emptyState(
+        Icons.account_balance_wallet,
+        'لا توجد أرصدة',
+        'لا توجد اتفاقيات ضمن الفلتر الحالي.',
+      );
     }
 
     return ListView.builder(
@@ -218,12 +322,97 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: remaining <= 0 ? AppColors.success.withOpacity(0.12) : AppColors.warning.withOpacity(0.12),
-              child: Icon(remaining <= 0 ? Icons.verified : Icons.pending_actions, color: remaining <= 0 ? AppColors.success : AppColors.warning),
+              backgroundColor: remaining <= 0
+                  ? AppColors.success.withOpacity(0.12)
+                  : AppColors.warning.withOpacity(0.12),
+              child: Icon(
+                remaining <= 0 ? Icons.verified : Icons.pending_actions,
+                color: remaining <= 0 ? AppColors.success : AppColors.warning,
+              ),
             ),
             title: Text(agreement.entityTitle, style: AppTextStyles.labelLarge),
-            subtitle: Text('${agreement.partyName} • المقبوض: ${_formatCurrency(paid)}', style: AppTextStyles.bodySmallSecondary),
-            trailing: Text(_formatCurrency(remaining), style: AppTextStyles.numberText.copyWith(color: remaining <= 0 ? AppColors.success : AppColors.warning)),
+            subtitle: Text(
+              '${agreement.partyName} • ${agreement.entityType.displayName} • المقبوض: ${_formatCurrency(paid)}',
+              style: AppTextStyles.bodySmallSecondary,
+            ),
+            trailing: Text(
+              _formatCurrency(remaining),
+              style: AppTextStyles.numberText.copyWith(
+                color: remaining <= 0 ? AppColors.success : AppColors.warning,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _clientsTab(FinanceState state) {
+    final clients = state.clientReceivables;
+    if (clients.isEmpty) {
+      return _emptyState(
+        Icons.people_alt,
+        'لا توجد ذمم موكلين',
+        'أضف اتفاقيات أتعاب لموكلين لعرض الذمم.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: clients.length,
+      itemBuilder: (context, index) {
+        final client = clients[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: client.isSettled
+                          ? AppColors.success.withOpacity(0.12)
+                          : AppColors.warning.withOpacity(0.12),
+                      child: Icon(
+                        client.isSettled ? Icons.verified_user : Icons.person,
+                        color: client.isSettled ? AppColors.success : AppColors.warning,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        client.partyName,
+                        style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy),
+                      ),
+                    ),
+                    _badge(
+                      client.isSettled ? 'مسدّد' : 'ذمة قائمة',
+                      client.isSettled ? AppColors.success : AppColors.warning,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    _miniMetric('اتفاقيات', '${client.agreementsCount}'),
+                    _miniMetric('غير مسددة', '${client.unpaidAgreementsCount}'),
+                    _miniMetric('إجمالي الأتعاب', _formatCurrency(client.agreementsTotal)),
+                    _miniMetric('المقبوض', _formatCurrency(client.paymentsTotal)),
+                    _miniMetric('المتبقي', _formatCurrency(client.remaining)),
+                    _miniMetric('مصاريف مرتبطة', _formatCurrency(client.expensesTotal)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'الملفات: ${client.entityTitles.join(' • ')}',
+                  style: AppTextStyles.bodySmallSecondary,
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -232,19 +421,62 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
 
   Widget _reportsTab(FinanceState state) {
     final summary = state.summary;
+    final clients = state.clientReceivables;
+    final expediterExpenses = state.filteredExpenses
+        .where((e) =>
+            e.category == ExpenseCategory.expediter ||
+            e.entityType == FinanceEntityType.workOrder)
+        .fold(0.0, (sum, e) => sum + e.amount);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: _sectionCard(
-        title: 'تقرير مالي مختصر',
-        icon: Icons.summarize,
+      child: Column(
         children: [
-          _reportRow('إجمالي اتفاقيات الأتعاب', _formatCurrency(summary.agreementsTotal)),
-          _reportRow('إجمالي المقبوضات', _formatCurrency(summary.paymentsTotal)),
-          _reportRow('إجمالي المتبقي على الموكلين', _formatCurrency(summary.remainingFees)),
-          _reportRow('إجمالي المصروفات', _formatCurrency(summary.expensesTotal)),
-          _reportRow('صافي صندوق الملفات', _formatCurrency(summary.netBalance)),
+          _sectionCard(
+            title: 'تقرير مالي مختصر',
+            icon: Icons.summarize,
+            children: [
+              _reportRow('إجمالي اتفاقيات الأتعاب', _formatCurrency(summary.agreementsTotal)),
+              _reportRow('إجمالي المقبوضات', _formatCurrency(summary.paymentsTotal)),
+              _reportRow('إجمالي المتبقي على الموكلين', _formatCurrency(summary.remainingFees)),
+              _reportRow('إجمالي المصروفات', _formatCurrency(summary.expensesTotal)),
+              _reportRow('مصاريف المعقبين / أوامر العمل', _formatCurrency(expediterExpenses)),
+              _reportRow('صافي صندوق الملفات', _formatCurrency(summary.netBalance)),
+              _reportRow('عدد الموكلين ذوي الذمم', '${clients.where((c) => !c.isSettled).length}'),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text('تصدير كشف مالي PDF'),
+                    onPressed: () => _exportFinanceReportPdf(state),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.print),
+                    label: const Text('معاينة وطباعة'),
+                    onPressed: () => _previewFinanceReportPdf(state),
+                  ),
+                ],
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
-          Text('هذا التقرير قابل للتوسيع لاحقاً إلى PDF/Excel ضمن مرحلة التقارير والطباعة.', style: AppTextStyles.bodySmallSecondary),
+          _sectionCard(
+            title: 'كشف ذمم الموكلين',
+            icon: Icons.people,
+            children: clients.isEmpty
+                ? [Text('لا توجد ذمم ضمن الفلتر الحالي.', style: AppTextStyles.bodySmallSecondary)]
+                : clients
+                    .map(
+                      (client) => _reportRow(
+                        client.partyName,
+                        _formatCurrency(client.remaining),
+                      ),
+                    )
+                    .toList(),
+          ),
         ],
       ),
     );
@@ -264,14 +496,24 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
               children: [
                 Icon(agreement.entityType.icon, color: AppColors.primaryNavy),
                 const SizedBox(width: 8),
-                Expanded(child: Text(agreement.entityTitle, style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy))),
+                Expanded(
+                  child: Text(
+                    agreement.entityTitle,
+                    style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy),
+                  ),
+                ),
+                _badge(agreement.entityType.displayName, AppColors.primaryNavy),
+                const SizedBox(width: 6),
                 _badge(agreement.agreementType.displayName, AppColors.info),
               ],
             ),
             const SizedBox(height: 8),
             _detailLine(Icons.person, 'الموكل: ${agreement.partyName}'),
             _detailLine(Icons.calendar_today, 'تاريخ الاتفاق: ${_formatDate(agreement.agreementDate)}'),
-            _detailLine(Icons.assignment, 'الإجمالي: ${_formatCurrency(agreement.totalAmount)} • المقبوض: ${_formatCurrency(paid)} • المتبقي: ${_formatCurrency(remaining)}'),
+            _detailLine(
+              Icons.assignment,
+              'الإجمالي: ${_formatCurrency(agreement.totalAmount)} • المقبوض: ${_formatCurrency(paid)} • المتبقي: ${_formatCurrency(remaining)}',
+            ),
             if (agreement.notes.isNotEmpty) _detailLine(Icons.note, agreement.notes),
             const SizedBox(height: 8),
             Wrap(
@@ -280,7 +522,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
                 OutlinedButton.icon(
                   icon: const Icon(Icons.description),
                   label: const Text('عقد الأتعاب'),
-                  onPressed: agreement.hasContractDocument ? () => openDocument(context, agreement.contractDocumentId) : null,
+                  onPressed: agreement.hasContractDocument
+                      ? () => openDocument(context, agreement.contractDocumentId)
+                      : null,
                 ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.add),
@@ -299,17 +543,37 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
   }
 
   Widget _paymentCard(FinanceState state, FinancePayment payment) {
-    final agreement = state.agreements.where((item) => item.id == payment.agreementId).firstOrNull;
+    final agreement = state.agreementById(payment.agreementId);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(backgroundColor: AppColors.success.withOpacity(0.12), child: Icon(Icons.payments, color: AppColors.success)),
-        title: Text(_formatCurrency(payment.amount), style: AppTextStyles.labelLarge.copyWith(color: AppColors.success)),
-        subtitle: Text('${agreement?.partyName ?? 'غير محدد'} • ${payment.method.displayName} • ${_formatDate(payment.paymentDate)}', style: AppTextStyles.bodySmallSecondary),
-        trailing: IconButton(
-          icon: const Icon(Icons.open_in_new),
-          onPressed: payment.hasReceipt ? () => openDocument(context, payment.receiptDocumentId) : null,
-          tooltip: 'فتح سند القبض',
+        leading: CircleAvatar(
+          backgroundColor: AppColors.success.withOpacity(0.12),
+          child: Icon(Icons.payments, color: AppColors.success),
+        ),
+        title: Text(
+          '${_formatCurrency(payment.amount)} • ${payment.displayReceiptNumber}',
+          style: AppTextStyles.labelLarge.copyWith(color: AppColors.success),
+        ),
+        subtitle: Text(
+          '${agreement?.partyName ?? 'غير محدد'} • ${agreement?.entityTitle ?? ''} • ${payment.method.displayName} • ${_formatDate(payment.paymentDate)}',
+          style: AppTextStyles.bodySmallSecondary,
+        ),
+        trailing: Wrap(
+          spacing: 4,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.receipt),
+              tooltip: 'طباعة إيصال',
+              onPressed: () => _printReceipt(state, payment),
+            ),
+            IconButton(
+              icon: const Icon(Icons.open_in_new),
+              onPressed:
+                  payment.hasReceipt ? () => openDocument(context, payment.receiptDocumentId) : null,
+              tooltip: 'فتح سند القبض',
+            ),
+          ],
         ),
       ),
     );
@@ -319,29 +583,41 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(backgroundColor: AppColors.error.withOpacity(0.12), child: Icon(Icons.receipt_long, color: AppColors.error)),
-        title: Text(expense.description, style: AppTextStyles.labelLarge),
-        subtitle: Text('${expense.entityTitle} • ${expense.category.displayName} • ${_formatDate(expense.expenseDate)}', style: AppTextStyles.bodySmallSecondary),
-        trailing: Text(_formatCurrency(expense.amount), style: AppTextStyles.numberText.copyWith(color: AppColors.error)),
-        onTap: expense.hasReceipt ? () => openDocument(context, expense.receiptDocumentId) : null,
+        leading: CircleAvatar(
+          backgroundColor: AppColors.error.withOpacity(0.12),
+          child: Icon(Icons.receipt_long, color: AppColors.error),
+        ),
+        title: Text(
+          '${expense.description} • ${_formatCurrency(expense.amount)}',
+          style: AppTextStyles.labelLarge,
+        ),
+        subtitle: Text(
+          '${expense.entityTitle} • ${expense.entityType.displayName} • ${expense.category.displayName} • ${expense.paidBy} • ${_formatDate(expense.expenseDate)}',
+          style: AppTextStyles.bodySmallSecondary,
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.open_in_new),
+          onPressed: expense.hasReceipt ? () => openDocument(context, expense.receiptDocumentId) : null,
+          tooltip: 'فتح الإيصال',
+        ),
       ),
     );
   }
 
   Widget _metricCard(String title, String value, IconData icon, Color color) {
     return SizedBox(
-      width: 240,
+      width: 210,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 12),
+              Icon(icon, color: color),
+              const SizedBox(height: 8),
               Text(title, style: AppTextStyles.bodySmallSecondary),
               const SizedBox(height: 4),
-              Text(value, style: AppTextStyles.headline5.copyWith(color: color)),
+              Text(value, style: AppTextStyles.numberText.copyWith(color: color, fontSize: 18)),
             ],
           ),
         ),
@@ -349,7 +625,23 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
     );
   }
 
-  Widget _sectionCard({required String title, required IconData icon, required List<Widget> children}) {
+  Widget _miniMetric(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Text('$label: $value', style: AppTextStyles.bodySmall),
+    );
+  }
+
+  Widget _sectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -360,10 +652,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
               children: [
                 Icon(icon, color: AppColors.primaryNavy),
                 const SizedBox(width: 8),
-                Text(title, style: AppTextStyles.headline5.copyWith(color: AppColors.primaryNavy)),
+                Text(title, style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
               ],
             ),
-            const Divider(height: 24),
+            const SizedBox(height: 12),
             ...children,
           ],
         ),
@@ -373,10 +665,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
 
   Widget _alertLine(IconData icon, String text, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, color: color),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
           Expanded(child: Text(text, style: AppTextStyles.bodyMedium)),
         ],
@@ -389,19 +681,22 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.textSecondary, size: 16),
+          Icon(icon, size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 6),
-          Expanded(child: Text(text, style: AppTextStyles.bodySmallSecondary)),
+          Expanded(child: Text(text, style: AppTextStyles.bodySmall)),
         ],
       ),
     );
   }
 
-  Widget _badge(String label, Color color) {
+  Widget _badge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: AppTextStyles.labelSmall.copyWith(color: color)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, style: AppTextStyles.labelSmall.copyWith(color: color)),
     );
   }
 
@@ -433,7 +728,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
   }
 
   List<FinanceAgreement> _unpaidAgreements(FinanceState state) {
-    return state.filteredAgreements.where((agreement) => state.paidForAgreement(agreement.id) < agreement.totalAmount).toList();
+    return state.filteredAgreements
+        .where((agreement) => state.paidForAgreement(agreement.id) < agreement.totalAmount)
+        .toList();
   }
 
   String _formatDate(DateTime date) {
@@ -442,6 +739,333 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SingleTicker
 
   String _formatCurrency(double amount) {
     return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (match) => '${match[1]},')} ل.س';
+  }
+
+  Future<OfficeSettingsModel> _loadSettings() async {
+    final asyncSettings = ref.read(officeSettingsProvider);
+    return asyncSettings.maybeWhen(
+      data: (settings) => settings,
+      orElse: () => const OfficeSettingsModel(
+        officeTitle: AppConstants.defaultOfficeTitle,
+        lawyerName: AppConstants.defaultLawyerName,
+        officeAddress: AppConstants.defaultAddress,
+        officePhone: AppConstants.defaultPhone,
+      ),
+    );
+  }
+
+  Future<void> _printReceipt(FinanceState state, FinancePayment payment) async {
+    final agreement = state.agreementById(payment.agreementId);
+    final settings = await _loadSettings();
+    final bytes = await FinancePdfBuilder.buildReceipt(
+      settings: settings,
+      payment: payment,
+      agreement: agreement,
+    );
+    await Printing.layoutPdf(
+      onLayout: (_) async => bytes,
+      name: 'receipt_${payment.displayReceiptNumber}.pdf',
+    );
+  }
+
+  Future<void> _exportFinanceReportPdf(FinanceState state) async {
+    final settings = await _loadSettings();
+    final bytes = await FinancePdfBuilder.buildFinanceReport(
+      settings: settings,
+      state: state,
+    );
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: 'finance_report_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
+  }
+
+  Future<void> _previewFinanceReportPdf(FinanceState state) async {
+    final settings = await _loadSettings();
+    final bytes = await FinancePdfBuilder.buildFinanceReport(
+      settings: settings,
+      state: state,
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            appBar: AppBar(title: const Text('معاينة التقرير المالي')),
+            body: PdfPreview(
+              build: (_) async => bytes,
+              allowPrinting: true,
+              allowSharing: true,
+              canChangeOrientation: false,
+              canChangePageFormat: false,
+              pdfFileName: 'finance_report.pdf',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// مولّد PDF للإيصالات والكشوف المالية (Offline).
+class FinancePdfBuilder {
+  static Future<Uint8List> buildReceipt({
+    required OfficeSettingsModel settings,
+    required FinancePayment payment,
+    FinanceAgreement? agreement,
+  }) async {
+    final pdf = pw.Document();
+    final fontRegular = await PdfGoogleFonts.cairoRegular();
+    final fontBold = await PdfGoogleFonts.cairoBold();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a5,
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
+        build: (context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.blue900, width: 1.5),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Text(
+                  settings.officeTitle,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fontBold, fontSize: 16, color: PdfColors.blue900),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  'الأستاذ: ${settings.lawyerName}',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fontBold, fontSize: 12),
+                ),
+                pw.Text(
+                  settings.officeAddress,
+                  textAlign: pw.TextAlign.center,
+                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+                pw.Divider(thickness: 1.2, color: PdfColors.blue900),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'سند قبض',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fontBold, fontSize: 18),
+                ),
+                pw.SizedBox(height: 12),
+                _pdfRow('رقم الإيصال', payment.displayReceiptNumber, fontBold),
+                _pdfRow('التاريخ', _date(payment.paymentDate), fontRegular),
+                _pdfRow('الموكل', agreement?.partyName ?? '—', fontRegular),
+                _pdfRow('الملف', agreement?.entityTitle ?? '—', fontRegular),
+                _pdfRow('نوع الكيان', agreement?.entityType.displayName ?? '—', fontRegular),
+                _pdfRow('طريقة الدفع', payment.method.displayName, fontRegular),
+                pw.SizedBox(height: 10),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(10),
+                  color: PdfColors.blue50,
+                  child: pw.Text(
+                    'المبلغ المقبوض: ${_money(payment.amount)}',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(font: fontBold, fontSize: 14, color: PdfColors.blue900),
+                  ),
+                ),
+                if (payment.notes.isNotEmpty) ...[
+                  pw.SizedBox(height: 8),
+                  pw.Text('ملاحظات: ${payment.notes}', style: const pw.TextStyle(fontSize: 10)),
+                ],
+                pw.Spacer(),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('توقيع المستلم', style: pw.TextStyle(font: fontBold, fontSize: 11)),
+                    pw.Text('ختم المكتب', style: pw.TextStyle(font: fontBold, fontSize: 11)),
+                  ],
+                ),
+                pw.SizedBox(height: 8),
+                pw.Text(
+                  'صادر عن نظام مكتب المحامي V6.2 Offline',
+                  textAlign: pw.TextAlign.center,
+                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static Future<Uint8List> buildFinanceReport({
+    required OfficeSettingsModel settings,
+    required FinanceState state,
+  }) async {
+    final pdf = pw.Document();
+    final fontRegular = await PdfGoogleFonts.cairoRegular();
+    final fontBold = await PdfGoogleFonts.cairoBold();
+    final summary = state.summary;
+    final clients = state.clientReceivables;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
+        header: (context) => pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 10),
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(bottom: pw.BorderSide(color: PdfColors.blue900, width: 1.5)),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(settings.officeTitle,
+                      style: pw.TextStyle(font: fontBold, fontSize: 14, color: PdfColors.blue900)),
+                  pw.Text('الأستاذ: ${settings.lawyerName}',
+                      style: pw.TextStyle(font: fontBold, fontSize: 11)),
+                ],
+              ),
+              pw.Text(AppConstants.defaultCountry,
+                  style: pw.TextStyle(font: fontBold, fontSize: 11)),
+            ],
+          ),
+        ),
+        footer: (context) => pw.Container(
+          alignment: pw.Alignment.centerLeft,
+          margin: const pw.EdgeInsets.only(top: 8),
+          child: pw.Text(
+            'صفحة ${context.pageNumber} من ${context.pagesCount} — كشف مالي Offline',
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+          ),
+        ),
+        build: (context) => [
+          pw.Center(
+            child: pw.Text(
+              'الكشف المالي الموحد للمكتب',
+              style: pw.TextStyle(font: fontBold, fontSize: 16),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Center(
+            child: pw.Text(
+              'تاريخ الإصدار: ${_date(DateTime.now())}',
+              style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          pw.Table.fromTextArray(
+            headers: ['البند', 'القيمة'],
+            data: [
+              ['إجمالي اتفاقيات الأتعاب', _money(summary.agreementsTotal)],
+              ['إجمالي المقبوضات', _money(summary.paymentsTotal)],
+              ['المتبقي على الموكلين', _money(summary.remainingFees)],
+              ['إجمالي المصروفات', _money(summary.expensesTotal)],
+              ['صافي الصندوق', _money(summary.netBalance)],
+            ],
+            headerStyle: pw.TextStyle(font: fontBold, color: PdfColors.white, fontSize: 11),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+            cellStyle: pw.TextStyle(font: fontRegular, fontSize: 10),
+            cellAlignment: pw.Alignment.centerRight,
+          ),
+          pw.SizedBox(height: 16),
+          pw.Text('ذمم الموكلين', style: pw.TextStyle(font: fontBold, fontSize: 13)),
+          pw.SizedBox(height: 8),
+          if (clients.isEmpty)
+            pw.Text('لا توجد ذمم', style: pw.TextStyle(font: fontRegular, fontSize: 10))
+          else
+            pw.Table.fromTextArray(
+              headers: ['الموكل', 'اتفاقيات', 'المتبقي', 'الحالة'],
+              data: clients
+                  .map(
+                    (c) => [
+                      c.partyName,
+                      '${c.agreementsCount}',
+                      _money(c.remaining),
+                      c.isSettled ? 'مسدّد' : 'ذمة قائمة',
+                    ],
+                  )
+                  .toList(),
+              headerStyle: pw.TextStyle(font: fontBold, color: PdfColors.white, fontSize: 11),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
+              cellStyle: pw.TextStyle(font: fontRegular, fontSize: 10),
+              cellAlignment: pw.Alignment.centerRight,
+            ),
+          pw.SizedBox(height: 16),
+          pw.Text('سندات القبض', style: pw.TextStyle(font: fontBold, fontSize: 13)),
+          pw.SizedBox(height: 8),
+          pw.Table.fromTextArray(
+            headers: ['رقم الإيصال', 'الموكل', 'الملف', 'المبلغ', 'التاريخ'],
+            data: state.filteredPayments.map((p) {
+              final a = state.agreementById(p.agreementId);
+              return [
+                p.displayReceiptNumber,
+                a?.partyName ?? '—',
+                a?.entityTitle ?? '—',
+                _money(p.amount),
+                _date(p.paymentDate),
+              ];
+            }).toList(),
+            headerStyle: pw.TextStyle(font: fontBold, color: PdfColors.white, fontSize: 10),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.teal800),
+            cellStyle: pw.TextStyle(font: fontRegular, fontSize: 9),
+            cellAlignment: pw.Alignment.centerRight,
+          ),
+          pw.SizedBox(height: 16),
+          pw.Text('المصاريف', style: pw.TextStyle(font: fontBold, fontSize: 13)),
+          pw.SizedBox(height: 8),
+          pw.Table.fromTextArray(
+            headers: ['الوصف', 'الكيان', 'الفئة', 'المبلغ', 'التاريخ'],
+            data: state.filteredExpenses
+                .map(
+                  (e) => [
+                    e.description,
+                    e.entityTitle,
+                    e.category.displayName,
+                    _money(e.amount),
+                    _date(e.expenseDate),
+                  ],
+                )
+                .toList(),
+            headerStyle: pw.TextStyle(font: fontBold, color: PdfColors.white, fontSize: 10),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.red800),
+            cellStyle: pw.TextStyle(font: fontRegular, fontSize: 9),
+            cellAlignment: pw.Alignment.centerRight,
+          ),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static pw.Widget _pdfRow(String label, String value, pw.Font font) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 6),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label, style: pw.TextStyle(font: font, fontSize: 11)),
+          pw.Text(value, style: pw.TextStyle(font: font, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  static String _date(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  static String _money(double amount) {
+    return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} ل.س';
   }
 }
 
@@ -473,48 +1097,68 @@ class _AddAgreementDialogState extends ConsumerState<AddAgreementDialog> {
   Widget build(BuildContext context) {
     return _FinanceDialogFrame(
       title: 'إضافة اتفاق أتعاب',
+      onSave: _save,
       children: [
-        TextField(controller: _entityTitleController, decoration: const InputDecoration(labelText: 'عنوان الملف / الكيان')),
+        TextField(
+          controller: _entityTitleController,
+          decoration: const InputDecoration(labelText: 'عنوان الملف / الكيان'),
+        ),
         const SizedBox(height: 12),
-        TextField(controller: _partyController, decoration: const InputDecoration(labelText: 'اسم الموكل')),
+        TextField(
+          controller: _partyController,
+          decoration: const InputDecoration(labelText: 'اسم الموكل'),
+        ),
         const SizedBox(height: 12),
-        TextField(controller: _amountController, decoration: const InputDecoration(labelText: 'المبلغ الإجمالي'), keyboardType: TextInputType.number),
+        TextField(
+          controller: _amountController,
+          decoration: const InputDecoration(labelText: 'المبلغ الإجمالي'),
+          keyboardType: TextInputType.number,
+        ),
         const SizedBox(height: 12),
         DropdownButtonFormField<FinanceEntityType>(
           value: _entityType,
           decoration: const InputDecoration(labelText: 'نوع الكيان'),
-          items: FinanceEntityType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
+          items: FinanceEntityType.values
+              .map((type) => DropdownMenuItem(value: type, child: Text(type.displayName)))
+              .toList(),
           onChanged: (value) => setState(() => _entityType = value ?? _entityType),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<FeeAgreementType>(
           value: _agreementType,
           decoration: const InputDecoration(labelText: 'نوع الاتفاق'),
-          items: FeeAgreementType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
+          items: FeeAgreementType.values
+              .map((type) => DropdownMenuItem(value: type, child: Text(type.displayName)))
+              .toList(),
           onChanged: (value) => setState(() => _agreementType = value ?? _agreementType),
         ),
         const SizedBox(height: 12),
-        TextField(controller: _documentController, decoration: const InputDecoration(labelText: 'معرف عقد الأتعاب المرفق')),
+        TextField(
+          controller: _documentController,
+          decoration: const InputDecoration(labelText: 'معرف عقد الأتعاب المرفق'),
+        ),
       ],
-      onSave: _save,
     );
   }
 
   void _save() {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-    if (_entityTitleController.text.trim().isEmpty || _partyController.text.trim().isEmpty || amount <= 0) {
+    if (_entityTitleController.text.trim().isEmpty ||
+        _partyController.text.trim().isEmpty ||
+        amount <= 0) {
       _error('عنوان الملف واسم الموكل والمبلغ إلزامية');
       return;
     }
     final now = DateTime.now();
+    final partyName = _partyController.text.trim();
     ref.read(financeProvider.notifier).addAgreement(
           FinanceAgreement(
             id: 'agreement_${now.microsecondsSinceEpoch}',
             entityType: _entityType,
             entityId: 'manual_${now.microsecondsSinceEpoch}',
             entityTitle: _entityTitleController.text.trim(),
-            partyId: 'manual_party',
-            partyName: _partyController.text.trim(),
+            partyId: 'party_${partyName.hashCode.abs()}',
+            partyName: partyName,
             agreementType: _agreementType,
             totalAmount: amount,
             agreementDate: now,
@@ -525,7 +1169,9 @@ class _AddAgreementDialogState extends ConsumerState<AddAgreementDialog> {
   }
 
   void _error(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: AppColors.error));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), backgroundColor: AppColors.error),
+    );
   }
 }
 
@@ -541,6 +1187,7 @@ class AddPaymentDialog extends ConsumerStatefulWidget {
 class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _receiptController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   FinancePaymentMethod _method = FinancePaymentMethod.cash;
   String? _agreementId;
 
@@ -554,6 +1201,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
   void dispose() {
     _amountController.dispose();
     _receiptController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -563,26 +1211,47 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
     _agreementId ??= agreements.isNotEmpty ? agreements.first.id : null;
     return _FinanceDialogFrame(
       title: 'إضافة سند قبض',
+      onSave: _save,
       children: [
         DropdownButtonFormField<String>(
           value: _agreementId,
           decoration: const InputDecoration(labelText: 'اتفاق الأتعاب'),
-          items: agreements.map((agreement) => DropdownMenuItem(value: agreement.id, child: Text('${agreement.partyName} - ${agreement.entityTitle}'))).toList(),
+          items: agreements
+              .map(
+                (agreement) => DropdownMenuItem(
+                  value: agreement.id,
+                  child: Text('${agreement.partyName} - ${agreement.entityTitle}'),
+                ),
+              )
+              .toList(),
           onChanged: (value) => setState(() => _agreementId = value),
         ),
         const SizedBox(height: 12),
-        TextField(controller: _amountController, decoration: const InputDecoration(labelText: 'المبلغ المقبوض'), keyboardType: TextInputType.number),
+        TextField(
+          controller: _amountController,
+          decoration: const InputDecoration(labelText: 'المبلغ المقبوض'),
+          keyboardType: TextInputType.number,
+        ),
         const SizedBox(height: 12),
         DropdownButtonFormField<FinancePaymentMethod>(
           value: _method,
           decoration: const InputDecoration(labelText: 'طريقة الدفع'),
-          items: FinancePaymentMethod.values.map((method) => DropdownMenuItem(value: method, child: Text(method.displayName))).toList(),
+          items: FinancePaymentMethod.values
+              .map((method) => DropdownMenuItem(value: method, child: Text(method.displayName)))
+              .toList(),
           onChanged: (value) => setState(() => _method = value ?? _method),
         ),
         const SizedBox(height: 12),
-        TextField(controller: _receiptController, decoration: const InputDecoration(labelText: 'معرف سند القبض')),
+        TextField(
+          controller: _receiptController,
+          decoration: const InputDecoration(labelText: 'معرف سند القبض / المرفق'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _notesController,
+          decoration: const InputDecoration(labelText: 'ملاحظات'),
+        ),
       ],
-      onSave: _save,
     );
   }
 
@@ -594,6 +1263,7 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
       return;
     }
     final now = DateTime.now();
+    final seq = (ref.read(financeProvider).payments.length + 1).toString().padLeft(4, '0');
     ref.read(financeProvider.notifier).addPayment(
           FinancePayment(
             id: 'payment_${now.microsecondsSinceEpoch}',
@@ -602,13 +1272,17 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
             paymentDate: now,
             method: _method,
             receiptDocumentId: _receiptController.text.trim(),
+            notes: _notesController.text.trim(),
+            receiptNumber: 'R-${now.year}-$seq',
           ),
         );
     Navigator.of(context).pop();
   }
 
   void _error(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: AppColors.error));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), backgroundColor: AppColors.error),
+    );
   }
 }
 
@@ -624,6 +1298,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _receiptController = TextEditingController();
+  final TextEditingController _paidByController = TextEditingController(text: 'مكتب المحامي');
   FinanceEntityType _entityType = FinanceEntityType.caseFile;
   ExpenseCategory _category = ExpenseCategory.courtFee;
 
@@ -633,6 +1308,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
     _descriptionController.dispose();
     _amountController.dispose();
     _receiptController.dispose();
+    _paidByController.dispose();
     super.dispose();
   }
 
@@ -640,36 +1316,60 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
   Widget build(BuildContext context) {
     return _FinanceDialogFrame(
       title: 'إضافة مصروف',
+      onSave: _save,
       children: [
-        TextField(controller: _entityTitleController, decoration: const InputDecoration(labelText: 'عنوان الملف / الكيان')),
+        TextField(
+          controller: _entityTitleController,
+          decoration: const InputDecoration(labelText: 'عنوان الملف / الكيان'),
+        ),
         const SizedBox(height: 12),
-        TextField(controller: _descriptionController, decoration: const InputDecoration(labelText: 'وصف المصروف')),
+        TextField(
+          controller: _descriptionController,
+          decoration: const InputDecoration(labelText: 'وصف المصروف'),
+        ),
         const SizedBox(height: 12),
-        TextField(controller: _amountController, decoration: const InputDecoration(labelText: 'المبلغ'), keyboardType: TextInputType.number),
+        TextField(
+          controller: _amountController,
+          decoration: const InputDecoration(labelText: 'المبلغ'),
+          keyboardType: TextInputType.number,
+        ),
         const SizedBox(height: 12),
         DropdownButtonFormField<FinanceEntityType>(
           value: _entityType,
           decoration: const InputDecoration(labelText: 'نوع الكيان'),
-          items: FinanceEntityType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
+          items: FinanceEntityType.values
+              .map((type) => DropdownMenuItem(value: type, child: Text(type.displayName)))
+              .toList(),
           onChanged: (value) => setState(() => _entityType = value ?? _entityType),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<ExpenseCategory>(
           value: _category,
           decoration: const InputDecoration(labelText: 'فئة المصروف'),
-          items: ExpenseCategory.values.map((category) => DropdownMenuItem(value: category, child: Text(category.displayName))).toList(),
+          items: ExpenseCategory.values
+              .map((category) => DropdownMenuItem(value: category, child: Text(category.displayName)))
+              .toList(),
           onChanged: (value) => setState(() => _category = value ?? _category),
         ),
         const SizedBox(height: 12),
-        TextField(controller: _receiptController, decoration: const InputDecoration(labelText: 'معرف الإيصال')),
+        TextField(
+          controller: _paidByController,
+          decoration: const InputDecoration(labelText: 'الجهة الدافعة (مكتب / معقب)'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _receiptController,
+          decoration: const InputDecoration(labelText: 'معرف الإيصال'),
+        ),
       ],
-      onSave: _save,
     );
   }
 
   void _save() {
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
-    if (_entityTitleController.text.trim().isEmpty || _descriptionController.text.trim().isEmpty || amount <= 0) {
+    if (_entityTitleController.text.trim().isEmpty ||
+        _descriptionController.text.trim().isEmpty ||
+        amount <= 0) {
       _error('عنوان الملف والوصف والمبلغ إلزامية');
       return;
     }
@@ -684,6 +1384,9 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
             description: _descriptionController.text.trim(),
             amount: amount,
             expenseDate: now,
+            paidBy: _paidByController.text.trim().isEmpty
+                ? 'مكتب المحامي'
+                : _paidByController.text.trim(),
             receiptDocumentId: _receiptController.text.trim(),
           ),
         );
@@ -691,7 +1394,9 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
   }
 
   void _error(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: AppColors.error));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), backgroundColor: AppColors.error),
+    );
   }
 }
 
@@ -702,8 +1407,8 @@ class _FinanceDialogFrame extends StatelessWidget {
 
   const _FinanceDialogFrame({
     required this.title,
-    required this.children,
     required this.onSave,
+    required this.children,
   });
 
   @override
@@ -721,14 +1426,5 @@ class _FinanceDialogFrame extends StatelessWidget {
         ElevatedButton(onPressed: onSave, child: const Text('حفظ')),
       ],
     );
-  }
-}
-
-extension _FirstOrNullFinance<T> on Iterable<T> {
-  T? get firstOrNull {
-    for (final item in this) {
-      return item;
-    }
-    return null;
   }
 }

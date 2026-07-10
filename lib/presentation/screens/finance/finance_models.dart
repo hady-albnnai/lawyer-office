@@ -1,12 +1,10 @@
 /// نماذج وحالة واجهة المرحلة 7: المالية الموحدة.
 ///
-/// تم فصل نماذج الواجهة عن جداول Drift حتى تبقى الشاشة قابلة للاختبار
-/// والتطوير المرحلي، مع قابلية الربط لاحقاً بمستودع FinanceRepository.
+/// نماذج واجهة قابلة للاختبار مع seed data، وقابلة للربط لاحقاً بمستودع
+/// FinanceRepository / جداول Drift (FeeAgreements, FeePayments, Expenses).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../theme/app_colors.dart';
 
 /// نوع الكيان المالي المرتبط بالحركة.
 enum FinanceEntityType {
@@ -14,7 +12,8 @@ enum FinanceEntityType {
   contract,
   company,
   adminProcedure,
-  person;
+  person,
+  workOrder;
 
   String get displayName => const [
         'دعوى',
@@ -22,6 +21,7 @@ enum FinanceEntityType {
         'شركة',
         'إجراء إداري',
         'شخص / جهة',
+        'أمر عمل للمعقب',
       ][index];
 
   IconData get icon => const [
@@ -30,6 +30,7 @@ enum FinanceEntityType {
         Icons.business,
         Icons.assignment,
         Icons.person,
+        Icons.assignment_ind,
       ][index];
 }
 
@@ -71,6 +72,7 @@ enum ExpenseCategory {
   transport,
   photocopy,
   office,
+  expediter,
   other;
 
   String get displayName => const [
@@ -80,6 +82,7 @@ enum ExpenseCategory {
         'مواصلات',
         'تصوير',
         'مصاريف مكتبية',
+        'مصاريف معقب',
         'أخرى',
       ][index];
 }
@@ -152,6 +155,7 @@ class FinancePayment {
   final FinancePaymentMethod method;
   final String receiptDocumentId;
   final String notes;
+  final String receiptNumber;
 
   const FinancePayment({
     required this.id,
@@ -162,9 +166,15 @@ class FinancePayment {
     this.method = FinancePaymentMethod.cash,
     this.receiptDocumentId = '',
     this.notes = '',
+    this.receiptNumber = '',
   });
 
   bool get hasReceipt => receiptDocumentId.isNotEmpty;
+
+  String get displayReceiptNumber {
+    if (receiptNumber.isNotEmpty) return receiptNumber;
+    return 'R-${paymentDate.year}-${id.hashCode.abs().toString().padLeft(4, '0').substring(0, 4)}';
+  }
 }
 
 /// مصروف قضائي أو مكتبي.
@@ -198,6 +208,33 @@ class FinanceExpense {
   });
 
   bool get hasReceipt => receiptDocumentId.isNotEmpty;
+}
+
+/// ذمة موكل مجمّعة.
+class ClientReceivable {
+  final String partyId;
+  final String partyName;
+  final double agreementsTotal;
+  final double paymentsTotal;
+  final double expensesTotal;
+  final int agreementsCount;
+  final int unpaidAgreementsCount;
+  final List<String> entityTitles;
+
+  const ClientReceivable({
+    required this.partyId,
+    required this.partyName,
+    required this.agreementsTotal,
+    required this.paymentsTotal,
+    required this.expensesTotal,
+    required this.agreementsCount,
+    required this.unpaidAgreementsCount,
+    required this.entityTitles,
+  });
+
+  double get remaining => agreementsTotal - paymentsTotal;
+
+  bool get isSettled => remaining <= 0;
 }
 
 /// تقرير مالي مختصر لكيان أو لكل المكتب.
@@ -252,9 +289,33 @@ class FinanceState {
       final queryOk = query.isEmpty ||
           expense.entityTitle.toLowerCase().contains(query) ||
           expense.description.toLowerCase().contains(query) ||
-          expense.paidBy.toLowerCase().contains(query);
+          expense.paidBy.toLowerCase().contains(query) ||
+          expense.category.displayName.toLowerCase().contains(query);
       return filterOk && queryOk;
     }).toList();
+  }
+
+  List<FinancePayment> get filteredPayments {
+    final allowedAgreementIds = filteredAgreements.map((a) => a.id).toSet();
+    final query = searchQuery.trim().toLowerCase();
+    return payments.where((payment) {
+      if (!allowedAgreementIds.contains(payment.agreementId) && entityFilter != null) {
+        return false;
+      }
+      if (query.isEmpty) return true;
+      final agreement = agreementById(payment.agreementId);
+      return payment.displayReceiptNumber.toLowerCase().contains(query) ||
+          payment.method.displayName.toLowerCase().contains(query) ||
+          (agreement?.partyName.toLowerCase().contains(query) ?? false) ||
+          (agreement?.entityTitle.toLowerCase().contains(query) ?? false);
+    }).toList();
+  }
+
+  FinanceAgreement? agreementById(String agreementId) {
+    for (final agreement in agreements) {
+      if (agreement.id == agreementId) return agreement;
+    }
+    return null;
   }
 
   List<FinancePayment> paymentsForAgreement(String agreementId) {
@@ -270,6 +331,59 @@ class FinanceState {
       agreementsTotal: filteredAgreements.fold(0, (sum, agreement) => sum + agreement.totalAmount),
       paymentsTotal: filteredAgreements.fold(0, (sum, agreement) => sum + paidForAgreement(agreement.id)),
       expensesTotal: filteredExpenses.fold(0, (sum, expense) => sum + expense.amount),
+    );
+  }
+
+  /// ذمم الموكلين مجمّعة حسب partyId ضمن الفلتر الحالي.
+  List<ClientReceivable> get clientReceivables {
+    final Map<String, List<FinanceAgreement>> byParty = {};
+    for (final agreement in filteredAgreements) {
+      byParty.putIfAbsent(agreement.partyId, () => []).add(agreement);
+    }
+
+    final result = <ClientReceivable>[];
+    for (final entry in byParty.entries) {
+      final partyAgreements = entry.value;
+      final partyId = entry.key;
+      final partyName = partyAgreements.first.partyName;
+      final agreementsTotal = partyAgreements.fold(0.0, (sum, a) => sum + a.totalAmount);
+      final paymentsTotal = partyAgreements.fold(0.0, (sum, a) => sum + paidForAgreement(a.id));
+      final entityIds = partyAgreements.map((a) => '${a.entityType.index}:${a.entityId}').toSet();
+      final expensesTotal = filteredExpenses
+          .where((e) => entityIds.contains('${e.entityType.index}:${e.entityId}'))
+          .fold(0.0, (sum, e) => sum + e.amount);
+      final unpaidCount =
+          partyAgreements.where((a) => paidForAgreement(a.id) < a.totalAmount).length;
+      final titles = partyAgreements.map((a) => a.entityTitle).toSet().toList();
+
+      result.add(
+        ClientReceivable(
+          partyId: partyId,
+          partyName: partyName,
+          agreementsTotal: agreementsTotal,
+          paymentsTotal: paymentsTotal,
+          expensesTotal: expensesTotal,
+          agreementsCount: partyAgreements.length,
+          unpaidAgreementsCount: unpaidCount,
+          entityTitles: titles,
+        ),
+      );
+    }
+
+    result.sort((a, b) => b.remaining.compareTo(a.remaining));
+    return result;
+  }
+
+  /// كشف مالي لملف/كيان محدد.
+  FinanceReportSummary entitySummary(FinanceEntityType type, String entityId) {
+    final entityAgreements =
+        agreements.where((a) => a.entityType == type && a.entityId == entityId).toList();
+    final entityExpenses =
+        expenses.where((e) => e.entityType == type && e.entityId == entityId).toList();
+    return FinanceReportSummary(
+      agreementsTotal: entityAgreements.fold(0, (sum, a) => sum + a.totalAmount),
+      paymentsTotal: entityAgreements.fold(0, (sum, a) => sum + paidForAgreement(a.id)),
+      expensesTotal: entityExpenses.fold(0, (sum, e) => sum + e.amount),
     );
   }
 
@@ -336,6 +450,18 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
         totalAmount: 800000,
         agreementDate: today.subtract(const Duration(days: 4)),
       ),
+      FinanceAgreement(
+        id: 'agreement_4',
+        entityType: FinanceEntityType.workOrder,
+        entityId: 'wo_12',
+        entityTitle: 'أمر عمل: مراجعة ديوان تنفيذ',
+        partyId: 'person_3',
+        partyName: 'شركة التطوير الحديث',
+        agreementType: FeeAgreementType.fixed,
+        totalAmount: 150000,
+        agreementDate: today.subtract(const Duration(days: 1)),
+        notes: 'أتعاب مرتبطة بأمر عمل معقب.',
+      ),
     ];
 
     final payments = [
@@ -345,6 +471,7 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
         amount: 1500000,
         paymentDate: today.subtract(const Duration(days: 8)),
         receiptDocumentId: 'receipt_1',
+        receiptNumber: 'R-2026-0001',
       ),
       FinancePayment(
         id: 'payment_2',
@@ -353,12 +480,14 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
         paymentDate: today.subtract(const Duration(days: 3)),
         method: FinancePaymentMethod.bankTransfer,
         receiptDocumentId: 'receipt_2',
+        receiptNumber: 'R-2026-0002',
       ),
       FinancePayment(
         id: 'payment_3',
         agreementId: 'agreement_3',
         amount: 300000,
         paymentDate: today.subtract(const Duration(days: 2)),
+        receiptNumber: 'R-2026-0003',
       ),
     ];
 
@@ -379,8 +508,8 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
         entityType: FinanceEntityType.caseFile,
         entityId: '3',
         entityTitle: 'دعوى تجارية 2026/003',
-        category: ExpenseCategory.transport,
-        description: 'مصاريف معقب',
+        category: ExpenseCategory.expediter,
+        description: 'مصاريف معقب - تصوير ضبط',
         amount: 25000,
         expenseDate: today.subtract(const Duration(days: 6)),
         paidBy: 'المعقب',
@@ -395,6 +524,17 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
         amount: 45000,
         expenseDate: today.subtract(const Duration(days: 2)),
       ),
+      FinanceExpense(
+        id: 'expense_4',
+        entityType: FinanceEntityType.workOrder,
+        entityId: 'wo_12',
+        entityTitle: 'أمر عمل: مراجعة ديوان تنفيذ',
+        category: ExpenseCategory.expediter,
+        description: 'مواصلات ومراجعات معقب',
+        amount: 35000,
+        expenseDate: today.subtract(const Duration(days: 1)),
+        paidBy: 'المعقب',
+      ),
     ];
 
     return FinanceState(agreements: agreements, payments: payments, expenses: expenses);
@@ -405,7 +545,9 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
   }
 
   void setEntityFilter(FinanceEntityType? entityType) {
-    state = entityType == null ? state.copyWith(clearEntityFilter: true) : state.copyWith(entityFilter: entityType);
+    state = entityType == null
+        ? state.copyWith(clearEntityFilter: true)
+        : state.copyWith(entityFilter: entityType);
   }
 
   void addAgreement(FinanceAgreement agreement) {
