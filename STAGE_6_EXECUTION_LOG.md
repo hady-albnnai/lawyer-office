@@ -107,3 +107,14 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29103790064
 
 - المرحلة 6 بعد هذه الدفعة: 60% تقريباً.
 - سيتم تشغيل Windows CI بعد الرفع.
+
+---
+
+## تحديث 2026-07-10 - إصلاح دوال البحث في حالة المرحلة 6
+
+فشل تشغيل CI بعد إضافة تفاصيل الوكالة لأن `PoaListScreen` و`PoaDetailScreen` استخدما دوال `personById` و`agencyById` على `PersonsDirectoryState` بينما كانت معرفة على الـ Notifier فقط.
+
+الإجراء:
+
+- ✅ إضافة `personById` و`agencyById` إلى `PersonsDirectoryState` أيضاً.
+- ⏳ إعادة الدفع وتشغيل CI.

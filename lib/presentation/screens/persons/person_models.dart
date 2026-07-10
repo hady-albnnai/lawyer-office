@@ -315,6 +315,14 @@ class PersonsDirectoryState {
     }).toList();
   }
 
+  PersonDirectoryRecord? personById(String id) {
+    return persons.where((person) => person.id == id).firstOrNull;
+  }
+
+  AgencyRecord? agencyById(String id) {
+    return agencies.where((agency) => agency.id == id).firstOrNull;
+  }
+
   PersonsDirectoryState copyWith({
     List<PersonDirectoryRecord>? persons,
     List<AgencyRecord>? agencies,
