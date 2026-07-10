@@ -64,7 +64,7 @@ lib/
   - حزم التخزين وقاعدة البيانات: `drift: ^2.14.0`, `sqlite3_flutter_libs: ^0.5.0`, `path_provider`, `path`.
   - حزم إدارة الحالة والملاحة: `flutter_riverpod`, `riverpod_annotation`, `go_router`.
   - حزم الملفات، الطباعة، والضغط: `archive`, `file_picker`, `open_filex`, `pdf`, `printing`.
-  - حزم التوطين والتنسيق: `intl`, `flutter_localizations`, `uuid`, `crypto: ^3.0.5`.
+  - حزم التوطين والتنسيق: `intl`, `flutter_localizations`, `crypto: ^3.0.5`.
   - أدوات التوليد البرمجي (`dev_dependencies`): `build_runner`, `drift_dev`, `riverpod_generator`.
 - [x] **0.2 بناء النواة البرمجية (`lib/core/`):**
   - إنشاء `app_enums.dart` مع محولات Drift (`EnumIndexConverter`) لكل من: `LifecycleStatus`, `PersonType`, `PersonRoleType`, `TeamPosition`, `PoaType`, `EntityType`, `TaskPriority`, `DeficiencySeverity`, `DocumentStatus`, `PhysicalLocation`.
