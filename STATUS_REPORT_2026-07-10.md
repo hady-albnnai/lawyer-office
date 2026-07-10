@@ -500,3 +500,12 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
 - المسارات: `/today /agenda /new-work /files /persons /work-orders /finance /documents /legal-library /search-reports /settings`.
 - لا بذر تجريبي تلقائي (فقط إذا اختاره الزبون بأول تشغيل).
 - `BUILD_RELEASE.md` + `RELEASE_NOTES_v1.0.md` + `CLIENT_RUNBOOK.md`.
+
+
+---
+
+## ✨ تحديث v1.1 الاختياري — 2026-07-10
+
+- تضمين خطوط **Cairo** و**Amiri** محلياً في `assets/fonts` + `pubspec.yaml`.
+- أتمتة أعمق بعد اعتماد أمر العمل: timeline + مهمة متابعة + مصروف عند اللزوم + إغلاق نواقص مرتبطة.
+- سكربتات تسليم Windows: `scripts/build_release_windows.ps1` + Inno Setup `installer/lawyer_office_setup.iss`.

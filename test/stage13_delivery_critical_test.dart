@@ -51,6 +51,12 @@ void main() {
 
     final logs = await db.select(db.activityLog).get();
     expect(logs, isNotEmpty);
+
+    // أتمتة الاعتماد: مهمة متابعة عند nextDate
+    final tasks = await db.select(db.dailyTasks).get();
+    expect(tasks.any((t) => t.taskType == 'work_order_followup'), isTrue);
+    final events = await db.select(db.timelineEvents).get();
+    expect(events.any((e) => e.eventType == 'work_order_approved'), isTrue);
   });
 
   test('First-run security direct set works', () async {
