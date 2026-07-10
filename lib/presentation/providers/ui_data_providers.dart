@@ -357,6 +357,14 @@ ui_wo.WorkOrderStatus _mapWoStatus(String raw) {
       return ui_wo.WorkOrderStatus.waitingForApproval;
     case 'approved':
       return ui_wo.WorkOrderStatus.approved;
+    case 'returned_for_correction':
+      return ui_wo.WorkOrderStatus.returnedForCorrection;
+    case 'postponed':
+      return ui_wo.WorkOrderStatus.postponed;
+    case 'impossible':
+      return ui_wo.WorkOrderStatus.impossible;
+    case 'cancelled':
+      return ui_wo.WorkOrderStatus.cancelled;
     default:
       return ui_wo.WorkOrderStatus.draft;
   }
