@@ -8,8 +8,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drift/drift.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../data/database/database.dart';
+import '../../data/repositories/case_repository.dart';
+import '../../presentation/providers/app_providers.dart';
 import 'case_models.dart';
 
 /// معالج إنشاء دعوى جديدة
@@ -1307,7 +1311,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   }
 
   // ===========================================================================
-  // تقديم الدعوى
+  // تقديم الدعوى (مرتبط بـ CaseRepository حقيقي)
   // ===========================================================================
   
   Future<void> _submitCase() async {
@@ -1317,22 +1321,57 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
     
     setState(() => _isSaving = true);
     
-    // في التطبيق الحقيقي، سيتم حفظ الدعوى في قاعدة البيانات
-    // هنا ننتظر قليلاً ثم نظهر رسالة نجاح
-    await Future.delayed(const Duration(seconds: 2));
-    
-    setState(() => _isSaving = false);
-    
-    // العودة إلى قائمة الدعاوى
-    if (mounted) {
-      Navigator.of(context).pop();
+    try {
+      final caseRepo = ref.read(caseRepositoryProvider);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تم إنشاء الدعوى بنجاح: ${_caseNumberController.text.isNotEmpty ? _caseNumberController.text : '2026/XXX'}'),
-          backgroundColor: AppColors.success,
-        ),
+      // إعداد بيانات الدعوى
+      final caseData = CasesCompanion.insert(
+        internalNumber: 'TMP', // سيتم استبداله بالترقيم التلقائي
+        year: int.tryParse(_baseYearController.text) ?? DateTime.now().year,
+        caseType: _caseType.name,
+        subType: Value(_caseSubType),
+        status: const Value('registered'),
+        courtId: Value(_selectedCourtId),
+        baseNumber: Value(_baseNumberController.text.isNotEmpty ? _baseNumberController.text : null),
+        subject: Value(_subjectController.text.isNotEmpty ? _subjectController.text : _titleController.text),
+        subjectDetails: Value(_detailsController.text),
+        nextSessionDate: Value(_nextSessionDate),
+        isUrgent: Value(_isUrgent),
       );
+      
+      // استدعاء المستودع الحقيقي
+      final caseId = await caseRepo.createCase(
+        caseData: caseData,
+        clientId: _selectedClientId!,
+        opponentId: _selectedOpponentId,
+        poaId: _selectedPoaId,
+        userRef: 'المستخدم',
+      );
+      
+      setState(() => _isSaving = false);
+      
+      if (mounted) {
+        // الانتقال إلى تفاصيل الدعوى الجديدة
+        context.go('/cases/$caseId');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم إنشاء الدعوى بنجاح برقم داخلي: $caseId'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء إنشاء الدعوى: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 }

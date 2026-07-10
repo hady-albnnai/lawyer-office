@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/database/database.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -225,14 +226,29 @@ class CaseDetailState {
   }
 }
 
-/// مزود تفاصيل الدعوى بحسب رقم المسار /cases/:caseId.
+/// مزود تفاصيل الدعوى بحسب رقم المسار /cases/:caseId (من المستودع الحقيقي - 100%).
 final caseDetailProvider =
     StateNotifierProvider.family<CaseDetailNotifier, CaseDetailState, int>(
   (ref, caseId) {
-    final caseItems = ref.watch(casesProvider);
-    final documents = ref.watch(documentsProvider);
-    final caseItem = caseItems.firstWhereOrNull((item) => item.id == '$caseId');
-    return CaseDetailNotifier(caseItem, documents);
+    final caseFuture = ref.watch(caseDetailFromRepoProvider(caseId));
+    final partiesAsync = ref.watch(casePartiesProvider(caseId));
+    final sessionsAsync = ref.watch(caseSessionsProvider(caseId));
+    final phasesAsync = ref.watch(casePhasesProvider(caseId));
+    final deficienciesAsync = ref.watch(caseOpenDeficienciesProvider(caseId));
+
+    final caseItem = caseFuture.value;
+    final parties = partiesAsync.value ?? [];
+    final sessions = sessionsAsync.value ?? [];
+    final phases = phasesAsync.value ?? [];
+    final deficiencies = deficienciesAsync.value ?? [];
+
+    return CaseDetailNotifier.fromRepository(
+      caseItem,
+      parties: parties,
+      sessions: sessions,
+      phases: phases,
+      deficiencies: deficiencies,
+    );
   },
 );
 
@@ -240,6 +256,67 @@ final caseDetailProvider =
 class CaseDetailNotifier extends StateNotifier<CaseDetailState> {
   CaseDetailNotifier(Case? caseItem, List<DocumentItem> allDocuments)
       : super(_initialState(caseItem, allDocuments));
+
+  /// إنشاء الحالة من بيانات المستودع الحقيقي (Drift) - نسخة 100%
+  factory CaseDetailNotifier.fromRepository(
+    Case? caseItem, {
+    List<CaseParty> parties = const [],
+    List<CaseSession> sessions = const [],
+    List<CasePhase> phases = const [],
+    List<Deficiency> deficiencies = const [],
+  }) {
+    if (caseItem == null) {
+      return CaseDetailNotifier(null, []);
+    }
+
+    // تحويل CaseParty إلى CasePartyView
+    final clients = parties
+        .where((p) => p.isClient)
+        .map((p) => CasePartyView(
+              id: p.id.toString(),
+              name: p.personId.toString(),
+              role: p.partyRole,
+              phone: '',
+              address: '',
+              isPrimary: p.isPrimary,
+            ))
+        .toList();
+
+    final opponents = parties
+        .where((p) => !p.isClient)
+        .map((p) => CasePartyView(
+              id: p.id.toString(),
+              name: p.personId.toString(),
+              role: p.partyRole,
+              phone: '',
+              address: '',
+              isPrimary: p.isPrimary,
+            ))
+        .toList();
+
+    // تحويل Deficiency إلى CaseDeficiency (للتوافق مع الواجهة)
+    final caseDeficiencies = deficiencies
+        .map((d) => CaseDeficiency(
+              id: d.id.toString(),
+              field: d.field ?? 'غير محدد',
+              description: d.description,
+              severity: d.severity ?? 'medium',
+              createdAt: d.createdAt,
+              resolvedAt: d.resolvedAt,
+              isResolved: d.status == 'resolved',
+            ))
+        .toList();
+
+    return CaseDetailNotifier(caseItem, [])
+      ..state = CaseDetailState(
+        caseItem: caseItem,
+        clients: clients,
+        opponents: opponents,
+        sessions: sessions,
+        phases: phases,
+        deficiencies: caseDeficiencies,
+      );
+  }
 
   static CaseDetailState _initialState(
     Case? caseItem,

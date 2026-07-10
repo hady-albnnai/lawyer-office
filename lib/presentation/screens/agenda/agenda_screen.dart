@@ -8,6 +8,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/repositories/case_repository.dart';
+import '../../data/repositories/task_repository.dart';
+import '../../presentation/providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../dashboard/today_dashboard_screen.dart';
@@ -60,18 +63,51 @@ class AgendaScreen extends ConsumerWidget {
   }
 }
 
-final agendaProvider = Provider<AgendaData>((ref) => AgendaData(
-  courtSessions: [
-    CourtSession(id: '1', time: TimeOfDay(hour: 9, minute: 0), caseNumber: '2026/001', caseTitle: 'دعوى تعويض', court: 'محكمة دمشق الأولى', status: SessionStatus.scheduled),
-    CourtSession(id: '2', time: TimeOfDay(hour: 10, minute: 30), caseNumber: '2026/002', caseTitle: 'استئناف', court: 'محكمة الاستئناف', status: SessionStatus.scheduled),
-    CourtSession(id: '3', time: TimeOfDay(hour: 12, minute: 0), caseNumber: '2026/003', caseTitle: 'تجارية', court: 'محكمة دمشق الأولى', status: SessionStatus.scheduled),
-  ],
-  reviews: [ReviewItem(id: '1', time: TimeOfDay(hour: 14, minute: 0), title: 'مراجعة ديوان', caseNumber: '2026/004', status: ReviewStatus.scheduled)],
-  overdueItems: [OverdueItem(id: '1', title: 'الدعوى 2026/006', dueDate: DateTime(2026, 7, 8), daysOverdue: 1, type: 'جلسة')],
-  completedItems: [],
-  expenses: [],
-  tomorrowPreparations: [],
-));
+/// مزود الأجندة الحقيقي من قاعدة البيانات
+final agendaProvider = FutureProvider<AgendaData>((ref) async {
+  final caseRepo = ref.watch(caseRepositoryProvider);
+  final taskRepo = ref.watch(taskRepositoryProvider);
+
+  final today = DateTime.now();
+  final allCases = await caseRepo.getAllCases();
+  final todayTasks = await taskRepo.watchTasksByDate(today).first;
+
+  // جلسات اليوم من الدعاوى
+  final courtSessions = <CourtSession>[];
+  for (final c in allCases) {
+    if (c.nextSessionDate != null && c.nextSessionDate!.day == today.day) {
+      courtSessions.add(CourtSession(
+        id: c.id.toString(),
+        time: TimeOfDay(hour: 9, minute: 0),
+        caseNumber: c.internalNumber,
+        caseTitle: c.subject ?? 'دعوى',
+        court: 'المحكمة',
+        status: SessionStatus.scheduled,
+      ));
+    }
+  }
+
+  // المهام المجدولة اليوم
+  final reviews = todayTasks
+      .where((t) => t.status == 0)
+      .map((t) => ReviewItem(
+            id: t.id.toString(),
+            time: TimeOfDay(hour: 14, minute: 0),
+            title: t.title,
+            caseNumber: t.caseId?.toString() ?? '',
+            status: ReviewStatus.scheduled,
+          ))
+      .toList();
+
+  return AgendaData(
+    courtSessions: courtSessions,
+    reviews: reviews,
+    overdueItems: [],
+    completedItems: [],
+    expenses: [],
+    tomorrowPreparations: [],
+  );
+});
 
 class AgendaData {
   final List<CourtSession> courtSessions;

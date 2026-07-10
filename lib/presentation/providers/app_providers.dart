@@ -136,6 +136,34 @@ final allCasesProvider = StreamProvider<List<Case>>((ref) {
   return ref.watch(caseRepositoryProvider).watchAllCases();
 });
 
+/// تفاصيل دعوى واحدة من المستودع الحقيقي (Drift)
+final caseDetailFromRepoProvider = FutureProvider.family<Case?, int>((ref, caseId) {
+  return ref.watch(caseRepositoryProvider).getCaseById(caseId);
+});
+
+/// أطراف الدعوى من المستودع
+final casePartiesProvider = StreamProvider.family<List<CaseParty>, int>((ref, caseId) {
+  return ref.watch(caseRepositoryProvider).watchCaseParties(caseId);
+});
+
+/// جلسات الدعوى من المستودع
+final caseSessionsProvider = StreamProvider.family<List<CaseSession>, int>((ref, caseId) {
+  return ref.watch(caseRepositoryProvider).watchCaseSessions(caseId);
+});
+
+/// مراحل الدعوى من المستودع
+final casePhasesProvider = StreamProvider.family<List<CasePhase>, int>((ref, caseId) {
+  return ref.watch(caseRepositoryProvider).watchCasePhases(caseId);
+});
+
+/// النواقص المفتوحة لدعوى معينة
+final caseOpenDeficienciesProvider = StreamProvider.family<List<Deficiency>, int>((ref, caseId) {
+  return ref.watch(taskRepositoryProvider).watchOpenDeficiencies(
+    entityType: EntityType.caseEntity,
+    entityId: caseId,
+  );
+});
+
 /// قائمة الأشخاص والموكلين
 final allPersonsProvider = StreamProvider.family<List<PersonEntity>, PersonType?>((ref, type) {
   return ref.watch(personRepositoryProvider).watchAllPersons(type: type);
