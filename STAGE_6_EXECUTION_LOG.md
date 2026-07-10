@@ -118,3 +118,16 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29103790064
 
 - ✅ إضافة `personById` و`agencyById` إلى `PersonsDirectoryState` أيضاً.
 - ⏳ إعادة الدفع وتشغيل CI.
+
+---
+
+## تحديث 2026-07-10 - ربط الأشخاص والوكالات بالبحث الشامل
+
+- ✅ تحديث `advanced_search_screen.dart` لإضافة نطاقي بحث جديدين:
+  - الأشخاص والجهات.
+  - الوكالات.
+- ✅ نتائج الأشخاص تفتح `PersonDetailScreen`.
+- ✅ نتائج الوكالات تفتح `PoaDetailScreen`.
+- ✅ بذلك أصبح البحث الشامل يشمل محور المرحلة 6.
+
+حالة المرحلة 6 بعد هذه الدفعة: 75% تقريباً.

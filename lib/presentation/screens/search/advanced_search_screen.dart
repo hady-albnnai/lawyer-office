@@ -6,6 +6,9 @@ import '../cases/case_detail_screen.dart';
 import '../contracts/contract_detail_screen.dart';
 import '../companies/company_detail_screen.dart';
 import '../admin_procedures/procedure_detail_screen.dart';
+import '../persons/person_detail_screen.dart';
+import '../persons/person_models.dart';
+import '../poa/poa_detail_screen.dart';
 
 /// شاشة البحث المتقدم الفوري والشامل في كل ملفات وأرشيف المكتب (AdvancedSearchScreen V6.2)
 class AdvancedSearchScreen extends ConsumerStatefulWidget {
@@ -19,7 +22,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'الكل'; // الكل، دعاوى، عقود، شركات، إجراءات
 
-  final List<String> _filters = ['الكل', 'دعاوى قضائية', 'عقود ونماذج', 'تأسيس شركات', 'إجراءات إدارية'];
+  final List<String> _filters = ['الكل', 'دعاوى قضائية', 'عقود ونماذج', 'تأسيس شركات', 'إجراءات إدارية', 'الأشخاص والجهات', 'الوكالات'];
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +30,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
     final contractsAsync = ref.watch(allContractsProvider);
     final companiesAsync = ref.watch(allCompaniesProvider);
     final proceduresAsync = ref.watch(allProceduresProvider);
+    final directoryState = ref.watch(personsDirectoryProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('البحث الشامل والفوري في أرشيف مكتب المحاماة')),
@@ -87,6 +91,10 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
                         ..._buildCompaniesResults(companiesAsync),
                       if (_selectedFilter == 'الكل' || _selectedFilter == 'إجراءات إدارية')
                         ..._buildProceduresResults(proceduresAsync),
+                      if (_selectedFilter == 'الكل' || _selectedFilter == 'الأشخاص والجهات')
+                        ..._buildPersonsResults(directoryState),
+                      if (_selectedFilter == 'الكل' || _selectedFilter == 'الوكالات')
+                        ..._buildAgenciesResults(directoryState),
                     ],
                   ),
           ),
@@ -183,4 +191,58 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
       orElse: () => [],
     );
   }
+
+  List<Widget> _buildPersonsResults(PersonsDirectoryState directoryState) {
+    final filtered = directoryState.persons.where((person) {
+      final query = _searchQuery;
+      return person.fullName.toLowerCase().contains(query) ||
+          person.phone.toLowerCase().contains(query) ||
+          person.whatsapp.toLowerCase().contains(query) ||
+          person.nationalId.toLowerCase().contains(query) ||
+          person.city.toLowerCase().contains(query);
+    }).toList();
+
+    return filtered
+        .map<Widget>(
+          (person) => Card(
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppConstants.primaryNavy,
+                child: Icon(person.kind.icon, color: AppConstants.accentGold),
+              ),
+              title: Text('سجل شخص/جهة: ${person.fullName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('الأدوار: ${person.roles.map((role) => role.displayName).join(', ')} • الهاتف: ${person.phone.isEmpty ? '---' : person.phone}'),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PersonDetailScreen(personId: person.id))),
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  List<Widget> _buildAgenciesResults(PersonsDirectoryState directoryState) {
+    final filtered = directoryState.agencies.where((agency) {
+      final principal = directoryState.personById(agency.principalPersonId);
+      final query = _searchQuery;
+      return agency.number.toLowerCase().contains(query) ||
+          agency.agentName.toLowerCase().contains(query) ||
+          agency.branch.toLowerCase().contains(query) ||
+          (principal?.fullName.toLowerCase().contains(query) ?? false);
+    }).toList();
+
+    return filtered
+        .map<Widget>(
+          (agency) => Card(
+            child: ListTile(
+              leading: const CircleAvatar(backgroundColor: AppConstants.primaryNavy, child: Icon(Icons.verified_user, color: AppConstants.accentGold)),
+              title: Text('وكالة [${agency.number}] • ${agency.type.displayName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('الموكل: ${directoryState.personById(agency.principalPersonId)?.fullName ?? '---'} • ${agency.source.displayName} - ${agency.branch}'),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PoaDetailScreen(agencyId: agency.id))),
+            ),
+          ),
+        )
+        .toList();
+  }
+
 }
