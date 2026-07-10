@@ -440,3 +440,14 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
 - schemaVersion: 2 (+ جداول المكتبة القانونية)
 
 **التخزين المحلي الحقيقي مفعّل لهذه المجالات؛ لم يعد الاعتماد على seed في الذاكرة فقط.**
+
+
+---
+
+## 🔧 تحديث 2026-07-10 — ربط بقية الوحدات بـ SQLite (مرحلة 12)
+
+تم ربط الدعاوى، المستندات، الملفات، الأشخاص، وأوامر العمل بطبقة Drift.
+
+- schemaVersion: 3
+- المرجع: `REAL_DATA_LAYER_STATUS.md`
+- اختبارات: `stage12_remaining_modules_test.dart`

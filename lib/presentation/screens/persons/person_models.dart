@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/app_colors.dart';
+import '../../providers/ui_data_providers.dart';
 
 /// نوع سجل الشخص أو الجهة.
 enum PersonDirectoryKind {
@@ -340,11 +341,25 @@ class PersonsDirectoryState {
 }
 
 final personsDirectoryProvider = StateNotifierProvider<PersonsDirectoryNotifier, PersonsDirectoryState>((ref) {
-  return PersonsDirectoryNotifier();
+  final notifier = PersonsDirectoryNotifier();
+  ref.listen<AsyncValue<PersonsDirectoryState>>(uiPersonsDirectoryProvider, (prev, next) {
+    next.whenData(notifier.hydrateFromDb);
+  });
+  // kick load
+  ref.watch(uiPersonsDirectoryProvider);
+  return notifier;
 });
 
 class PersonsDirectoryNotifier extends StateNotifier<PersonsDirectoryState> {
   PersonsDirectoryNotifier() : super(_seedState());
+
+  void hydrateFromDb(PersonsDirectoryState dbState) {
+    if (state.roleFilter == null) {
+      state = dbState.copyWith(searchQuery: state.searchQuery, clearRoleFilter: true);
+    } else {
+      state = dbState.copyWith(searchQuery: state.searchQuery, roleFilter: state.roleFilter);
+    }
+  }
 
   static PersonsDirectoryState _seedState() {
     final now = DateTime(2026, 7, 10);

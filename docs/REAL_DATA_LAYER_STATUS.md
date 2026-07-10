@@ -1,38 +1,29 @@
 # حالة طبقة البيانات الحقيقية (Drift / SQLite)
 
-> التاريخ: 2026-07-10  
-> الهدف: إزالة الاعتماد على بيانات وهمية في الذاكرة وجعل التطبيق يخزّن ويسترجع من SQLite.
+> آخر تحديث: 2026-07-10
 
-## ما كانت "الملاحظة المعمارية"؟
+## الهدف
+التطبيق يخزّن ويسترجع من SQLite، وليس من قوائم seed في الذاكرة فقط.
 
-في مراحل 5–10 بُنيت واجهات سريعة بنماذج `seed` في الذاكرة لتسريع UX والاختبارات.  
-**لم تكن أمراً من صاحب المشروع**، بل وصفاً لفجوة تقنية: الواجهة تعمل، لكن بعض الشاشات لم تكن مربوطة بعد بجداول Drift.
+## ما هو مربوط الآن بـ SQLite
 
-## ماذا يعني "جاهز 100%" هنا؟
+| الوحدة | المصدر | ملاحظات |
+|---|---|---|
+| المالية | `FinanceRepository` | seed أول تشغيل إن فارغ |
+| المكتبة القانونية | `LegalLibraryRepository` + جداول v2 | |
+| الإعدادات/الأمان/النسخ/السجل/المحاكم | `SettingsRepository` | + BackupService |
+| الأشخاص والوكالات | `PersonRepository` + hydrate للواجهة | |
+| الدعاوى | `CaseRepository` + `uiCasesProvider` | |
+| المستندات | `DocumentRepository` + `documentsProvider` | |
+| الملفات (أرشيف) | مشتق من الدعاوى+المستندات | |
+| أوامر العمل | جدول `work_orders` v3 + `WorkOrderRepository` | |
 
-1. الشاشات الرئيسية تعمل بدون Placeholder.
-2. **العمليات المالية / المكتبة / الإعدادات-الأمان-النسخ** تُكتب وتُقرأ من SQLite عبر Repositories.
-3. عند أول تشغيل تُبذر بيانات تجريبية **داخل قاعدة البيانات** (مرة واحدة إن كانت الجداول فارغة).
-4. الاختبارات تغطي المنطق + طبقة البيانات (in-memory Drift).
+## schemaVersion
+**3** (مكتبة قانونية + أوامر العمل)
 
-## ما تم ربطه فعلياً
+## اختبارات
+- `test/stage11_data_layer_test.dart`
+- `test/stage12_remaining_modules_test.dart`
 
-| المجال | DAO | Repository | الواجهة |
-|---|---|---|---|
-| المالية | `FinanceDao` (كل الاتفاقات/الدفعات/المصاريف) | `FinanceRepository` + seedDemoIfEmpty | `FinanceNotifier` → repository |
-| المكتبة القانونية | `LegalLibraryDao` + جداول جديدة | `LegalLibraryRepository` + seed | `LegalLibraryNotifier` → repository |
-| الإعدادات/الأمان/النسخ/السجل/المحاكم | `SettingsDao` | `SettingsRepository` + `BackupService` | `SettingsHubNotifier` → repository |
-
-## ترقية قاعدة البيانات
-
-- `schemaVersion = 2`
-- جداول جديدة: `legal_library_items`, `legal_library_links`
-
-## اختبارات طبقة البيانات
-
-`test/stage11_data_layer_test.dart` — Finance / LegalLibrary / Settings على `NativeDatabase.memory()`.
-
-## ما يبقى لتحسين 100% تشغيلي (ليس مانعاً للتخزين)
-
-- ربط باقي الشاشات القديمة (دعاوى/ملفات/أوامر عمل seed UI) بالكامل بنفس النمط.
-- تشغيل يدوي على Windows للتأكد من مسارات الملفات والنسخ Zip.
+## ملاحظة
+بعض شاشات wizard/تفاصيل قد ما زالت تستخدم حقولاً محلية مؤقتة أثناء الإدخال، لكن القوائم الرئيسية تُقرأ من DB بعد البذر/التشغيل.

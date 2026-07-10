@@ -24,6 +24,12 @@ class PersonDao extends DatabaseAccessor<AppDatabase> with _$PersonDaoMixin {
   // ---------------------------------------------------------------------------
 
   /// مراقبة جميع الأشخاص في النظام مع فلترة اختيارية حسب النوع (طبيعي / اعتباري)
+  Future<List<PersonEntity>> getAllPersons({int? type}) {
+    final query = select(persons);
+    if (type != null) query.where((t) => t.type.equals(type));
+    return query.get();
+  }
+
   Stream<List<PersonEntity>> watchAllPersons({int? type}) {
     final query = select(persons);
     if (type != null) {
@@ -63,7 +69,12 @@ class PersonDao extends DatabaseAccessor<AppDatabase> with _$PersonDaoMixin {
   // ---------------------------------------------------------------------------
 
   /// مراقبة أدوار الشخص (موكل، خصم، شريك...)
+  Future<List<PersonRole>> getPersonRoles(int personId) {
+    return (select(personRoles)..where((t) => t.personId.equals(personId))).get();
+  }
+
   Stream<List<PersonRole>> watchPersonRoles(int personId) {
+
     return (select(personRoles)..where((t) => t.personId.equals(personId))).watch();
   }
 
@@ -106,7 +117,14 @@ class PersonDao extends DatabaseAccessor<AppDatabase> with _$PersonDaoMixin {
   // ---------------------------------------------------------------------------
 
   /// مراقبة سندات التوكيل في المكتب
+  Future<List<PowersOfAttorneyData>> getAllPoas() {
+    return (select(powersOfAttorney)
+          ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)]))
+        .get();
+  }
+
   Stream<List<PowersOfAttorneyData>> watchAllPoas() {
+
     return (select(powersOfAttorney)
           ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)]))
         .watch();

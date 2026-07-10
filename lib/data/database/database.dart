@@ -17,6 +17,7 @@ import 'daos/contract_dao.dart';
 import 'daos/admin_procedure_dao.dart';
 import 'daos/legal_library_dao.dart';
 import 'daos/settings_dao.dart';
+import 'daos/work_order_dao.dart';
 
 part 'database.g.dart';
 
@@ -49,6 +50,8 @@ part 'database.g.dart';
     Deficiencies, TimelineEvents,
     // 13. المكتبة القانونية
     LegalLibraryItems, LegalLibraryLinks,
+    // 14. أوامر العمل
+    WorkOrders,
   ],
   daos: [
     CaseDao,
@@ -62,6 +65,7 @@ part 'database.g.dart';
     AdminProcedureDao,
     LegalLibraryDao,
     SettingsDao,
+    WorkOrderDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -71,7 +75,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,6 +88,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.createTable(legalLibraryItems);
         await m.createTable(legalLibraryLinks);
+      }
+      if (from < 3) {
+        await m.createTable(workOrders);
       }
     },
     beforeOpen: (details) async {

@@ -9,6 +9,7 @@ import '../../theme/app_text_styles.dart';
 import '../documents/document_models.dart';
 import '../documents/document_viewer.dart';
 import 'case_models.dart';
+import '../../providers/ui_data_providers.dart';
 
 class CasesScreen extends ConsumerWidget {
   const CasesScreen({super.key});
@@ -151,168 +152,11 @@ class CasesScreen extends ConsumerWidget {
   }
 }
 
-final casesProvider = Provider<List<Case>>(
-  (ref) => [
-    Case(
-      id: '1',
-      caseNumber: '2026/001',
-      title: 'دعوى تعويض',
-      type: CaseType.civil,
-      status: CaseStatus.scheduled,
-      court: 'محكمة دمشق الأولى',
-      baseNumber: '12345',
-      baseYear: 2026,
-      subject: 'تعويض عن ضرر',
-      claim: '10,000,000 ل.س',
-      creationDate: DateTime(2026, 7, 1),
-      lastUpdated: DateTime(2026, 7, 9),
-      clientIds: const ['client_1'],
-      opponentIds: const ['opponent_1'],
-      lawyerIds: const ['lawyer_1'],
-      poaIds: const ['poa_1'],
-      sessions: [
-        CaseSession(
-          id: 's1',
-          sessionDate: DateTime(2026, 7, 15),
-          sessionTime: const TimeOfDay(hour: 9, minute: 0),
-          type: SessionType.ordinary,
-          status: SessionStatus.scheduled,
-          court: 'محكمة دمشق الأولى',
-        ),
-      ],
-      phases: [
-        CasePhase(
-          id: 'p1',
-          type: CasePhaseType.initial,
-          court: 'محكمة دمشق الأولى',
-          baseNumber: '12345',
-          baseYear: 2026,
-          startDate: DateTime(2026, 7, 1),
-        ),
-      ],
-      deficiencies: [
-        CaseDeficiency(
-          id: 'd1',
-          field: 'baseNumber',
-          description: 'تأكيد رقم الأساس',
-          createdAt: DateTime(2026, 7, 1),
-          severity: 'high',
-        ),
-      ],
-      fees: [
-        CaseFee(
-          id: 'f1',
-          clientId: 'client_1',
-          amount: 5000000,
-          agreementDate: DateTime(2026, 7, 1),
-        ),
-      ],
-      expenses: [
-        CaseExpense(
-          id: 'e1',
-          description: 'رسم دعوى',
-          amount: 100000,
-          expenseDate: DateTime(2026, 7, 2),
-        ),
-      ],
-      documentIds: const ['doc_1', 'doc_2', 'doc_3'],
-    ),
-    Case(
-      id: '2',
-      caseNumber: '2026/002',
-      title: 'دعوى استئناف',
-      type: CaseType.commercial,
-      status: CaseStatus.scheduled,
-      court: 'محكمة الاستئناف',
-      subject: 'استئناف حكم',
-      claim: 'إلغاء الحكم',
-      creationDate: DateTime(2026, 7, 2),
-      lastUpdated: DateTime(2026, 7, 8),
-      clientIds: const ['client_2'],
-      opponentIds: const ['opponent_2'],
-      sessions: [
-        CaseSession(
-          id: 's2',
-          sessionDate: DateTime(2026, 7, 10),
-          sessionTime: const TimeOfDay(hour: 10, minute: 30),
-          type: SessionType.ordinary,
-          status: SessionStatus.scheduled,
-          court: 'محكمة الاستئناف',
-        ),
-      ],
-      deficiencies: [
-        CaseDeficiency(
-          id: 'd2',
-          field: 'baseNumber',
-          description: 'حصول على رقم أساس',
-          createdAt: DateTime(2026, 7, 2),
-          severity: 'high',
-        ),
-        CaseDeficiency(
-          id: 'd3',
-          field: 'poa',
-          description: 'رفع الوكالة',
-          createdAt: DateTime(2026, 7, 3),
-          severity: 'high',
-        ),
-      ],
-      documentIds: const ['doc_4', 'doc_5'],
-    ),
-    Case(
-      id: '3',
-      caseNumber: '2026/003',
-      title: 'دعوى تجارية',
-      type: CaseType.commercial,
-      status: CaseStatus.completed,
-      court: 'محكمة دمشق الأولى',
-      baseNumber: '67890',
-      baseYear: 2026,
-      subject: 'منازعة تجارية',
-      claim: '5,000,000 ل.س',
-      creationDate: DateTime(2026, 6, 15),
-      lastUpdated: DateTime(2026, 7, 5),
-      clientIds: const ['client_3'],
-      opponentIds: const ['opponent_3'],
-      sessions: [
-        CaseSession(
-          id: 's3',
-          sessionDate: DateTime(2026, 7, 5),
-          sessionTime: const TimeOfDay(hour: 11, minute: 0),
-          type: SessionType.judgment,
-          status: SessionStatus.held,
-          court: 'محكمة دمشق الأولى',
-          decision: 'حكم لصالح الموكل',
-          result: const SessionResult(decision: 'حكم لصالح الموكل', expenses: 50000),
-        ),
-      ],
-      fees: [
-        CaseFee(
-          id: 'f2',
-          clientId: 'client_3',
-          amount: 2500000,
-          agreementDate: DateTime(2026, 6, 15),
-          paymentDate: DateTime(2026, 7, 5),
-          status: 'paid',
-        ),
-      ],
-      expenses: [
-        CaseExpense(
-          id: 'e2',
-          description: 'رسم دعوى',
-          amount: 75000,
-          expenseDate: DateTime(2026, 6, 16),
-        ),
-        CaseExpense(
-          id: 'e3',
-          description: 'مصاريف معقب',
-          amount: 25000,
-          expenseDate: DateTime(2026, 6, 20),
-        ),
-      ],
-      documentIds: const ['doc_6', 'doc_7', 'doc_8', 'doc_9', 'doc_10'],
-    ),
-  ],
-);
+final casesProvider = Provider<List<Case>>((ref) {
+  final asyncCases = ref.watch(uiCasesProvider);
+  return asyncCases.maybeWhen(data: (items) => items, orElse: () => const <Case>[]);
+});
+
 
 class CaseCard extends StatelessWidget {
   final Case caseItem;

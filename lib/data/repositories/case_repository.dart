@@ -25,6 +25,12 @@ class CaseRepository {
   );
 
   Stream<List<Case>> watchAllCases() => _caseDao.watchAllCases();
+  Future<List<Case>> getAllCases() => _caseDao.getAllCases();
+  Future<List<CaseSession>> getSessionsForCase(int caseId) => _caseDao.getSessionsForCase(caseId);
+  Future<List<CaseParty>> getPartiesForCase(int caseId) => _caseDao.getPartiesForCase(caseId);
+  Future<List<CasePhase>> getPhasesForCase(int caseId) => _caseDao.getPhasesForCase(caseId);
+  Future<Court?> getCourtById(int id) => _caseDao.getCourtById(id);
+
   Future<Case?> getCaseById(int id) => _caseDao.getCaseById(id);
   Stream<List<CaseParty>> watchCaseParties(int caseId) => _caseDao.watchCaseParties(caseId);
   Stream<List<CasePhase>> watchCasePhases(int caseId) => _caseDao.watchCasePhases(caseId);
@@ -263,7 +269,7 @@ class CaseRepository {
     required String userRef,
   }) async {
     await _caseDao.db.transaction(() async {
-      String? docPath;
+      String? docPath; // may be unused if no file
       if (decisionFile != null) {
         docPath = await _storageService.saveAttachment(
           sourceFile: decisionFile,
@@ -275,7 +281,7 @@ class CaseRepository {
       await (_caseDao.update(_caseDao.db.cases)..where((t) => t.id.equals(caseId))).write(
         CasesCompanion(
           status: const Value('closed'),
-          notes: Value('تم إنهاء الدعوى ($terminationReason). ملخص الحكم/القرار: $summary'),
+          notes: Value('تم إنهاء الدعوى ($terminationReason). ملخص الحكم/القرار: $summary' + (docPath != null ? ' | مرفق: $docPath' : '')),
           updatedAt: Value(DateTime.now()),
         ),
       );
@@ -301,5 +307,83 @@ class CaseRepository {
         ),
       );
     });
+  }
+
+  /// بذر دعاوى تجريبية داخل SQLite عند كون الجدول فارغاً.
+  Future<void> seedDemoIfEmpty() async {
+    final existing = await _caseDao.getAllCases();
+    if (existing.isNotEmpty) return;
+
+    final courts = await (_caseDao.select(_caseDao.courts)..limit(1)).get();
+    final courtId = courts.isNotEmpty ? courts.first.id : null;
+
+    final persons = await (_caseDao.select(_caseDao.persons)).get();
+    late int clientId;
+    late int opponentId;
+    if (persons.isEmpty) {
+      clientId = await _caseDao.into(_caseDao.persons).insert(
+            PersonsCompanion.insert(fullName: 'أحمد محمد الخطيب', phone1: const Value('0933000001')),
+          );
+      opponentId = await _caseDao.into(_caseDao.persons).insert(
+            PersonsCompanion.insert(fullName: 'محمد أحمد السالم', phone1: const Value('0944000002')),
+          );
+    } else {
+      clientId = persons.first.id;
+      opponentId = persons.length > 1 ? persons[1].id : persons.first.id;
+    }
+
+    Future<int> addCase({
+      required String caseType,
+      required String subject,
+      String? baseNumber,
+      String status = 'registered',
+      DateTime? nextSession,
+    }) {
+      return createCase(
+        caseData: CasesCompanion.insert(
+          internalNumber: 'TMP',
+          year: DateTime.now().year,
+          caseType: caseType,
+          status: Value(status),
+          courtId: Value(courtId),
+          baseNumber: Value(baseNumber),
+          subject: Value(subject),
+          subjectDetails: Value(subject),
+          nextSessionDate: Value(nextSession),
+        ),
+        clientId: clientId,
+        opponentId: opponentId,
+        userRef: 'النظام',
+      );
+    }
+
+    final c1 = await addCase(
+      caseType: 'مدني',
+      subject: 'تعويض عن ضرر',
+      baseNumber: '12345',
+      nextSession: DateTime.now().add(const Duration(days: 5)),
+    );
+    await addCase(
+      caseType: 'تجاري',
+      subject: 'استئناف حكم',
+      status: 'pending_registration',
+      nextSession: DateTime.now().add(const Duration(days: 2)),
+    );
+    await addCase(
+      caseType: 'تجاري',
+      subject: 'منازعة تجارية',
+      baseNumber: '67890',
+      status: 'closed',
+    );
+
+    await _caseDao.insertCaseSession(
+      CaseSessionsCompanion.insert(
+        caseId: c1,
+        sessionDate: DateTime.now().add(const Duration(days: 5)),
+        sessionTime: const Value('09:00'),
+        sessionType: const Value('مرافعة'),
+        status: const Value(0),
+      ),
+    );
   }
 }

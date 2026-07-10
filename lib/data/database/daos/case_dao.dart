@@ -32,6 +32,31 @@ class CaseDao extends DatabaseAccessor<AppDatabase> with _$CaseDaoMixin {
         .watch();
   }
 
+  Future<List<Case>> getAllCases() {
+    return (select(cases)
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.year, mode: OrderingMode.desc),
+            (t) => OrderingTerm(expression: t.internalNumber, mode: OrderingMode.desc),
+          ]))
+        .get();
+  }
+
+  Future<List<CaseSession>> getSessionsForCase(int caseId) {
+    return (select(caseSessions)..where((t) => t.caseId.equals(caseId))).get();
+  }
+
+  Future<List<CaseParty>> getPartiesForCase(int caseId) {
+    return (select(caseParties)..where((t) => t.caseId.equals(caseId))).get();
+  }
+
+  Future<List<CasePhase>> getPhasesForCase(int caseId) {
+    return (select(casePhases)..where((t) => t.caseId.equals(caseId))).get();
+  }
+
+  Future<Court?> getCourtById(int id) {
+    return (select(courts)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
   /// جلب ملف دعوى واحد بالمعرف
   Future<Case?> getCaseById(int id) {
     return (select(cases)..where((t) => t.id.equals(id))).getSingleOrNull();

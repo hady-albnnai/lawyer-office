@@ -4,19 +4,24 @@ import '../schema.dart';
 
 part 'document_dao.g.dart';
 
-/// كائن الوصول لبيانات المستندات والمبرزات القانونية الموحدة (DocumentDao)
-@DriftAccessor(tables: [
-  Documents,
-  DocumentLinks,
-])
+@DriftAccessor(tables: [Documents, DocumentLinks])
 class DocumentDao extends DatabaseAccessor<AppDatabase> with _$DocumentDaoMixin {
   DocumentDao(super.db);
 
-  // ---------------------------------------------------------------------------
-  // إدارة المستندات وروابطها (Documents & DocumentLinks)
-  // ---------------------------------------------------------------------------
+  Stream<List<Document>> watchAllDocuments() {
+    return (select(documents)
+          ..orderBy([(t) => OrderingTerm(expression: t.dateAdded, mode: OrderingMode.desc)]))
+        .watch();
+  }
 
-  /// مراقبة المستندات المرتبطة بكيان محدد (دعوى، جلسة، شخص، شركة...)
+  Future<List<Document>> getAllDocuments() {
+    return (select(documents)
+          ..orderBy([(t) => OrderingTerm(expression: t.dateAdded, mode: OrderingMode.desc)]))
+        .get();
+  }
+
+  Future<List<DocumentLink>> getAllLinks() => select(documentLinks).get();
+
   Stream<List<Document>> watchDocumentsByEntity(int entityType, int entityId) {
     final query = select(documents).join([
       innerJoin(
@@ -32,12 +37,10 @@ class DocumentDao extends DatabaseAccessor<AppDatabase> with _$DocumentDaoMixin 
     });
   }
 
-  /// إدخال مستند جديد في قاعدة البيانات
   Future<int> insertDocument(DocumentsCompanion companion) {
     return into(documents).insert(companion);
   }
 
-  /// ربط مستند قائم بكيان معين في النظام (دعم الربط المتعدد للمستند الواحد)
   Future<int> linkDocument(int documentId, int entityType, int entityId, {String? linkType}) {
     return into(documentLinks).insert(
       DocumentLinksCompanion.insert(
@@ -49,7 +52,6 @@ class DocumentDao extends DatabaseAccessor<AppDatabase> with _$DocumentDaoMixin 
     );
   }
 
-  /// إزالة مستند من قاعدة البيانات (ستقوم القيود الخارجية بحذف روابطه)
   Future<int> deleteDocument(int id) {
     return (delete(documents)..where((t) => t.id.equals(id))).go();
   }

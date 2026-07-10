@@ -1,10 +1,13 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/app_providers.dart';
+import '../../../data/database/database.dart' as db;
+
 /// نماذج نظام المستندات والمرفقات المشتركة بين شاشات المستندات والدعاوى.
 ///
 /// يعتمد الملف على AppColors عبر الأيقونات المعتمدة في الثيم، وتبقى النصوص
 /// عربية جاهزة للعرض داخل واجهات RTL.
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// نوع المستند القانوني داخل المكتب.
 enum DocumentType {
@@ -116,85 +119,55 @@ class DocumentItem {
   }
 }
 
-/// بيانات افتراضية موحدة للمستندات لحين ربط الشاشة بمستودع Drift نهائياً.
-final documentsProvider = Provider<List<DocumentItem>>((ref) => [
-      DocumentItem(
-        id: 'doc_1',
-        title: 'وكالة عامة لعام 2026',
-        documentType: DocumentType.powerOfAttorney,
-        entityType: 'case',
-        entityId: '1',
-        entityTitle: 'الدعوى 2026/001',
-        filePath: 'docs/poa/poa1.pdf',
-        fileName: 'poa_2026_001.pdf',
-        fileSize: 1024 * 1024,
-        fileType: FileType.pdf,
-        uploadDate: DateTime(2026, 7, 5),
-        uploadedBy: 'هادي البني',
-        physicalLocation: 'ديوان المحامي',
-      ),
-      DocumentItem(
-        id: 'doc_2',
-        title: 'قرار المحكمة',
-        documentType: DocumentType.decision,
-        entityType: 'case',
-        entityId: '1',
-        entityTitle: 'الدعوى 2026/001',
-        filePath: 'docs/cases/dec1.pdf',
-        fileName: 'decision_2026_001.pdf',
-        fileSize: 512 * 1024,
-        fileType: FileType.pdf,
-        uploadDate: DateTime(2026, 7, 9),
-        uploadedBy: 'أحمد محمد',
-        physicalLocation: 'ديوان المحكمة',
-      ),
-      DocumentItem(
-        id: 'doc_3',
-        title: 'مذكرة قانونية',
-        documentType: DocumentType.memo,
-        entityType: 'case',
-        entityId: '1',
-        entityTitle: 'الدعوى 2026/001',
-        filePath: 'docs/memos/memo1.docx',
-        fileName: 'memo_2026_001.docx',
-        fileSize: 256 * 1024,
-        fileType: FileType.docx,
-        uploadDate: DateTime(2026, 7, 8),
-        uploadedBy: 'هادي البني',
-        physicalLocation: 'مكتب المحامي',
-      ),
-      DocumentItem(
-        id: 'doc_4',
-        title: 'سند التوكيل',
-        documentType: DocumentType.powerOfAttorney,
-        entityType: 'case',
-        entityId: '2',
-        entityTitle: 'الدعوى 2026/002',
-        filePath: 'docs/poa/poa2.pdf',
-        fileName: 'poa_2026_002.pdf',
-        fileSize: 1024 * 1024,
-        fileType: FileType.pdf,
-        uploadDate: DateTime(2026, 7, 7),
-        uploadedBy: 'هادي البني',
-        physicalLocation: 'ديوان المحامي',
-        isMissingOriginal: true,
-      ),
-      DocumentItem(
-        id: 'doc_5',
-        title: 'عقد بيع',
-        documentType: DocumentType.contract,
-        entityType: 'contract',
-        entityId: '1',
-        entityTitle: 'عقد 2026/CONT/001',
-        filePath: 'docs/contracts/cont1.docx',
-        fileName: 'contract_2026_001.docx',
-        fileSize: 2 * 1024 * 1024,
-        fileType: FileType.docx,
-        uploadDate: DateTime(2026, 7, 8),
-        uploadedBy: 'هادي البني',
-        physicalLocation: 'مكتب المحامي',
-      ),
-    ]);
+
+/// مستندات من SQLite عبر DocumentRepository.
+final documentsProvider = Provider<List<DocumentItem>>((ref) {
+  final asyncDocs = ref.watch(documentsFutureProvider);
+  return asyncDocs.maybeWhen(data: (items) => items, orElse: () => const <DocumentItem>[]);
+});
+
+final documentsFutureProvider = FutureProvider<List<DocumentItem>>((ref) async {
+  final repo = ref.watch(documentRepositoryProvider);
+  await repo.seedDemoIfEmpty();
+  final docs = await repo.getAllDocuments();
+  final links = await repo.getAllLinks();
+  final byDoc = <int, db.DocumentLink>{};
+  for (final l in links) {
+    byDoc.putIfAbsent(l.documentId, () => l);
+  }
+  return docs.map((d) {
+    final link = byDoc[d.id];
+    final entityType = link?.entityType ?? 0;
+    final entityId = link?.entityId ?? 0;
+    return DocumentItem(
+      id: '${d.id}',
+      title: d.docName,
+      documentType: _mapDocType(d.docType),
+      entityType: entityType == 1 ? 'contract' : 'case',
+      entityId: '$entityId',
+      entityTitle: entityType == 1 ? 'عقد #$entityId' : 'دعوى #$entityId',
+      filePath: d.filePath ?? '',
+      fileName: (d.filePath ?? d.docName).split('/').last,
+      fileSize: 0,
+      fileType: inferFileType(d.fileType),
+      uploadDate: d.dateAdded,
+      uploadedBy: 'المكتب',
+      physicalLocation: d.physicalLocation == 0 ? 'مكتب المحامي' : 'خارج المكتب',
+      isMissingOriginal: d.status != 0,
+      notes: d.notes ?? '',
+    );
+  }).toList();
+});
+
+DocumentType _mapDocType(String? raw) {
+  final v = (raw ?? '').toLowerCase();
+  if (v.contains('poa') || v.contains('power') || v.contains('وكال')) return DocumentType.powerOfAttorney;
+  if (v.contains('contract') || v.contains('عقد')) return DocumentType.contract;
+  if (v.contains('memo') || v.contains('مذكر')) return DocumentType.memo;
+  if (v.contains('decision') || v.contains('قرار')) return DocumentType.decision;
+  if (v.contains('receipt') || v.contains('إيص')) return DocumentType.receipt;
+  return DocumentType.caseDocument;
+}
 
 /// استنتاج نوع الملف من الامتداد عند رفع مستند جديد.
 FileType inferFileType(String? extension) {

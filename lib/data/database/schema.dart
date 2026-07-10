@@ -716,3 +716,30 @@ class LegalLibraryLinks extends Table {
   TextColumn get note => text().nullable()();
   DateTimeColumn get linkedAt => dateTime().withDefault(currentDateAndTime)();
 }
+
+// ============================================================================
+// 14. أوامر العمل للمعقب (Work Orders Offline)
+// ============================================================================
+
+class WorkOrders extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get internalNumber => text().unique()();
+  IntColumn get linkedEntityType => integer().withDefault(const Constant(0))();
+  IntColumn get linkedEntityId => integer().withDefault(const Constant(0))();
+  TextColumn get assignedToName => text()();
+  TextColumn get assignedToPhone => text().nullable()();
+  TextColumn get orderType => text()(); // court_attendance, document_photocopy, ...
+  TextColumn get priority => text().withDefault(const Constant('medium'))(); // high, medium, low
+  TextColumn get status => text().withDefault(const Constant('draft'))();
+  DateTimeColumn get dueDate => dateTime()();
+  TextColumn get instructions => text().nullable()();
+  TextColumn get createdBy => text().nullable()();
+  DateTimeColumn get printedAt => dateTime().nullable()();
+  DateTimeColumn get whatsappSentAt => dateTime().nullable()();
+  TextColumn get resultStatus => text().nullable()();
+  TextColumn get resultText => text().nullable()();
+  DateTimeColumn get resultDate => dateTime().nullable()();
+  DateTimeColumn get nextDate => dateTime().nullable()();
+  DateTimeColumn get approvedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}

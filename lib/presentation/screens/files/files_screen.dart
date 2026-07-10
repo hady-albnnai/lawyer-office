@@ -8,6 +8,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../documents/document_models.dart' as doc_models;
 import '../documents/document_viewer.dart';
+import '../../providers/ui_data_providers.dart';
 
 enum FileType {
   caseFile,
@@ -71,56 +72,11 @@ class FileItem {
   Color get statusColor => status.color;
 }
 
-final filesProvider = Provider<List<FileItem>>(
-  (ref) => [
-    FileItem(
-      id: '1',
-      fileNumber: '2026/001',
-      title: 'دعوى تعويض',
-      type: FileType.caseFile,
-      court: 'محكمة دمشق الأولى',
-      status: FileStatus.active,
-      hasDeficiencies: true,
-      deficiencyCount: 2,
-      nextSessionDate: DateTime(2026, 7, 15),
-      baseNumber: '12345',
-      createdAt: DateTime(2026, 7, 1),
-      lastUpdated: DateTime(2026, 7, 9),
-      documentCount: 3,
-      documentIds: const ['doc_1', 'doc_2', 'doc_3'],
-    ),
-    FileItem(
-      id: '2',
-      fileNumber: '2026/002',
-      title: 'دعوى استئناف',
-      type: FileType.caseFile,
-      court: 'محكمة الاستئناف',
-      status: FileStatus.active,
-      hasDeficiencies: true,
-      deficiencyCount: 1,
-      nextSessionDate: DateTime(2026, 7, 10),
-      hasBaseNumber: false,
-      createdAt: DateTime(2026, 7, 2),
-      lastUpdated: DateTime(2026, 7, 8),
-      documentCount: 2,
-      documentIds: const ['doc_4', 'doc_5'],
-    ),
-    FileItem(
-      id: '3',
-      fileNumber: '2026/003',
-      title: 'دعوى تجارية',
-      type: FileType.caseFile,
-      court: 'محكمة دمشق الأولى',
-      status: FileStatus.completed,
-      nextSessionDate: null,
-      baseNumber: '67890',
-      createdAt: DateTime(2026, 6, 15),
-      lastUpdated: DateTime(2026, 7, 5),
-      documentCount: 5,
-      documentIds: const ['doc_6', 'doc_7', 'doc_8', 'doc_9', 'doc_10'],
-    ),
-  ],
-);
+final filesProvider = Provider<List<FileItem>>((ref) {
+  final asyncFiles = ref.watch(uiFilesProvider);
+  return asyncFiles.maybeWhen(data: (items) => items, orElse: () => const <FileItem>[]);
+});
+
 
 class FilesScreen extends ConsumerWidget {
   const FilesScreen({super.key});

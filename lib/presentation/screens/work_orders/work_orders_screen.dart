@@ -1,10 +1,10 @@
 /// شاشة أوامر العمل
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import 'work_order_models.dart';
+import '../../providers/ui_data_providers.dart';
 import 'work_order_dialogs.dart';
 
 class WorkOrdersScreen extends ConsumerWidget {
@@ -17,13 +17,11 @@ class WorkOrdersScreen extends ConsumerWidget {
   }
 }
 
-final woProvider = Provider<List<WorkOrder>>((ref) => [
-  WorkOrder(id: '1', internalNumber: 'WO-2026-001', linkedEntityType: 'case', linkedEntityId: 'CASE-001', assignedToName: 'أحمد محمد', assignedToPhone: '0912345678', orderType: WorkOrderType.courtAttendance, priority: WorkOrderPriority.high, status: WorkOrderStatus.draft, dueDate: DateTime(2026, 7, 10), instructions: 'حضور جلسة الدعوى رقم 2026/001', createdAt: DateTime(2026, 7, 9), createdBy: 'هادي البني'),
-  WorkOrder(id: '2', internalNumber: 'WO-2026-002', linkedEntityType: 'case', linkedEntityId: 'CASE-002', assignedToName: 'محمد أحمد', assignedToPhone: '0987654321', orderType: WorkOrderType.documentPhotocopy, priority: WorkOrderPriority.medium, status: WorkOrderStatus.printed, dueDate: DateTime(2026, 7, 11), instructions: 'تصوير ضبط المحكمة', createdAt: DateTime(2026, 7, 9), createdBy: 'هادي البني'),
-  WorkOrder(id: '3', internalNumber: 'WO-2026-003', linkedEntityType: 'case', linkedEntityId: 'CASE-003', assignedToName: 'أحمد محمد', assignedToPhone: '0912345678', orderType: WorkOrderType.feePayment, priority: WorkOrderPriority.high, status: WorkOrderStatus.waitingForResult, dueDate: DateTime(2026, 7, 9, 14, 0), instructions: 'دفع رسم الدعوى', createdAt: DateTime(2026, 7, 8), createdBy: 'هادي البني'),
-  WorkOrder(id: '4', internalNumber: 'WO-2026-004', linkedEntityType: 'case', linkedEntityId: 'CASE-004', assignedToName: 'محمد أحمد', assignedToPhone: '0987654321', orderType: WorkOrderType.notaryReview, priority: WorkOrderPriority.low, status: WorkOrderStatus.resultEntered, dueDate: DateTime(2026, 7, 12), instructions: 'مراجعة كاتب عدل', createdAt: DateTime(2026, 7, 7), createdBy: 'هادي البني', resultStatus: WorkOrderResultStatus.completed, resultText: 'تم التنظيم بنجاح'),
-  WorkOrder(id: '5', internalNumber: 'WO-2026-005', linkedEntityType: 'case', linkedEntityId: 'CASE-005', assignedToName: 'أحمد محمد', assignedToPhone: '0912345678', orderType: WorkOrderType.executionFollowup, priority: WorkOrderPriority.medium, status: WorkOrderStatus.waitingForApproval, dueDate: DateTime(2026, 7, 13), instructions: 'متابعة تنفيذ', createdAt: DateTime(2026, 7, 8), createdBy: 'هادي البني', resultStatus: WorkOrderResultStatus.completed, resultText: 'تم المتابعة', nextDate: DateTime(2026, 7, 20)),
-]);
+final woProvider = Provider<List<WorkOrder>>((ref) {
+  final asyncWo = ref.watch(uiWorkOrdersProvider);
+  return asyncWo.maybeWhen(data: (items) => items, orElse: () => const <WorkOrder>[]);
+});
+
 
 class AllTab extends ConsumerWidget { const AllTab({super.key}); @override Widget build(BuildContext context, WidgetRef ref) { final list = ref.watch(woProvider); return ListView.builder(padding: const EdgeInsets.all(16), itemCount: list.length, itemBuilder: (c, i) => WOCard(wo: list[i])); } }
 class DraftTab extends ConsumerWidget { const DraftTab({super.key}); @override Widget build(BuildContext context, WidgetRef ref) { final list = ref.watch(woProvider).where((w) => w.status == WorkOrderStatus.draft).toList(); return _buildList(list, context, 'لا يوجد مسودات'); } }

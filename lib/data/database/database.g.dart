@@ -23655,6 +23655,952 @@ class LegalLibraryLinksCompanion extends UpdateCompanion<LegalLibraryLink> {
   }
 }
 
+class $WorkOrdersTable extends WorkOrders
+    with TableInfo<$WorkOrdersTable, WorkOrder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WorkOrdersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _internalNumberMeta =
+      const VerificationMeta('internalNumber');
+  @override
+  late final GeneratedColumn<String> internalNumber = GeneratedColumn<String>(
+      'internal_number', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+  static const VerificationMeta _linkedEntityTypeMeta =
+      const VerificationMeta('linkedEntityType');
+  @override
+  late final GeneratedColumn<int> linkedEntityType = GeneratedColumn<int>(
+      'linked_entity_type', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _linkedEntityIdMeta =
+      const VerificationMeta('linkedEntityId');
+  @override
+  late final GeneratedColumn<int> linkedEntityId = GeneratedColumn<int>(
+      'linked_entity_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _assignedToNameMeta =
+      const VerificationMeta('assignedToName');
+  @override
+  late final GeneratedColumn<String> assignedToName = GeneratedColumn<String>(
+      'assigned_to_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _assignedToPhoneMeta =
+      const VerificationMeta('assignedToPhone');
+  @override
+  late final GeneratedColumn<String> assignedToPhone = GeneratedColumn<String>(
+      'assigned_to_phone', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _orderTypeMeta =
+      const VerificationMeta('orderType');
+  @override
+  late final GeneratedColumn<String> orderType = GeneratedColumn<String>(
+      'order_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _priorityMeta =
+      const VerificationMeta('priority');
+  @override
+  late final GeneratedColumn<String> priority = GeneratedColumn<String>(
+      'priority', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('medium'));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('draft'));
+  static const VerificationMeta _dueDateMeta =
+      const VerificationMeta('dueDate');
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+      'due_date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _instructionsMeta =
+      const VerificationMeta('instructions');
+  @override
+  late final GeneratedColumn<String> instructions = GeneratedColumn<String>(
+      'instructions', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdByMeta =
+      const VerificationMeta('createdBy');
+  @override
+  late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
+      'created_by', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _printedAtMeta =
+      const VerificationMeta('printedAt');
+  @override
+  late final GeneratedColumn<DateTime> printedAt = GeneratedColumn<DateTime>(
+      'printed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _whatsappSentAtMeta =
+      const VerificationMeta('whatsappSentAt');
+  @override
+  late final GeneratedColumn<DateTime> whatsappSentAt =
+      GeneratedColumn<DateTime>('whatsapp_sent_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _resultStatusMeta =
+      const VerificationMeta('resultStatus');
+  @override
+  late final GeneratedColumn<String> resultStatus = GeneratedColumn<String>(
+      'result_status', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _resultTextMeta =
+      const VerificationMeta('resultText');
+  @override
+  late final GeneratedColumn<String> resultText = GeneratedColumn<String>(
+      'result_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _resultDateMeta =
+      const VerificationMeta('resultDate');
+  @override
+  late final GeneratedColumn<DateTime> resultDate = GeneratedColumn<DateTime>(
+      'result_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _nextDateMeta =
+      const VerificationMeta('nextDate');
+  @override
+  late final GeneratedColumn<DateTime> nextDate = GeneratedColumn<DateTime>(
+      'next_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _approvedAtMeta =
+      const VerificationMeta('approvedAt');
+  @override
+  late final GeneratedColumn<DateTime> approvedAt = GeneratedColumn<DateTime>(
+      'approved_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        internalNumber,
+        linkedEntityType,
+        linkedEntityId,
+        assignedToName,
+        assignedToPhone,
+        orderType,
+        priority,
+        status,
+        dueDate,
+        instructions,
+        createdBy,
+        printedAt,
+        whatsappSentAt,
+        resultStatus,
+        resultText,
+        resultDate,
+        nextDate,
+        approvedAt,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'work_orders';
+  @override
+  VerificationContext validateIntegrity(Insertable<WorkOrder> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('internal_number')) {
+      context.handle(
+          _internalNumberMeta,
+          internalNumber.isAcceptableOrUnknown(
+              data['internal_number']!, _internalNumberMeta));
+    } else if (isInserting) {
+      context.missing(_internalNumberMeta);
+    }
+    if (data.containsKey('linked_entity_type')) {
+      context.handle(
+          _linkedEntityTypeMeta,
+          linkedEntityType.isAcceptableOrUnknown(
+              data['linked_entity_type']!, _linkedEntityTypeMeta));
+    }
+    if (data.containsKey('linked_entity_id')) {
+      context.handle(
+          _linkedEntityIdMeta,
+          linkedEntityId.isAcceptableOrUnknown(
+              data['linked_entity_id']!, _linkedEntityIdMeta));
+    }
+    if (data.containsKey('assigned_to_name')) {
+      context.handle(
+          _assignedToNameMeta,
+          assignedToName.isAcceptableOrUnknown(
+              data['assigned_to_name']!, _assignedToNameMeta));
+    } else if (isInserting) {
+      context.missing(_assignedToNameMeta);
+    }
+    if (data.containsKey('assigned_to_phone')) {
+      context.handle(
+          _assignedToPhoneMeta,
+          assignedToPhone.isAcceptableOrUnknown(
+              data['assigned_to_phone']!, _assignedToPhoneMeta));
+    }
+    if (data.containsKey('order_type')) {
+      context.handle(_orderTypeMeta,
+          orderType.isAcceptableOrUnknown(data['order_type']!, _orderTypeMeta));
+    } else if (isInserting) {
+      context.missing(_orderTypeMeta);
+    }
+    if (data.containsKey('priority')) {
+      context.handle(_priorityMeta,
+          priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(_dueDateMeta,
+          dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta));
+    } else if (isInserting) {
+      context.missing(_dueDateMeta);
+    }
+    if (data.containsKey('instructions')) {
+      context.handle(
+          _instructionsMeta,
+          instructions.isAcceptableOrUnknown(
+              data['instructions']!, _instructionsMeta));
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(_createdByMeta,
+          createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta));
+    }
+    if (data.containsKey('printed_at')) {
+      context.handle(_printedAtMeta,
+          printedAt.isAcceptableOrUnknown(data['printed_at']!, _printedAtMeta));
+    }
+    if (data.containsKey('whatsapp_sent_at')) {
+      context.handle(
+          _whatsappSentAtMeta,
+          whatsappSentAt.isAcceptableOrUnknown(
+              data['whatsapp_sent_at']!, _whatsappSentAtMeta));
+    }
+    if (data.containsKey('result_status')) {
+      context.handle(
+          _resultStatusMeta,
+          resultStatus.isAcceptableOrUnknown(
+              data['result_status']!, _resultStatusMeta));
+    }
+    if (data.containsKey('result_text')) {
+      context.handle(
+          _resultTextMeta,
+          resultText.isAcceptableOrUnknown(
+              data['result_text']!, _resultTextMeta));
+    }
+    if (data.containsKey('result_date')) {
+      context.handle(
+          _resultDateMeta,
+          resultDate.isAcceptableOrUnknown(
+              data['result_date']!, _resultDateMeta));
+    }
+    if (data.containsKey('next_date')) {
+      context.handle(_nextDateMeta,
+          nextDate.isAcceptableOrUnknown(data['next_date']!, _nextDateMeta));
+    }
+    if (data.containsKey('approved_at')) {
+      context.handle(
+          _approvedAtMeta,
+          approvedAt.isAcceptableOrUnknown(
+              data['approved_at']!, _approvedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WorkOrder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WorkOrder(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      internalNumber: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}internal_number'])!,
+      linkedEntityType: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}linked_entity_type'])!,
+      linkedEntityId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}linked_entity_id'])!,
+      assignedToName: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}assigned_to_name'])!,
+      assignedToPhone: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}assigned_to_phone']),
+      orderType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}order_type'])!,
+      priority: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}priority'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      dueDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}due_date'])!,
+      instructions: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}instructions']),
+      createdBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}created_by']),
+      printedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}printed_at']),
+      whatsappSentAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}whatsapp_sent_at']),
+      resultStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}result_status']),
+      resultText: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}result_text']),
+      resultDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}result_date']),
+      nextDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}next_date']),
+      approvedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}approved_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $WorkOrdersTable createAlias(String alias) {
+    return $WorkOrdersTable(attachedDatabase, alias);
+  }
+}
+
+class WorkOrder extends DataClass implements Insertable<WorkOrder> {
+  final int id;
+  final String internalNumber;
+  final int linkedEntityType;
+  final int linkedEntityId;
+  final String assignedToName;
+  final String? assignedToPhone;
+  final String orderType;
+  final String priority;
+  final String status;
+  final DateTime dueDate;
+  final String? instructions;
+  final String? createdBy;
+  final DateTime? printedAt;
+  final DateTime? whatsappSentAt;
+  final String? resultStatus;
+  final String? resultText;
+  final DateTime? resultDate;
+  final DateTime? nextDate;
+  final DateTime? approvedAt;
+  final DateTime createdAt;
+  const WorkOrder(
+      {required this.id,
+      required this.internalNumber,
+      required this.linkedEntityType,
+      required this.linkedEntityId,
+      required this.assignedToName,
+      this.assignedToPhone,
+      required this.orderType,
+      required this.priority,
+      required this.status,
+      required this.dueDate,
+      this.instructions,
+      this.createdBy,
+      this.printedAt,
+      this.whatsappSentAt,
+      this.resultStatus,
+      this.resultText,
+      this.resultDate,
+      this.nextDate,
+      this.approvedAt,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['internal_number'] = Variable<String>(internalNumber);
+    map['linked_entity_type'] = Variable<int>(linkedEntityType);
+    map['linked_entity_id'] = Variable<int>(linkedEntityId);
+    map['assigned_to_name'] = Variable<String>(assignedToName);
+    if (!nullToAbsent || assignedToPhone != null) {
+      map['assigned_to_phone'] = Variable<String>(assignedToPhone);
+    }
+    map['order_type'] = Variable<String>(orderType);
+    map['priority'] = Variable<String>(priority);
+    map['status'] = Variable<String>(status);
+    map['due_date'] = Variable<DateTime>(dueDate);
+    if (!nullToAbsent || instructions != null) {
+      map['instructions'] = Variable<String>(instructions);
+    }
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<String>(createdBy);
+    }
+    if (!nullToAbsent || printedAt != null) {
+      map['printed_at'] = Variable<DateTime>(printedAt);
+    }
+    if (!nullToAbsent || whatsappSentAt != null) {
+      map['whatsapp_sent_at'] = Variable<DateTime>(whatsappSentAt);
+    }
+    if (!nullToAbsent || resultStatus != null) {
+      map['result_status'] = Variable<String>(resultStatus);
+    }
+    if (!nullToAbsent || resultText != null) {
+      map['result_text'] = Variable<String>(resultText);
+    }
+    if (!nullToAbsent || resultDate != null) {
+      map['result_date'] = Variable<DateTime>(resultDate);
+    }
+    if (!nullToAbsent || nextDate != null) {
+      map['next_date'] = Variable<DateTime>(nextDate);
+    }
+    if (!nullToAbsent || approvedAt != null) {
+      map['approved_at'] = Variable<DateTime>(approvedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  WorkOrdersCompanion toCompanion(bool nullToAbsent) {
+    return WorkOrdersCompanion(
+      id: Value(id),
+      internalNumber: Value(internalNumber),
+      linkedEntityType: Value(linkedEntityType),
+      linkedEntityId: Value(linkedEntityId),
+      assignedToName: Value(assignedToName),
+      assignedToPhone: assignedToPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(assignedToPhone),
+      orderType: Value(orderType),
+      priority: Value(priority),
+      status: Value(status),
+      dueDate: Value(dueDate),
+      instructions: instructions == null && nullToAbsent
+          ? const Value.absent()
+          : Value(instructions),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
+      printedAt: printedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(printedAt),
+      whatsappSentAt: whatsappSentAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(whatsappSentAt),
+      resultStatus: resultStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resultStatus),
+      resultText: resultText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resultText),
+      resultDate: resultDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resultDate),
+      nextDate: nextDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextDate),
+      approvedAt: approvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(approvedAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory WorkOrder.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WorkOrder(
+      id: serializer.fromJson<int>(json['id']),
+      internalNumber: serializer.fromJson<String>(json['internalNumber']),
+      linkedEntityType: serializer.fromJson<int>(json['linkedEntityType']),
+      linkedEntityId: serializer.fromJson<int>(json['linkedEntityId']),
+      assignedToName: serializer.fromJson<String>(json['assignedToName']),
+      assignedToPhone: serializer.fromJson<String?>(json['assignedToPhone']),
+      orderType: serializer.fromJson<String>(json['orderType']),
+      priority: serializer.fromJson<String>(json['priority']),
+      status: serializer.fromJson<String>(json['status']),
+      dueDate: serializer.fromJson<DateTime>(json['dueDate']),
+      instructions: serializer.fromJson<String?>(json['instructions']),
+      createdBy: serializer.fromJson<String?>(json['createdBy']),
+      printedAt: serializer.fromJson<DateTime?>(json['printedAt']),
+      whatsappSentAt: serializer.fromJson<DateTime?>(json['whatsappSentAt']),
+      resultStatus: serializer.fromJson<String?>(json['resultStatus']),
+      resultText: serializer.fromJson<String?>(json['resultText']),
+      resultDate: serializer.fromJson<DateTime?>(json['resultDate']),
+      nextDate: serializer.fromJson<DateTime?>(json['nextDate']),
+      approvedAt: serializer.fromJson<DateTime?>(json['approvedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'internalNumber': serializer.toJson<String>(internalNumber),
+      'linkedEntityType': serializer.toJson<int>(linkedEntityType),
+      'linkedEntityId': serializer.toJson<int>(linkedEntityId),
+      'assignedToName': serializer.toJson<String>(assignedToName),
+      'assignedToPhone': serializer.toJson<String?>(assignedToPhone),
+      'orderType': serializer.toJson<String>(orderType),
+      'priority': serializer.toJson<String>(priority),
+      'status': serializer.toJson<String>(status),
+      'dueDate': serializer.toJson<DateTime>(dueDate),
+      'instructions': serializer.toJson<String?>(instructions),
+      'createdBy': serializer.toJson<String?>(createdBy),
+      'printedAt': serializer.toJson<DateTime?>(printedAt),
+      'whatsappSentAt': serializer.toJson<DateTime?>(whatsappSentAt),
+      'resultStatus': serializer.toJson<String?>(resultStatus),
+      'resultText': serializer.toJson<String?>(resultText),
+      'resultDate': serializer.toJson<DateTime?>(resultDate),
+      'nextDate': serializer.toJson<DateTime?>(nextDate),
+      'approvedAt': serializer.toJson<DateTime?>(approvedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  WorkOrder copyWith(
+          {int? id,
+          String? internalNumber,
+          int? linkedEntityType,
+          int? linkedEntityId,
+          String? assignedToName,
+          Value<String?> assignedToPhone = const Value.absent(),
+          String? orderType,
+          String? priority,
+          String? status,
+          DateTime? dueDate,
+          Value<String?> instructions = const Value.absent(),
+          Value<String?> createdBy = const Value.absent(),
+          Value<DateTime?> printedAt = const Value.absent(),
+          Value<DateTime?> whatsappSentAt = const Value.absent(),
+          Value<String?> resultStatus = const Value.absent(),
+          Value<String?> resultText = const Value.absent(),
+          Value<DateTime?> resultDate = const Value.absent(),
+          Value<DateTime?> nextDate = const Value.absent(),
+          Value<DateTime?> approvedAt = const Value.absent(),
+          DateTime? createdAt}) =>
+      WorkOrder(
+        id: id ?? this.id,
+        internalNumber: internalNumber ?? this.internalNumber,
+        linkedEntityType: linkedEntityType ?? this.linkedEntityType,
+        linkedEntityId: linkedEntityId ?? this.linkedEntityId,
+        assignedToName: assignedToName ?? this.assignedToName,
+        assignedToPhone: assignedToPhone.present
+            ? assignedToPhone.value
+            : this.assignedToPhone,
+        orderType: orderType ?? this.orderType,
+        priority: priority ?? this.priority,
+        status: status ?? this.status,
+        dueDate: dueDate ?? this.dueDate,
+        instructions:
+            instructions.present ? instructions.value : this.instructions,
+        createdBy: createdBy.present ? createdBy.value : this.createdBy,
+        printedAt: printedAt.present ? printedAt.value : this.printedAt,
+        whatsappSentAt:
+            whatsappSentAt.present ? whatsappSentAt.value : this.whatsappSentAt,
+        resultStatus:
+            resultStatus.present ? resultStatus.value : this.resultStatus,
+        resultText: resultText.present ? resultText.value : this.resultText,
+        resultDate: resultDate.present ? resultDate.value : this.resultDate,
+        nextDate: nextDate.present ? nextDate.value : this.nextDate,
+        approvedAt: approvedAt.present ? approvedAt.value : this.approvedAt,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  WorkOrder copyWithCompanion(WorkOrdersCompanion data) {
+    return WorkOrder(
+      id: data.id.present ? data.id.value : this.id,
+      internalNumber: data.internalNumber.present
+          ? data.internalNumber.value
+          : this.internalNumber,
+      linkedEntityType: data.linkedEntityType.present
+          ? data.linkedEntityType.value
+          : this.linkedEntityType,
+      linkedEntityId: data.linkedEntityId.present
+          ? data.linkedEntityId.value
+          : this.linkedEntityId,
+      assignedToName: data.assignedToName.present
+          ? data.assignedToName.value
+          : this.assignedToName,
+      assignedToPhone: data.assignedToPhone.present
+          ? data.assignedToPhone.value
+          : this.assignedToPhone,
+      orderType: data.orderType.present ? data.orderType.value : this.orderType,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      status: data.status.present ? data.status.value : this.status,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      instructions: data.instructions.present
+          ? data.instructions.value
+          : this.instructions,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      printedAt: data.printedAt.present ? data.printedAt.value : this.printedAt,
+      whatsappSentAt: data.whatsappSentAt.present
+          ? data.whatsappSentAt.value
+          : this.whatsappSentAt,
+      resultStatus: data.resultStatus.present
+          ? data.resultStatus.value
+          : this.resultStatus,
+      resultText:
+          data.resultText.present ? data.resultText.value : this.resultText,
+      resultDate:
+          data.resultDate.present ? data.resultDate.value : this.resultDate,
+      nextDate: data.nextDate.present ? data.nextDate.value : this.nextDate,
+      approvedAt:
+          data.approvedAt.present ? data.approvedAt.value : this.approvedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkOrder(')
+          ..write('id: $id, ')
+          ..write('internalNumber: $internalNumber, ')
+          ..write('linkedEntityType: $linkedEntityType, ')
+          ..write('linkedEntityId: $linkedEntityId, ')
+          ..write('assignedToName: $assignedToName, ')
+          ..write('assignedToPhone: $assignedToPhone, ')
+          ..write('orderType: $orderType, ')
+          ..write('priority: $priority, ')
+          ..write('status: $status, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('instructions: $instructions, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('printedAt: $printedAt, ')
+          ..write('whatsappSentAt: $whatsappSentAt, ')
+          ..write('resultStatus: $resultStatus, ')
+          ..write('resultText: $resultText, ')
+          ..write('resultDate: $resultDate, ')
+          ..write('nextDate: $nextDate, ')
+          ..write('approvedAt: $approvedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      internalNumber,
+      linkedEntityType,
+      linkedEntityId,
+      assignedToName,
+      assignedToPhone,
+      orderType,
+      priority,
+      status,
+      dueDate,
+      instructions,
+      createdBy,
+      printedAt,
+      whatsappSentAt,
+      resultStatus,
+      resultText,
+      resultDate,
+      nextDate,
+      approvedAt,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WorkOrder &&
+          other.id == this.id &&
+          other.internalNumber == this.internalNumber &&
+          other.linkedEntityType == this.linkedEntityType &&
+          other.linkedEntityId == this.linkedEntityId &&
+          other.assignedToName == this.assignedToName &&
+          other.assignedToPhone == this.assignedToPhone &&
+          other.orderType == this.orderType &&
+          other.priority == this.priority &&
+          other.status == this.status &&
+          other.dueDate == this.dueDate &&
+          other.instructions == this.instructions &&
+          other.createdBy == this.createdBy &&
+          other.printedAt == this.printedAt &&
+          other.whatsappSentAt == this.whatsappSentAt &&
+          other.resultStatus == this.resultStatus &&
+          other.resultText == this.resultText &&
+          other.resultDate == this.resultDate &&
+          other.nextDate == this.nextDate &&
+          other.approvedAt == this.approvedAt &&
+          other.createdAt == this.createdAt);
+}
+
+class WorkOrdersCompanion extends UpdateCompanion<WorkOrder> {
+  final Value<int> id;
+  final Value<String> internalNumber;
+  final Value<int> linkedEntityType;
+  final Value<int> linkedEntityId;
+  final Value<String> assignedToName;
+  final Value<String?> assignedToPhone;
+  final Value<String> orderType;
+  final Value<String> priority;
+  final Value<String> status;
+  final Value<DateTime> dueDate;
+  final Value<String?> instructions;
+  final Value<String?> createdBy;
+  final Value<DateTime?> printedAt;
+  final Value<DateTime?> whatsappSentAt;
+  final Value<String?> resultStatus;
+  final Value<String?> resultText;
+  final Value<DateTime?> resultDate;
+  final Value<DateTime?> nextDate;
+  final Value<DateTime?> approvedAt;
+  final Value<DateTime> createdAt;
+  const WorkOrdersCompanion({
+    this.id = const Value.absent(),
+    this.internalNumber = const Value.absent(),
+    this.linkedEntityType = const Value.absent(),
+    this.linkedEntityId = const Value.absent(),
+    this.assignedToName = const Value.absent(),
+    this.assignedToPhone = const Value.absent(),
+    this.orderType = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.status = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.instructions = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.printedAt = const Value.absent(),
+    this.whatsappSentAt = const Value.absent(),
+    this.resultStatus = const Value.absent(),
+    this.resultText = const Value.absent(),
+    this.resultDate = const Value.absent(),
+    this.nextDate = const Value.absent(),
+    this.approvedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  WorkOrdersCompanion.insert({
+    this.id = const Value.absent(),
+    required String internalNumber,
+    this.linkedEntityType = const Value.absent(),
+    this.linkedEntityId = const Value.absent(),
+    required String assignedToName,
+    this.assignedToPhone = const Value.absent(),
+    required String orderType,
+    this.priority = const Value.absent(),
+    this.status = const Value.absent(),
+    required DateTime dueDate,
+    this.instructions = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.printedAt = const Value.absent(),
+    this.whatsappSentAt = const Value.absent(),
+    this.resultStatus = const Value.absent(),
+    this.resultText = const Value.absent(),
+    this.resultDate = const Value.absent(),
+    this.nextDate = const Value.absent(),
+    this.approvedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  })  : internalNumber = Value(internalNumber),
+        assignedToName = Value(assignedToName),
+        orderType = Value(orderType),
+        dueDate = Value(dueDate);
+  static Insertable<WorkOrder> custom({
+    Expression<int>? id,
+    Expression<String>? internalNumber,
+    Expression<int>? linkedEntityType,
+    Expression<int>? linkedEntityId,
+    Expression<String>? assignedToName,
+    Expression<String>? assignedToPhone,
+    Expression<String>? orderType,
+    Expression<String>? priority,
+    Expression<String>? status,
+    Expression<DateTime>? dueDate,
+    Expression<String>? instructions,
+    Expression<String>? createdBy,
+    Expression<DateTime>? printedAt,
+    Expression<DateTime>? whatsappSentAt,
+    Expression<String>? resultStatus,
+    Expression<String>? resultText,
+    Expression<DateTime>? resultDate,
+    Expression<DateTime>? nextDate,
+    Expression<DateTime>? approvedAt,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (internalNumber != null) 'internal_number': internalNumber,
+      if (linkedEntityType != null) 'linked_entity_type': linkedEntityType,
+      if (linkedEntityId != null) 'linked_entity_id': linkedEntityId,
+      if (assignedToName != null) 'assigned_to_name': assignedToName,
+      if (assignedToPhone != null) 'assigned_to_phone': assignedToPhone,
+      if (orderType != null) 'order_type': orderType,
+      if (priority != null) 'priority': priority,
+      if (status != null) 'status': status,
+      if (dueDate != null) 'due_date': dueDate,
+      if (instructions != null) 'instructions': instructions,
+      if (createdBy != null) 'created_by': createdBy,
+      if (printedAt != null) 'printed_at': printedAt,
+      if (whatsappSentAt != null) 'whatsapp_sent_at': whatsappSentAt,
+      if (resultStatus != null) 'result_status': resultStatus,
+      if (resultText != null) 'result_text': resultText,
+      if (resultDate != null) 'result_date': resultDate,
+      if (nextDate != null) 'next_date': nextDate,
+      if (approvedAt != null) 'approved_at': approvedAt,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  WorkOrdersCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? internalNumber,
+      Value<int>? linkedEntityType,
+      Value<int>? linkedEntityId,
+      Value<String>? assignedToName,
+      Value<String?>? assignedToPhone,
+      Value<String>? orderType,
+      Value<String>? priority,
+      Value<String>? status,
+      Value<DateTime>? dueDate,
+      Value<String?>? instructions,
+      Value<String?>? createdBy,
+      Value<DateTime?>? printedAt,
+      Value<DateTime?>? whatsappSentAt,
+      Value<String?>? resultStatus,
+      Value<String?>? resultText,
+      Value<DateTime?>? resultDate,
+      Value<DateTime?>? nextDate,
+      Value<DateTime?>? approvedAt,
+      Value<DateTime>? createdAt}) {
+    return WorkOrdersCompanion(
+      id: id ?? this.id,
+      internalNumber: internalNumber ?? this.internalNumber,
+      linkedEntityType: linkedEntityType ?? this.linkedEntityType,
+      linkedEntityId: linkedEntityId ?? this.linkedEntityId,
+      assignedToName: assignedToName ?? this.assignedToName,
+      assignedToPhone: assignedToPhone ?? this.assignedToPhone,
+      orderType: orderType ?? this.orderType,
+      priority: priority ?? this.priority,
+      status: status ?? this.status,
+      dueDate: dueDate ?? this.dueDate,
+      instructions: instructions ?? this.instructions,
+      createdBy: createdBy ?? this.createdBy,
+      printedAt: printedAt ?? this.printedAt,
+      whatsappSentAt: whatsappSentAt ?? this.whatsappSentAt,
+      resultStatus: resultStatus ?? this.resultStatus,
+      resultText: resultText ?? this.resultText,
+      resultDate: resultDate ?? this.resultDate,
+      nextDate: nextDate ?? this.nextDate,
+      approvedAt: approvedAt ?? this.approvedAt,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (internalNumber.present) {
+      map['internal_number'] = Variable<String>(internalNumber.value);
+    }
+    if (linkedEntityType.present) {
+      map['linked_entity_type'] = Variable<int>(linkedEntityType.value);
+    }
+    if (linkedEntityId.present) {
+      map['linked_entity_id'] = Variable<int>(linkedEntityId.value);
+    }
+    if (assignedToName.present) {
+      map['assigned_to_name'] = Variable<String>(assignedToName.value);
+    }
+    if (assignedToPhone.present) {
+      map['assigned_to_phone'] = Variable<String>(assignedToPhone.value);
+    }
+    if (orderType.present) {
+      map['order_type'] = Variable<String>(orderType.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<String>(priority.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (instructions.present) {
+      map['instructions'] = Variable<String>(instructions.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<String>(createdBy.value);
+    }
+    if (printedAt.present) {
+      map['printed_at'] = Variable<DateTime>(printedAt.value);
+    }
+    if (whatsappSentAt.present) {
+      map['whatsapp_sent_at'] = Variable<DateTime>(whatsappSentAt.value);
+    }
+    if (resultStatus.present) {
+      map['result_status'] = Variable<String>(resultStatus.value);
+    }
+    if (resultText.present) {
+      map['result_text'] = Variable<String>(resultText.value);
+    }
+    if (resultDate.present) {
+      map['result_date'] = Variable<DateTime>(resultDate.value);
+    }
+    if (nextDate.present) {
+      map['next_date'] = Variable<DateTime>(nextDate.value);
+    }
+    if (approvedAt.present) {
+      map['approved_at'] = Variable<DateTime>(approvedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WorkOrdersCompanion(')
+          ..write('id: $id, ')
+          ..write('internalNumber: $internalNumber, ')
+          ..write('linkedEntityType: $linkedEntityType, ')
+          ..write('linkedEntityId: $linkedEntityId, ')
+          ..write('assignedToName: $assignedToName, ')
+          ..write('assignedToPhone: $assignedToPhone, ')
+          ..write('orderType: $orderType, ')
+          ..write('priority: $priority, ')
+          ..write('status: $status, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('instructions: $instructions, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('printedAt: $printedAt, ')
+          ..write('whatsappSentAt: $whatsappSentAt, ')
+          ..write('resultStatus: $resultStatus, ')
+          ..write('resultText: $resultText, ')
+          ..write('resultDate: $resultDate, ')
+          ..write('nextDate: $nextDate, ')
+          ..write('approvedAt: $approvedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -23723,6 +24669,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LegalLibraryItemsTable(this);
   late final $LegalLibraryLinksTable legalLibraryLinks =
       $LegalLibraryLinksTable(this);
+  late final $WorkOrdersTable workOrders = $WorkOrdersTable(this);
   late final CaseDao caseDao = CaseDao(this as AppDatabase);
   late final PersonDao personDao = PersonDao(this as AppDatabase);
   late final TaskDao taskDao = TaskDao(this as AppDatabase);
@@ -23736,6 +24683,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final LegalLibraryDao legalLibraryDao =
       LegalLibraryDao(this as AppDatabase);
   late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
+  late final WorkOrderDao workOrderDao = WorkOrderDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -23788,7 +24736,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         deficiencies,
         timelineEvents,
         legalLibraryItems,
-        legalLibraryLinks
+        legalLibraryLinks,
+        workOrders
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -41553,6 +42502,404 @@ typedef $$LegalLibraryLinksTableProcessedTableManager = ProcessedTableManager<
     (LegalLibraryLink, $$LegalLibraryLinksTableReferences),
     LegalLibraryLink,
     PrefetchHooks Function({bool libraryItemId})>;
+typedef $$WorkOrdersTableCreateCompanionBuilder = WorkOrdersCompanion Function({
+  Value<int> id,
+  required String internalNumber,
+  Value<int> linkedEntityType,
+  Value<int> linkedEntityId,
+  required String assignedToName,
+  Value<String?> assignedToPhone,
+  required String orderType,
+  Value<String> priority,
+  Value<String> status,
+  required DateTime dueDate,
+  Value<String?> instructions,
+  Value<String?> createdBy,
+  Value<DateTime?> printedAt,
+  Value<DateTime?> whatsappSentAt,
+  Value<String?> resultStatus,
+  Value<String?> resultText,
+  Value<DateTime?> resultDate,
+  Value<DateTime?> nextDate,
+  Value<DateTime?> approvedAt,
+  Value<DateTime> createdAt,
+});
+typedef $$WorkOrdersTableUpdateCompanionBuilder = WorkOrdersCompanion Function({
+  Value<int> id,
+  Value<String> internalNumber,
+  Value<int> linkedEntityType,
+  Value<int> linkedEntityId,
+  Value<String> assignedToName,
+  Value<String?> assignedToPhone,
+  Value<String> orderType,
+  Value<String> priority,
+  Value<String> status,
+  Value<DateTime> dueDate,
+  Value<String?> instructions,
+  Value<String?> createdBy,
+  Value<DateTime?> printedAt,
+  Value<DateTime?> whatsappSentAt,
+  Value<String?> resultStatus,
+  Value<String?> resultText,
+  Value<DateTime?> resultDate,
+  Value<DateTime?> nextDate,
+  Value<DateTime?> approvedAt,
+  Value<DateTime> createdAt,
+});
+
+class $$WorkOrdersTableFilterComposer
+    extends Composer<_$AppDatabase, $WorkOrdersTable> {
+  $$WorkOrdersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get internalNumber => $composableBuilder(
+      column: $table.internalNumber,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get linkedEntityType => $composableBuilder(
+      column: $table.linkedEntityType,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get linkedEntityId => $composableBuilder(
+      column: $table.linkedEntityId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get assignedToName => $composableBuilder(
+      column: $table.assignedToName,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get assignedToPhone => $composableBuilder(
+      column: $table.assignedToPhone,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get orderType => $composableBuilder(
+      column: $table.orderType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get priority => $composableBuilder(
+      column: $table.priority, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+      column: $table.dueDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get instructions => $composableBuilder(
+      column: $table.instructions, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get printedAt => $composableBuilder(
+      column: $table.printedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get whatsappSentAt => $composableBuilder(
+      column: $table.whatsappSentAt,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resultStatus => $composableBuilder(
+      column: $table.resultStatus, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resultText => $composableBuilder(
+      column: $table.resultText, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get resultDate => $composableBuilder(
+      column: $table.resultDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get nextDate => $composableBuilder(
+      column: $table.nextDate, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get approvedAt => $composableBuilder(
+      column: $table.approvedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$WorkOrdersTableOrderingComposer
+    extends Composer<_$AppDatabase, $WorkOrdersTable> {
+  $$WorkOrdersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get internalNumber => $composableBuilder(
+      column: $table.internalNumber,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get linkedEntityType => $composableBuilder(
+      column: $table.linkedEntityType,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get linkedEntityId => $composableBuilder(
+      column: $table.linkedEntityId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get assignedToName => $composableBuilder(
+      column: $table.assignedToName,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get assignedToPhone => $composableBuilder(
+      column: $table.assignedToPhone,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get orderType => $composableBuilder(
+      column: $table.orderType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get priority => $composableBuilder(
+      column: $table.priority, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+      column: $table.dueDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get instructions => $composableBuilder(
+      column: $table.instructions,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get createdBy => $composableBuilder(
+      column: $table.createdBy, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get printedAt => $composableBuilder(
+      column: $table.printedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get whatsappSentAt => $composableBuilder(
+      column: $table.whatsappSentAt,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resultStatus => $composableBuilder(
+      column: $table.resultStatus,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resultText => $composableBuilder(
+      column: $table.resultText, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get resultDate => $composableBuilder(
+      column: $table.resultDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get nextDate => $composableBuilder(
+      column: $table.nextDate, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get approvedAt => $composableBuilder(
+      column: $table.approvedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$WorkOrdersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WorkOrdersTable> {
+  $$WorkOrdersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get internalNumber => $composableBuilder(
+      column: $table.internalNumber, builder: (column) => column);
+
+  GeneratedColumn<int> get linkedEntityType => $composableBuilder(
+      column: $table.linkedEntityType, builder: (column) => column);
+
+  GeneratedColumn<int> get linkedEntityId => $composableBuilder(
+      column: $table.linkedEntityId, builder: (column) => column);
+
+  GeneratedColumn<String> get assignedToName => $composableBuilder(
+      column: $table.assignedToName, builder: (column) => column);
+
+  GeneratedColumn<String> get assignedToPhone => $composableBuilder(
+      column: $table.assignedToPhone, builder: (column) => column);
+
+  GeneratedColumn<String> get orderType =>
+      $composableBuilder(column: $table.orderType, builder: (column) => column);
+
+  GeneratedColumn<String> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<String> get instructions => $composableBuilder(
+      column: $table.instructions, builder: (column) => column);
+
+  GeneratedColumn<String> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get printedAt =>
+      $composableBuilder(column: $table.printedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get whatsappSentAt => $composableBuilder(
+      column: $table.whatsappSentAt, builder: (column) => column);
+
+  GeneratedColumn<String> get resultStatus => $composableBuilder(
+      column: $table.resultStatus, builder: (column) => column);
+
+  GeneratedColumn<String> get resultText => $composableBuilder(
+      column: $table.resultText, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resultDate => $composableBuilder(
+      column: $table.resultDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextDate =>
+      $composableBuilder(column: $table.nextDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get approvedAt => $composableBuilder(
+      column: $table.approvedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$WorkOrdersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $WorkOrdersTable,
+    WorkOrder,
+    $$WorkOrdersTableFilterComposer,
+    $$WorkOrdersTableOrderingComposer,
+    $$WorkOrdersTableAnnotationComposer,
+    $$WorkOrdersTableCreateCompanionBuilder,
+    $$WorkOrdersTableUpdateCompanionBuilder,
+    (WorkOrder, BaseReferences<_$AppDatabase, $WorkOrdersTable, WorkOrder>),
+    WorkOrder,
+    PrefetchHooks Function()> {
+  $$WorkOrdersTableTableManager(_$AppDatabase db, $WorkOrdersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WorkOrdersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WorkOrdersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WorkOrdersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> internalNumber = const Value.absent(),
+            Value<int> linkedEntityType = const Value.absent(),
+            Value<int> linkedEntityId = const Value.absent(),
+            Value<String> assignedToName = const Value.absent(),
+            Value<String?> assignedToPhone = const Value.absent(),
+            Value<String> orderType = const Value.absent(),
+            Value<String> priority = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> dueDate = const Value.absent(),
+            Value<String?> instructions = const Value.absent(),
+            Value<String?> createdBy = const Value.absent(),
+            Value<DateTime?> printedAt = const Value.absent(),
+            Value<DateTime?> whatsappSentAt = const Value.absent(),
+            Value<String?> resultStatus = const Value.absent(),
+            Value<String?> resultText = const Value.absent(),
+            Value<DateTime?> resultDate = const Value.absent(),
+            Value<DateTime?> nextDate = const Value.absent(),
+            Value<DateTime?> approvedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              WorkOrdersCompanion(
+            id: id,
+            internalNumber: internalNumber,
+            linkedEntityType: linkedEntityType,
+            linkedEntityId: linkedEntityId,
+            assignedToName: assignedToName,
+            assignedToPhone: assignedToPhone,
+            orderType: orderType,
+            priority: priority,
+            status: status,
+            dueDate: dueDate,
+            instructions: instructions,
+            createdBy: createdBy,
+            printedAt: printedAt,
+            whatsappSentAt: whatsappSentAt,
+            resultStatus: resultStatus,
+            resultText: resultText,
+            resultDate: resultDate,
+            nextDate: nextDate,
+            approvedAt: approvedAt,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String internalNumber,
+            Value<int> linkedEntityType = const Value.absent(),
+            Value<int> linkedEntityId = const Value.absent(),
+            required String assignedToName,
+            Value<String?> assignedToPhone = const Value.absent(),
+            required String orderType,
+            Value<String> priority = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            required DateTime dueDate,
+            Value<String?> instructions = const Value.absent(),
+            Value<String?> createdBy = const Value.absent(),
+            Value<DateTime?> printedAt = const Value.absent(),
+            Value<DateTime?> whatsappSentAt = const Value.absent(),
+            Value<String?> resultStatus = const Value.absent(),
+            Value<String?> resultText = const Value.absent(),
+            Value<DateTime?> resultDate = const Value.absent(),
+            Value<DateTime?> nextDate = const Value.absent(),
+            Value<DateTime?> approvedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              WorkOrdersCompanion.insert(
+            id: id,
+            internalNumber: internalNumber,
+            linkedEntityType: linkedEntityType,
+            linkedEntityId: linkedEntityId,
+            assignedToName: assignedToName,
+            assignedToPhone: assignedToPhone,
+            orderType: orderType,
+            priority: priority,
+            status: status,
+            dueDate: dueDate,
+            instructions: instructions,
+            createdBy: createdBy,
+            printedAt: printedAt,
+            whatsappSentAt: whatsappSentAt,
+            resultStatus: resultStatus,
+            resultText: resultText,
+            resultDate: resultDate,
+            nextDate: nextDate,
+            approvedAt: approvedAt,
+            createdAt: createdAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$WorkOrdersTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $WorkOrdersTable,
+    WorkOrder,
+    $$WorkOrdersTableFilterComposer,
+    $$WorkOrdersTableOrderingComposer,
+    $$WorkOrdersTableAnnotationComposer,
+    $$WorkOrdersTableCreateCompanionBuilder,
+    $$WorkOrdersTableUpdateCompanionBuilder,
+    (WorkOrder, BaseReferences<_$AppDatabase, $WorkOrdersTable, WorkOrder>),
+    WorkOrder,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -41653,4 +43000,6 @@ class $AppDatabaseManager {
       $$LegalLibraryItemsTableTableManager(_db, _db.legalLibraryItems);
   $$LegalLibraryLinksTableTableManager get legalLibraryLinks =>
       $$LegalLibraryLinksTableTableManager(_db, _db.legalLibraryLinks);
+  $$WorkOrdersTableTableManager get workOrders =>
+      $$WorkOrdersTableTableManager(_db, _db.workOrders);
 }
