@@ -46,3 +46,7 @@ flutter analyze
 # تشغيل التطبيق على بيئة Windows
 flutter run -d windows
 ```
+
+## إكمال كل المسارات
+
+راجع: `FULL_PATHS_COMPLETION_PLAN.md`

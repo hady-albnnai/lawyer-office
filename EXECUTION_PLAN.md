@@ -486,3 +486,14 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
 - تضمين خطوط **Cairo** و**Amiri** محلياً في `assets/fonts` + `pubspec.yaml`.
 - أتمتة أعمق بعد اعتماد أمر العمل: timeline + مهمة متابعة + مصروف عند اللزوم + إغلاق نواقص مرتبطة.
 - سكربتات تسليم Windows: `scripts/build_release_windows.ps1` + Inno Setup `installer/lawyer_office_setup.iss`.
+
+
+---
+
+## 📋 خطة إكمال كل المسارات
+
+أُنشئت وثيقة الفجوات التفصيلية:
+
+`FULL_PATHS_COMPLETION_PLAN.md`
+
+تغطي المراحل F1–F8: الدعوى، الأجندة، الأشخاص/الوكالات، الشركات/العقود/الإجراءات، المستندات/المالية داخل الملف، البحث/التقارير/Badges، الجودة، والتسليم النهائي.
