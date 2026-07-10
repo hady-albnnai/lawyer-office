@@ -23,35 +23,6 @@ class CreateCaseWizard extends ConsumerStatefulWidget {
 class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   int _currentStep = 0;
   
-  Widget _buildStepHeader({
-    required String title,
-    required String description,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: AppTextStyles.bodySmallSecondary,
-          ),
-        ],
-      ),
-    );
-  }
-
   // ===========================================================================
   // الخطوة 1: الموكل
   // ===========================================================================

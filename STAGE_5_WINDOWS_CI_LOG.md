@@ -63,3 +63,16 @@ flutter analyze --no-fatal-infos --no-fatal-warnings
 ```
 
 سيتم دفع الإصلاحات وتشغيل Workflow مرة ثانية تلقائياً.
+
+---
+
+## تحديث 2026-07-10 - إصلاح تكرار Step Header
+
+نتيجة التشغيل الثاني:
+
+```text
+Analyze project => failure
+duplicate_definition: _buildStepHeader
+```
+
+تمت إزالة النسخة المكررة من `_buildStepHeader` والإبقاء على النسخة داخل قسم بناء محتوى المعالج.

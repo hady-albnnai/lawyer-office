@@ -96,6 +96,15 @@ PASS - حذف cases_list_screen.dart القديم
 
 ---
 
+
+### تحديث 2026-07-10 - إصلاح تكرار `_buildStepHeader`
+
+- ❌ أظهر تشغيل CI الثاني خطأ `duplicate_definition` في `create_case_wizard.dart`.
+- ✅ تمت إزالة النسخة المكررة من `_buildStepHeader`.
+- ⏳ سيتم دفع الإصلاح وتشغيل CI مرة ثالثة تلقائياً.
+
+---
+
 ## 📊 ملخص الحالة
 
 | المؤشر | القيمة |
