@@ -5,6 +5,7 @@ import '../screens/cases/case_detail_screen.dart';
 import '../screens/cases/cases_screen.dart';
 import '../screens/cases/create_case_wizard.dart';
 import '../screens/finance/finance_screen.dart';
+import '../screens/legal_library/legal_library_screen.dart';
 import '../screens/main_layout_screen.dart';
 import '../screens/new_work/new_work_screen.dart';
 import '../screens/persons/person_detail_screen.dart';
@@ -43,6 +44,13 @@ final GoRouter appRouter = GoRouter(
       name: 'finance',
       builder: (BuildContext context, GoRouterState state) {
         return const FinanceScreen();
+      },
+    ),
+    GoRoute(
+      path: '/legal-library',
+      name: 'legal-library',
+      builder: (BuildContext context, GoRouterState state) {
+        return const LegalLibraryScreen();
       },
     ),
     GoRoute(
