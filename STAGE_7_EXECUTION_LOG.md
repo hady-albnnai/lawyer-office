@@ -95,3 +95,9 @@ Status: completed
 Conclusion: success
 URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29107492265
 ```
+## 📌 ملاحظة معمارية معتمدة (مسجّلة رسمياً)
+
+نماذج واجهة المالية seed قابلة للاختبار، و`FinanceRepository`/جداول Drift
+(`FeeAgreements`, `FeePayments`, `Expenses`) موجودة مسبقاً للربط الكامل offline
+لاحقاً عند توحيد كل الشاشات مع قاعدة البيانات. هذا النمط معتمد للمراحل 5–8
+ولا يمنع إغلاق المرحلة طالما الواجهة + الاختبار + CI + التوثيق مكتملة.
