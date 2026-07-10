@@ -13,6 +13,7 @@ import '../screens/persons/persons_screen.dart';
 import '../screens/poa/poa_detail_screen.dart';
 import '../screens/poa/poa_list_screen.dart';
 import '../screens/search_reports/search_reports_screen.dart';
+import '../screens/settings/settings_screen.dart';
 
 /// تكوين نظام الملاحة والتوجيه الموحد في التطبيق باستخدام GoRouter.
 final GoRouter appRouter = GoRouter(
@@ -51,6 +52,13 @@ final GoRouter appRouter = GoRouter(
       name: 'legal-library',
       builder: (BuildContext context, GoRouterState state) {
         return const LegalLibraryScreen();
+      },
+    ),
+    GoRoute(
+      path: '/settings',
+      name: 'settings',
+      builder: (BuildContext context, GoRouterState state) {
+        return const SettingsScreen();
       },
     ),
     GoRoute(

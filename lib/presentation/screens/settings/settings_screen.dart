@@ -1,14 +1,13 @@
-import 'dart:io';
+/// شاشة الإعدادات والأمان والنسخ - المرحلة 10.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:drift/drift.dart' as drift;
-import '../../../core/constants/app_constants.dart';
-import '../../../data/database/database.dart';
-import '../../providers/app_providers.dart';
-import '../../providers/office_settings_provider.dart';
 
-/// شاشة الإعدادات الشاملة، الأمان، التشفير، والنسخ الاحتياطي الذكي (SettingsScreen V6.2)
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
+import 'settings_models.dart';
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -16,190 +15,352 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SettingsScreenState extends ConsumerState<SettingsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('لوحة تحكم إعدادات المكتب والأمان والنسخ الاحتياطي'),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          indicatorColor: AppConstants.accentGold,
-          labelColor: AppConstants.accentGold,
-          unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          tabs: const [
-            Tab(icon: Icon(Icons.business), text: '1️⃣ بيانات المكتب الأساسية'),
-            Tab(icon: Icon(Icons.security), text: '2️⃣ الأمان والنسخ الاحتياطي'),
-            Tab(icon: Icon(Icons.backup), text: '3️⃣ النسخ الاحتياطي الذكي واستعادتها'),
-            Tab(icon: Icon(Icons.list_alt), text: '4️⃣ إدارة القوائم السورية الجاهزة'),
-          ],
+    final state = ref.watch(settingsHubProvider);
+
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('الإعدادات والأمان والنسخ الاحتياطي'),
+            bottom: TabBar(
+              controller: _tabs,
+              isScrollable: true,
+              indicatorColor: AppColors.secondaryGold,
+              labelColor: AppColors.secondaryGold,
+              unselectedLabelColor: AppColors.textOnLight.withOpacity(0.75),
+              labelStyle: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.bold),
+              tabs: const [
+                Tab(text: 'بيانات المكتب'),
+                Tab(text: 'الأمان'),
+                Tab(text: 'النسخ الاحتياطي'),
+                Tab(text: 'القوائم المرجعية'),
+                Tab(text: 'سجل النشاط'),
+              ],
+            ),
+          ),
+          body: Column(
+            children: [
+              if (state.lastMessage != null)
+                MaterialBanner(
+                  content: Text(state.lastMessage!),
+                  actions: [
+                    TextButton(
+                      onPressed: () => ref.read(settingsHubProvider.notifier).clearMessage(),
+                      child: const Text('إخفاء'),
+                    ),
+                  ],
+                ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabs,
+                  children: [
+                    _OfficeTab(),
+                    _SecurityTab(),
+                    _BackupTab(),
+                    _LookupsTab(),
+                    _ActivityTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildOfficeInfoTab(),
-          _buildSecurityTab(),
-          _buildBackupTab(),
-          _buildLookupsTab(),
-        ],
       ),
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // 1️⃣ تبويب بيانات المكتب الأساسية
-  // ---------------------------------------------------------------------------
-  Widget _buildOfficeInfoTab() {
-    final settingsAsync = ref.watch(officeSettingsProvider);
+class _OfficeTab extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_OfficeTab> createState() => _OfficeTabState();
+}
 
-    return settingsAsync.when(
-      data: (settings) {
-        final titleCtrl = TextEditingController(text: settings.officeTitle);
-        final lawyerCtrl = TextEditingController(text: settings.lawyerName);
-        final addressCtrl = TextEditingController(text: settings.officeAddress);
-        final phoneCtrl = TextEditingController(text: settings.officePhone);
+class _OfficeTabState extends ConsumerState<_OfficeTab> {
+  late final TextEditingController _title;
+  late final TextEditingController _lawyer;
+  late final TextEditingController _address;
+  late final TextEditingController _phone;
+  late final TextEditingController _email;
+  late final TextEditingController _logo;
+  late final TextEditingController _signature;
+  late String _uiFont;
+  late String _printFont;
+  late int _woPriority;
+  late bool _libFav;
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 650),
-            child: Card(
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  void initState() {
+    super.initState();
+    final p = ref.read(settingsHubProvider).preferences;
+    _title = TextEditingController(text: p.officeTitle);
+    _lawyer = TextEditingController(text: p.lawyerName);
+    _address = TextEditingController(text: p.officeAddress);
+    _phone = TextEditingController(text: p.officePhone);
+    _email = TextEditingController(text: p.officeEmail);
+    _logo = TextEditingController(text: p.logoPath);
+    _signature = TextEditingController(text: p.signaturePath);
+    _uiFont = p.uiFont;
+    _printFont = p.printFont;
+    _woPriority = p.workOrderDefaultPriority;
+    _libFav = p.libraryAutoFavoritePrinciples;
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _lawyer.dispose();
+    _address.dispose();
+    _phone.dispose();
+    _email.dispose();
+    _logo.dispose();
+    _signature.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('بيانات المكتب والترويسة', style: AppTextStyles.headline5.copyWith(color: AppColors.primaryNavy)),
+                const SizedBox(height: 8),
+                Text('تظهر في الشاشات وتقارير PDF.', style: AppTextStyles.bodySmallSecondary),
+                const Divider(height: 28),
+                TextField(controller: _title, decoration: const InputDecoration(labelText: 'اسم المكتب *', prefixIcon: Icon(Icons.business))),
+                const SizedBox(height: 12),
+                TextField(controller: _lawyer, decoration: const InputDecoration(labelText: 'اسم المحامي الأستاذ *', prefixIcon: Icon(Icons.person))),
+                const SizedBox(height: 12),
+                TextField(controller: _address, decoration: const InputDecoration(labelText: 'العنوان', prefixIcon: Icon(Icons.location_on))),
+                const SizedBox(height: 12),
+                TextField(controller: _phone, decoration: const InputDecoration(labelText: 'الهاتف / واتساب', prefixIcon: Icon(Icons.phone))),
+                const SizedBox(height: 12),
+                TextField(controller: _email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني', prefixIcon: Icon(Icons.email))),
+                const SizedBox(height: 12),
+                TextField(controller: _logo, decoration: const InputDecoration(labelText: 'مسار الشعار (محلي)', prefixIcon: Icon(Icons.image))),
+                const SizedBox(height: 12),
+                TextField(controller: _signature, decoration: const InputDecoration(labelText: 'مسار التوقيع (محلي)', prefixIcon: Icon(Icons.draw))),
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.edit_document, color: AppConstants.primaryNavy, size: 28),
-                        SizedBox(width: 12),
-                        Text('تعديل الترويسة والبيانات الظاهرة في التطبيق والتقارير:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ],
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _uiFont,
+                        decoration: const InputDecoration(labelText: 'خط الواجهة'),
+                        items: const [
+                          DropdownMenuItem(value: 'Cairo', child: Text('Cairo')),
+                          DropdownMenuItem(value: 'Amiri', child: Text('Amiri')),
+                        ],
+                        onChanged: (v) => setState(() => _uiFont = v ?? _uiFont),
+                      ),
                     ),
-                    const Divider(height: 32),
-                    TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'اسم المكتب / التطبيق *', prefixIcon: Icon(Icons.business))),
-                    const SizedBox(height: 16),
-                    TextField(controller: lawyerCtrl, decoration: const InputDecoration(labelText: 'اسم المحامي الأستاذ * (مثال: هادي فيصل البني)', prefixIcon: Icon(Icons.person))),
-                    const SizedBox(height: 16),
-                    TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: 'العنوان الرسمي للمكتب *', prefixIcon: Icon(Icons.location_on))),
-                    const SizedBox(height: 16),
-                    TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: 'هواتف المكتب / واتساب التواصل', prefixIcon: Icon(Icons.phone))),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.save),
-                        label: const Text('حفظ الإعدادات وتحديث الواجهة والترويسة فوراً'),
-                        onPressed: () async {
-                          await ref.read(officeSettingsProvider.notifier).updateSettings(
-                            newTitle: titleCtrl.text.trim(),
-                            newLawyerName: lawyerCtrl.text.trim(),
-                            newAddress: addressCtrl.text.trim(),
-                            newPhone: phoneCtrl.text.trim(),
-                          );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ وتحديث بيانات المكتب بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-                          }
-                        },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _printFont,
+                        decoration: const InputDecoration(labelText: 'خط الطباعة القانونية'),
+                        items: const [
+                          DropdownMenuItem(value: 'Amiri', child: Text('Amiri')),
+                          DropdownMenuItem(value: 'Cairo', child: Text('Cairo')),
+                        ],
+                        onChanged: (v) => setState(() => _printFont = v ?? _printFont),
                       ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  value: _woPriority,
+                  decoration: const InputDecoration(labelText: 'أولوية أمر العمل الافتراضية'),
+                  items: const [
+                    DropdownMenuItem(value: 0, child: Text('منخفضة')),
+                    DropdownMenuItem(value: 1, child: Text('متوسطة')),
+                    DropdownMenuItem(value: 2, child: Text('عالية')),
+                  ],
+                  onChanged: (v) => setState(() => _woPriority = v ?? _woPriority),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('تعيين المبادئ القانونية تلقائياً كمفضلة في المكتبة'),
+                  value: _libFav,
+                  onChanged: (v) => setState(() => _libFav = v),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text('حفظ إعدادات المكتب'),
+                  onPressed: () async {
+                    if (_title.text.trim().isEmpty || _lawyer.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: const Text('اسم المكتب واسم المحامي إلزاميان'), backgroundColor: AppColors.error),
+                      );
+                      return;
+                    }
+                    final current = ref.read(settingsHubProvider).preferences;
+                    await ref.read(settingsHubProvider.notifier).saveOfficePreferences(
+                          current.copyWith(
+                            officeTitle: _title.text.trim(),
+                            lawyerName: _lawyer.text.trim(),
+                            officeAddress: _address.text.trim(),
+                            officePhone: _phone.text.trim(),
+                            officeEmail: _email.text.trim(),
+                            logoPath: _logo.text.trim(),
+                            signaturePath: _signature.text.trim(),
+                            uiFont: _uiFont,
+                            printFont: _printFont,
+                            workOrderDefaultPriority: _woPriority,
+                            libraryAutoFavoritePrinciples: _libFav,
+                          ),
+                        );
+                  },
+                ),
+              ],
             ),
           ),
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('خطأ: $err')),
+        ),
+      ),
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // 2️⃣ تبويب الأمان والنسخ الاحتياطي
-  // ---------------------------------------------------------------------------
-  Widget _buildSecurityTab() {
+class _SecurityTab extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_SecurityTab> createState() => _SecurityTabState();
+}
+
+class _SecurityTabState extends ConsumerState<_SecurityTab> {
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _confirm = TextEditingController();
+  final _question = TextEditingController();
+  final _answer = TextEditingController();
+  int _timeout = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = ref.read(settingsHubProvider).security;
+    _question.text = s.securityQuestion;
+    _timeout = s.lockTimeoutMinutes;
+  }
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _next.dispose();
+    _confirm.dispose();
+    _question.dispose();
+    _answer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final security = ref.watch(settingsHubProvider).security;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700),
+        constraints: const BoxConstraints(maxWidth: 760),
         child: Column(
           children: [
             Card(
-              color: AppConstants.primaryNavy,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    const Icon(Icons.verified_user, size: 48, color: AppConstants.accentGold),
-                    const SizedBox(width: 20),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('الحماية المحلية والنسخ الاحتياطي مفعّلان أصولاً', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                          SizedBox(height: 6),
-                          Text('جميع البيانات، القضايا، والحسابات المخزنة محلياً على هذا الجهاز مشفرة تماماً بمفتاح أمان 256-bit ولا يمكن قراءتها من خارج التطبيق.', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(color: AppConstants.statusSuccess, borderRadius: BorderRadius.circular(8)),
-                      child: const Text('محمي 🔒', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
+              color: AppColors.primaryNavy,
+              child: ListTile(
+                leading: const Icon(Icons.verified_user, color: AppColors.secondaryGold, size: 40),
+                title: Text(
+                  security.isConfigured ? 'الحماية المحلية مفعّلة' : 'الحماية غير مهيأة',
+                  style: AppTextStyles.headline6.copyWith(color: Colors.white),
+                ),
+                subtitle: Text(
+                  'تشفير محلي لكلمة المرور (SHA-256) • مهلة القفل: ${security.lockTimeoutMinutes} دقيقة',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(8)),
+                  child: const Text('محمي', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Card(
-              elevation: 3,
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('تغيير كلمة المرور وسؤال الأمان لاستعادة الحساب:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
-                    const Divider(height: 24),
-                    const TextField(obscureText: true, decoration: InputDecoration(labelText: 'كلمة المرور الحالية', prefixIcon: Icon(Icons.lock_outline))),
+                    Text('تغيير كلمة المرور وسؤال الأمان', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
+                    const SizedBox(height: 12),
+                    TextField(controller: _current, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور الحالية', prefixIcon: Icon(Icons.lock_outline))),
+                    const SizedBox(height: 12),
+                    TextField(controller: _next, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور الجديدة', prefixIcon: Icon(Icons.lock))),
+                    const SizedBox(height: 12),
+                    TextField(controller: _confirm, obscureText: true, decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور', prefixIcon: Icon(Icons.lock))),
+                    const SizedBox(height: 12),
+                    TextField(controller: _question, decoration: const InputDecoration(labelText: 'سؤال الأمان', prefixIcon: Icon(Icons.question_answer))),
+                    const SizedBox(height: 12),
+                    TextField(controller: _answer, decoration: const InputDecoration(labelText: 'إجابة سؤال الأمان', prefixIcon: Icon(Icons.check))),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<int>(
+                      value: _timeout,
+                      decoration: const InputDecoration(labelText: 'مهلة القفل التلقائي (دقيقة)'),
+                      items: const [5, 10, 15, 30, 60]
+                          .map((m) => DropdownMenuItem(value: m, child: Text('$m دقيقة')))
+                          .toList(),
+                      onChanged: (v) => setState(() => _timeout = v ?? _timeout),
+                    ),
                     const SizedBox(height: 16),
-                    const TextField(obscureText: true, decoration: InputDecoration(labelText: 'كلمة المرور الجديدة', prefixIcon: Icon(Icons.lock))),
-                    const SizedBox(height: 16),
-                    const TextField(obscureText: true, decoration: InputDecoration(labelText: 'تأكيد كلمة المرور الجديدة', prefixIcon: Icon(Icons.lock))),
-                    const SizedBox(height: 24),
-                    const TextField(decoration: InputDecoration(labelText: 'سؤال الأمان (مثال: ما اسم مدرستك الابتدائية؟)', prefixIcon: Icon(Icons.question_answer))),
-                    const SizedBox(height: 16),
-                    const TextField(decoration: InputDecoration(labelText: 'إجابة سؤال الأمان', prefixIcon: Icon(Icons.check))),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.update),
-                        label: const Text('تحديث بيانات الحماية'),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الأمان بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-                        },
-                      ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.security),
+                      label: const Text('تحديث بيانات الحماية'),
+                      onPressed: () {
+                        final err = ref.read(settingsHubProvider.notifier).updateSecurity(
+                              currentPassword: _current.text,
+                              newPassword: _next.text,
+                              confirmPassword: _confirm.text,
+                              securityQuestion: _question.text,
+                              securityAnswer: _answer.text,
+                              lockTimeoutMinutes: _timeout,
+                            );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(err ?? 'تم تحديث بيانات الأمان بنجاح'),
+                            backgroundColor: err == null ? AppColors.success : AppColors.error,
+                          ),
+                        );
+                        if (err == null) {
+                          _current.clear();
+                          _next.clear();
+                          _confirm.clear();
+                          _answer.clear();
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -210,15 +371,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
       ),
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // 3️⃣ تبويب النسخ الاحتياطي الذكي والاستعادة
-  // ---------------------------------------------------------------------------
-  Widget _buildBackupTab() {
+class _BackupTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(settingsHubProvider);
+    final notifier = ref.read(settingsHubProvider.notifier);
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 750),
+        constraints: const BoxConstraints(maxWidth: 900),
         child: Column(
           children: [
             Card(
@@ -228,109 +392,134 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                 child: Row(
                   children: [
                     const Icon(Icons.cloud_done, size: 48, color: Colors.white),
-                    const SizedBox(width: 20),
-                    const Expanded(
+                    const SizedBox(width: 16),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('نظام النسخ الاحتياطي الذكي المشغل في الخلفية (Isolate)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                          SizedBox(height: 6),
-                          Text('يقوم النظام عند الإغلاق بالفحص الذكي للنسخ (مرة واحدة كل 7 أيام) وضغط قاعدة البيانات والمرفقات في ملف .zip واحد دون إبطاء أداء الجهاز.', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                          const Text(
+                            'النسخ الاحتياطي الذكي (Offline)',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            state.needsWeeklyBackup
+                                ? 'تنبيه: مر أسبوع أو أكثر — يُفضّل إنشاء نسخة الآن.'
+                                : 'آخر نسخة: ${state.preferences.lastBackupAt?.toString().substring(0, 16) ?? '—'}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
                         ],
                       ),
                     ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF117A65)),
-                      icon: const Icon(Icons.backup_table),
-                      label: const Text('نسخ الآن 🚀'),
-                      onPressed: () async {
-                        try {
-                          final path = await ref.read(backupServiceProvider).triggerBackgroundBackup(includeAttachments: true);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إنشاء نسخة احتياطية بنجاح في: $path'), backgroundColor: AppConstants.statusSuccess));
-                            setState(() {});
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في النسخ: $e'), backgroundColor: AppConstants.statusDanger));
-                          }
-                        }
-                      },
+                      onPressed: state.isBusy
+                          ? null
+                          : () async {
+                              final rec = await notifier.createBackup(includeAttachments: true);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('تم إنشاء: ${rec.path}'), backgroundColor: AppColors.success),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.backup),
+                      label: Text(state.isBusy ? 'جارٍ...' : 'نسخ الآن'),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Card(
-              elevation: 3,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Row(
                       children: [
-                        const Text('النسخ السابقة المتاحة في أرشيف المكتب:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                        Text('النسخ السابقة', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
                         const Spacer(),
                         OutlinedButton.icon(
-                          icon: const Icon(Icons.usb),
-                          label: const Text('اختيار قرص خارجي (USB)'),
+                          icon: const Icon(Icons.folder_open),
+                          label: const Text('مسار خارجي'),
                           onPressed: () async {
-                            final dir = await FilePicker.platform.getDirectoryPath();
-                            if (dir != null && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تعيين مسار النسخ الخارجي إلى: $dir'), backgroundColor: AppConstants.statusSuccess));
+                            final controller = TextEditingController(text: state.preferences.externalBackupPath);
+                            final path = await showDialog<String>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('مسار النسخ الخارجي / USB'),
+                                content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'D:/Backups أو /media/usb')),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                                  ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('حفظ')),
+                                ],
+                              ),
+                            );
+                            if (path != null && path.isNotEmpty) {
+                              notifier.setExternalBackupPath(path);
                             }
                           },
                         ),
                       ],
                     ),
+                    if (state.preferences.externalBackupPath.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text('المسار الخارجي: ${state.preferences.externalBackupPath}', style: AppTextStyles.bodySmallSecondary),
+                      ),
                     const Divider(height: 24),
-                    FutureBuilder<List<File>>(
-                      future: ref.read(backupServiceProvider).listAvailableBackups(),
-                      builder: (context, snapshot) {
-                        final list = snapshot.data ?? [];
-                        if (list.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('لا توجد نسخ السابقة محسوبة في هذا المجلد')));
-
-                        return Column(
-                          children: list.map((f) => Card(
-                                child: ListTile(
-                                  leading: const Icon(Icons.archive, color: AppConstants.accentGold, size: 36),
-                                  title: Text(f.path.split("/").last.split("\\").last, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text('حجم الملف: ${(f.lengthSync() / (1024 * 1024)).toStringAsFixed(2)} ميغابايت • تاريخ التعديل: ${f.lastModifiedSync().toString().substring(0, 16)}'),
-                                  trailing: ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(backgroundColor: AppConstants.primaryNavy),
-                                    icon: const Icon(Icons.restore),
-                                    label: const Text('استعادة هذه النسخة'),
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (context) => AlertDialog(
-                                          title: const Text('تأكيد استعادة النسخة الاحتياطية ⚠️'),
-                                          content: const Text('هل أنت متأكد من استعادة هذه النسخة؟ سيتم استبدال قاعدة البيانات الحالية بالبيانات المحفوظة في ملف الـ Zip.'),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-                                            ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppConstants.statusDanger), onPressed: () => Navigator.pop(context, true), child: const Text('تأكيد واستعادة')),
-                                          ],
-                                        ),
-                                      );
-
-                                      if (confirm == true) {
-                                        final success = await ref.read(backupServiceProvider).restoreFromBackup(f);
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                            content: Text(success ? 'تم استعادة النظام بنجاح!' : 'خطأ في الاستعادة!'),
-                                            backgroundColor: success ? AppConstants.statusSuccess : AppConstants.statusDanger,
-                                          ));
-                                        }
-                                      }
-                                    },
-                                  ),
-                                ),
-                              )).toList(),
-                        );
-                      },
-                    ),
+                    if (state.backups.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(child: Text('لا توجد نسخ سابقة')),
+                      )
+                    else
+                      ...state.backups.map(
+                        (b) => Card(
+                          child: ListTile(
+                            leading: Icon(Icons.archive, color: AppColors.secondaryGold),
+                            title: Text(b.path.split('/').last, style: AppTextStyles.labelLarge),
+                            subtitle: Text(
+                              '${b.type} • ${b.sizeMb.toStringAsFixed(1)} MB • ${b.createdAt.toString().substring(0, 16)}${b.includesAttachments ? ' • مع مرفقات' : ''}',
+                              style: AppTextStyles.bodySmallSecondary,
+                            ),
+                            trailing: ElevatedButton.icon(
+                              icon: const Icon(Icons.restore, size: 16),
+                              label: const Text('استعادة'),
+                              onPressed: () async {
+                                final ok = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('تأكيد الاستعادة'),
+                                        content: const Text('سيتم اعتماد هذه النسخة كمرجع استعادة. هل تريد المتابعة؟'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('استعادة'),
+                                          ),
+                                        ],
+                                      ),
+                                    ) ??
+                                    false;
+                                if (!ok) return;
+                                final success = await notifier.restoreBackup(b.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(success ? 'تمت الاستعادة' : 'فشلت الاستعادة'),
+                                      backgroundColor: success ? AppColors.success : AppColors.error,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -340,108 +529,169 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
       ),
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // 4️⃣ تبويب الجداول المرجعية للقوائم السورية الجاهزة
-  // ---------------------------------------------------------------------------
-  Widget _buildLookupsTab() {
-    final courtsStream = ref.watch(activeCourtsProvider(null));
-
+class _LookupsTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final courts = ref.watch(settingsHubProvider).courts;
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(16),
-          color: AppConstants.surfaceWhite,
+          color: AppColors.cardBackground,
           child: Row(
             children: [
-              const Expanded(child: Text('دليل المحامين، المحاكم، والمواضيع القانونية في سوريا:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+              Expanded(
+                child: Text('القوائم المرجعية السورية — المحاكم', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
+              ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.add),
-                label: const Text('إضافة محكمة أو دائرة جديدة'),
-                onPressed: _openAddCourtDialog,
+                label: const Text('إضافة محكمة'),
+                onPressed: () => _addCourt(context, ref),
               ),
             ],
           ),
         ),
         Expanded(
-          child: courtsStream.when(
-            data: (courts) {
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: courts.length,
-                itemBuilder: (context, index) {
-                  final c = courts[index];
-                  return Card(
-                    child: ListTile(
-                      leading: const CircleAvatar(backgroundColor: AppConstants.primaryNavy, child: Icon(Icons.account_balance, color: AppConstants.accentGold)),
-                      title: Text('${c.name} (${c.city ?? "دمشق"})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      subtitle: Text('النوع: ${c.type ?? "بداية"} • الدائرة: ${c.district ?? "المركز"}'),
-                      trailing: const Icon(Icons.check_circle, color: AppConstants.statusSuccess),
-                    ),
-                  );
-                },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: courts.length,
+            itemBuilder: (context, index) {
+              final c = courts[index];
+              return Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.primaryNavy,
+                    child: Icon(Icons.account_balance, color: AppColors.secondaryGold),
+                  ),
+                  title: Text(c.name, style: AppTextStyles.labelLarge),
+                  subtitle: Text('${c.type} • ${c.city}', style: AppTextStyles.bodySmallSecondary),
+                  trailing: Icon(Icons.check_circle, color: c.isActive ? AppColors.success : AppColors.textSecondary),
+                ),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Center(child: Text('خطأ: $err')),
           ),
         ),
       ],
     );
   }
 
-  void _openAddCourtDialog() {
-    final nameCtrl = TextEditingController();
+  void _addCourt(BuildContext context, WidgetRef ref) {
+    final name = TextEditingController();
     String type = 'بداية';
-    String city = 'دمشق';
-
-    showDialog(
+    String city = 'السويداء';
+    showDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('إضافة محكمة أو دائرة قضائية سورية'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('إضافة محكمة'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'اسم المحكمة * (مثال: محكمة البداية المدنية الثانية)')),
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم المحكمة *')),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: type,
-                decoration: const InputDecoration(labelText: 'الدرجة والتصنيف'),
-                items: ['صلح', 'بداية', 'استئناف', 'نقض', 'شرعية', 'تجارية'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                onChanged: (val) => setDialogState(() => type = val!),
+                decoration: const InputDecoration(labelText: 'التصنيف'),
+                items: ['صلح', 'بداية', 'استئناف', 'نقض', 'شرعية', 'تجارية']
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    .toList(),
+                onChanged: (v) => setDialog(() => type = v ?? type),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: city,
                 decoration: const InputDecoration(labelText: 'المحافظة'),
-                items: ['دمشق', 'السويداء', 'ريف دمشق', 'حلب', 'حمص', 'اللاذقية', 'درعا'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (val) => setDialogState(() => city = val!),
+                items: ['دمشق', 'السويداء', 'ريف دمشق', 'حلب', 'حمص', 'اللاذقية', 'درعا']
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setDialog(() => city = v ?? city),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
             ElevatedButton(
-              child: const Text('حفظ بالقائمة'),
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty) return;
-                await ref.read(lookupRepositoryProvider).insertCourt(
-                  CourtsCompanion.insert(
-                    name: nameCtrl.text.trim(),
-                    type: drift.Value(type),
-                    city: drift.Value(city),
-                  ),
-                );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة المحكمة بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-                }
+              onPressed: () {
+                if (name.text.trim().isEmpty) return;
+                ref.read(settingsHubProvider.notifier).addCourt(
+                      SettingsCourtItem(
+                        id: 'court_${DateTime.now().microsecondsSinceEpoch}',
+                        name: name.text.trim(),
+                        type: type,
+                        city: city,
+                      ),
+                    );
+                Navigator.pop(ctx);
               },
+              child: const Text('حفظ'),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _ActivityTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(settingsHubProvider);
+    final logs = state.filteredActivity;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            decoration: const InputDecoration(
+              hintText: 'بحث في سجل النشاط...',
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (v) => ref.read(settingsHubProvider.notifier).setActivityFilter(v),
+          ),
+        ),
+        Expanded(
+          child: logs.isEmpty
+              ? Center(child: Text('لا أحداث', style: AppTextStyles.bodyMediumSecondary))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: logs.length,
+                  itemBuilder: (context, index) {
+                    final e = logs[index];
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primaryNavy.withOpacity(0.1),
+                          child: Icon(_iconFor(e.action), color: AppColors.primaryNavy),
+                        ),
+                        title: Text('${e.action} • ${e.tableName}', style: AppTextStyles.labelLarge),
+                        subtitle: Text(
+                          '${e.details}\n${e.userRef} • ${e.timestamp.toString().substring(0, 16)}',
+                          style: AppTextStyles.bodySmallSecondary,
+                        ),
+                        isThreeLine: true,
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  IconData _iconFor(String action) {
+    switch (action) {
+      case 'login':
+        return Icons.login;
+      case 'export':
+        return Icons.backup;
+      case 'import':
+        return Icons.restore;
+      case 'insert':
+        return Icons.add_circle_outline;
+      default:
+        return Icons.edit;
+    }
   }
 }
