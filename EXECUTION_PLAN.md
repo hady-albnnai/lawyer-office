@@ -347,3 +347,14 @@ dependencies:
 اكتملت المرحلة 7 بعد تنفيذ ذمم الموكلين، طباعة إيصال سند القبض PDF، تصدير الكشف المالي PDF، دعم أمر عمل/مصاريف المعقب، توسيع الاختبارات، والتوثيق.
 
 **حالة المرحلة 7:** مكتملة 100%.
+
+
+### Windows CI — إغلاق المرحلة 7
+
+```text
+Run ID: 29107492265
+Commit: f3fe3eb
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29107492265
+```

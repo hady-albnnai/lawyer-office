@@ -370,3 +370,14 @@ lib/
 **حالة المرحلة 7:** مكتملة 100%.
 
 الخطوة التالية: المرحلة 8 (البحث والتقارير) أو وفق ترتيب الخطة التنفيذية.
+
+
+### Windows CI — إغلاق المرحلة 7
+
+```text
+Run ID: 29107492265
+Commit: f3fe3eb
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29107492265
+```

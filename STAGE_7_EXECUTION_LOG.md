@@ -84,3 +84,14 @@ flutter test test/stage7_finance_models_test.dart
 
 ملاحظة معمارية (ليست مانعاً للإغلاق وفق نمط المراحل 5–6):
 النماذج واجهية seed قابلة للاختبار، و`FinanceRepository`/جداول Drift موجودة مسبقاً للربط الكامل offline في مرحلة لاحقة عند توحيد كل الشاشات مع قاعدة البيانات.
+
+
+### Windows CI — إغلاق المرحلة 7
+
+```text
+Run ID: 29107492265
+Commit: f3fe3eb
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29107492265
+```
