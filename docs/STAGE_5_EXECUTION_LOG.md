@@ -73,6 +73,16 @@ PASS - حذف cases_list_screen.dart القديم
 
 ---
 
+
+### تحديث 2026-07-10 - إضافة اختبار Windows عبر GitHub Actions
+
+- ✅ إضافة Workflow جديد: `.github/workflows/stage5_windows_validation.yml`.
+- ✅ الـ Workflow يعمل على `windows-latest` ويشغّل: `flutter pub get`، توليد Drift، `flutter analyze`، `flutter test`، و`flutter build windows --debug`.
+- ✅ إنشاء `STAGE_5_WINDOWS_CI_LOG.md` لتوثيق مسار الاختبار الآلي.
+- ⏳ اكتمال اختبار Windows نهائياً مشروط بنجاح الـ Workflow على GitHub Actions.
+
+---
+
 ## 📊 ملخص الحالة
 
 | المؤشر | القيمة |
