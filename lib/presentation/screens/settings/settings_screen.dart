@@ -339,8 +339,8 @@ class _SecurityTabState extends ConsumerState<_SecurityTab> {
                     ElevatedButton.icon(
                       icon: const Icon(Icons.security),
                       label: const Text('تحديث بيانات الحماية'),
-                      onPressed: () {
-                        final err = ref.read(settingsHubProvider.notifier).updateSecurity(
+                      onPressed: () async {
+                        final err = await ref.read(settingsHubProvider.notifier).updateSecurity(
                               currentPassword: _current.text,
                               newPassword: _next.text,
                               confirmPassword: _confirm.text,

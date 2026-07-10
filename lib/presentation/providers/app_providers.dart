@@ -16,6 +16,8 @@ import '../../data/repositories/task_repository.dart';
 import '../../data/repositories/finance_repository.dart';
 import '../../data/repositories/document_repository.dart';
 import '../../data/repositories/lookup_repository.dart';
+import '../../data/repositories/legal_library_repository.dart';
+import '../../data/repositories/settings_repository.dart';
 
 // =============================================================================
 // 1. مزود قاعدة البيانات الموحدة (Database Provider)
@@ -170,4 +172,15 @@ final openDeficienciesProvider = StreamProvider.family<List<Deficiency>, ({Entit
 /// قائمة المحاكم النشطة في النظام
 final activeCourtsProvider = StreamProvider.family<List<Court>, String?>((ref, type) {
   return ref.watch(lookupRepositoryProvider).watchActiveCourts(type: type);
+});
+
+
+final legalLibraryRepositoryProvider = Provider<LegalLibraryRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return LegalLibraryRepository(db.legalLibraryDao);
+});
+
+final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return SettingsRepository(db.settingsDao, ref.watch(backupServiceProvider));
 });

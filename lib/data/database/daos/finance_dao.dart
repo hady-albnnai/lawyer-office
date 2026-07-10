@@ -4,7 +4,7 @@ import '../schema.dart';
 
 part 'finance_dao.g.dart';
 
-/// كائن الوصول لبيانات المالية الموحدة (اتفاقيات الأتعاب، الدفعات، والمصاريف - FinanceDao)
+/// كائن الوصول لبيانات المالية الموحدة (اتفاقيات الأتعاب، الدفعات، والمصاريف)
 @DriftAccessor(tables: [
   FeeAgreements,
   FeePayments,
@@ -15,31 +15,55 @@ class FinanceDao extends DatabaseAccessor<AppDatabase> with _$FinanceDaoMixin {
   FinanceDao(super.db);
 
   // ---------------------------------------------------------------------------
-  // إدارة اتفاقيات الأتعاب (FeeAgreements)
+  // اتفاقيات الأتعاب
   // ---------------------------------------------------------------------------
 
-  /// مراقبة اتفاقيات الأتعاب الخاصة بكيان محدد (مثلاً: كافة اتفاقيات موكلي دعوى معينة)
+  Stream<List<FeeAgreement>> watchAllAgreements() {
+    return (select(feeAgreements)
+          ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)]))
+        .watch();
+  }
+
+  Future<List<FeeAgreement>> getAllAgreements() {
+    return (select(feeAgreements)
+          ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)]))
+        .get();
+  }
+
   Stream<List<FeeAgreement>> watchAgreementsByEntity(int entityType, int entityId) {
     return (select(feeAgreements)
           ..where((t) => t.entityType.equals(entityType) & t.entityId.equals(entityId)))
         .watch();
   }
 
-  /// إدخال اتفاقية أتعاب جديدة لموكل في دعوى أو شركة أو عقد
+  Future<FeeAgreement?> getAgreementById(int id) {
+    return (select(feeAgreements)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
   Future<int> insertAgreement(FeeAgreementsCompanion companion) {
     return into(feeAgreements).insert(companion);
   }
 
-  /// تحديث بيانات اتفاقية أتعاب
   Future<bool> updateAgreement(FeeAgreementsCompanion companion) {
     return update(feeAgreements).replace(companion);
   }
 
   // ---------------------------------------------------------------------------
-  // إدارة سندات القبض والدفعات (FeePayments)
+  // سندات القبض
   // ---------------------------------------------------------------------------
 
-  /// مراقبة الدفعات المسددة بموجب اتفاقية أتعاب معينة
+  Stream<List<FeePayment>> watchAllPayments() {
+    return (select(feePayments)
+          ..orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]))
+        .watch();
+  }
+
+  Future<List<FeePayment>> getAllPayments() {
+    return (select(feePayments)
+          ..orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]))
+        .get();
+  }
+
   Stream<List<FeePayment>> watchPaymentsByAgreement(int agreementId) {
     return (select(feePayments)
           ..where((t) => t.agreementId.equals(agreementId))
@@ -47,16 +71,26 @@ class FinanceDao extends DatabaseAccessor<AppDatabase> with _$FinanceDaoMixin {
         .watch();
   }
 
-  /// تسجيل دفعة مالية مستلمة (سند قبض)
   Future<int> insertPayment(FeePaymentsCompanion companion) {
     return into(feePayments).insert(companion);
   }
 
   // ---------------------------------------------------------------------------
-  // إدارة مصاريف ورسوم الملفات (Expenses)
+  // المصاريف
   // ---------------------------------------------------------------------------
 
-  /// مراقبة مصاريف ملف معين (دعوى، شركة، أو معاملة إدارية)
+  Stream<List<Expense>> watchAllExpenses() {
+    return (select(expenses)
+          ..orderBy([(t) => OrderingTerm(expression: t.expenseDate, mode: OrderingMode.desc)]))
+        .watch();
+  }
+
+  Future<List<Expense>> getAllExpenses() {
+    return (select(expenses)
+          ..orderBy([(t) => OrderingTerm(expression: t.expenseDate, mode: OrderingMode.desc)]))
+        .get();
+  }
+
   Stream<List<Expense>> watchExpensesByEntity(int entityType, int entityId) {
     return (select(expenses)
           ..where((t) => t.entityType.equals(entityType) & t.entityId.equals(entityId))
@@ -64,8 +98,15 @@ class FinanceDao extends DatabaseAccessor<AppDatabase> with _$FinanceDaoMixin {
         .watch();
   }
 
-  /// إدراج مصروف أو رسم قضائي/إداري جديد
   Future<int> insertExpense(ExpensesCompanion companion) {
     return into(expenses).insert(companion);
+  }
+
+  Future<PersonEntity?> getPersonById(int id) {
+    return (select(persons)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<List<PersonEntity>> getAllPersons() {
+    return select(persons).get();
   }
 }

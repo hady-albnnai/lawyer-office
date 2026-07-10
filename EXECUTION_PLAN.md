@@ -427,3 +427,16 @@ Status: completed
 Conclusion: success
 URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
 ```
+
+
+---
+
+## 🔧 تحديث طبقة البيانات الحقيقية — 2026-07-10
+
+تم تنفيذ ربط SQLite/Drift للمالية والمكتبة والإعدادات/الأمان/النسخ.
+
+- المرجع: `REAL_DATA_LAYER_STATUS.md`
+- اختبارات: `test/stage11_data_layer_test.dart`
+- schemaVersion: 2 (+ جداول المكتبة القانونية)
+
+**التخزين المحلي الحقيقي مفعّل لهذه المجالات؛ لم يعد الاعتماد على seed في الذاكرة فقط.**

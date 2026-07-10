@@ -12,10 +12,10 @@ void main() {
     expect(state.activityLog, isNotEmpty);
   });
 
-  test('Password update validates current password and confirmation', () {
+  test('Password update validates current password and confirmation', () async {
     final notifier = SettingsHubNotifier();
 
-    final wrong = notifier.updateSecurity(
+    final wrong = await notifier.updateSecurity(
       currentPassword: 'wrong',
       newPassword: 'NewPass1',
       confirmPassword: 'NewPass1',
@@ -24,7 +24,7 @@ void main() {
     );
     expect(wrong, isNotNull);
 
-    final mismatch = notifier.updateSecurity(
+    final mismatch = await notifier.updateSecurity(
       currentPassword: 'Office@2026',
       newPassword: 'NewPass1',
       confirmPassword: 'Other',
@@ -33,7 +33,7 @@ void main() {
     );
     expect(mismatch, contains('تأكيد'));
 
-    final ok = notifier.updateSecurity(
+    final ok = await notifier.updateSecurity(
       currentPassword: 'Office@2026',
       newPassword: 'NewPass1',
       confirmPassword: 'NewPass1',

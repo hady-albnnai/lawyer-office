@@ -6,6 +6,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/repositories/legal_library_repository.dart';
+import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 
 /// نوع مادة المكتبة.
@@ -348,11 +350,113 @@ class LegalLibraryState {
 
 final legalLibraryProvider =
     StateNotifierProvider<LegalLibraryNotifier, LegalLibraryState>((ref) {
-  return LegalLibraryNotifier();
+  return LegalLibraryNotifier(repository: ref.watch(legalLibraryRepositoryProvider))..bootstrap();
 });
 
 class LegalLibraryNotifier extends StateNotifier<LegalLibraryState> {
-  LegalLibraryNotifier() : super(_seedState());
+  LegalLibraryNotifier({LegalLibraryRepository? repository})
+      : _repository = repository,
+        super(repository == null ? _seedState() : const LegalLibraryState(items: [], links: []));
+
+  final LegalLibraryRepository? _repository;
+  bool _ready = false;
+
+  Future<void> bootstrap() async {
+    final repo = _repository;
+    if (repo == null || _ready) return;
+    _ready = true;
+    try {
+      await repo.seedDemoIfEmpty();
+      await reload();
+    } catch (_) {
+      if (state.items.isEmpty) state = _seedState();
+    }
+  }
+
+  Future<void> reload() async {
+    final repo = _repository;
+    if (repo == null) return;
+    final items = await repo.getAllItems();
+    final links = await repo.getAllLinks();
+    state = LegalLibraryState(
+      items: items.map(_mapItem).toList(),
+      links: links.map(_mapLink).toList(),
+      searchQuery: state.searchQuery,
+      section: state.section,
+      typeFilter: state.typeFilter,
+    );
+  }
+
+  static LegalItemType _typeFromDb(String raw) {
+    switch (raw) {
+      case 'law': return LegalItemType.law;
+      case 'precedent': return LegalItemType.precedent;
+      case 'bar_journal': return LegalItemType.barJournal;
+      case 'memo': return LegalItemType.memo;
+      case 'research': return LegalItemType.research;
+      case 'book': return LegalItemType.book;
+      case 'template': return LegalItemType.template;
+      default: return LegalItemType.other;
+    }
+  }
+
+  static String _typeToDb(LegalItemType t) {
+    switch (t) {
+      case LegalItemType.law: return 'law';
+      case LegalItemType.precedent: return 'precedent';
+      case LegalItemType.barJournal: return 'bar_journal';
+      case LegalItemType.memo: return 'memo';
+      case LegalItemType.research: return 'research';
+      case LegalItemType.book: return 'book';
+      case LegalItemType.template: return 'template';
+      case LegalItemType.other: return 'other';
+    }
+  }
+
+  static LegalLibraryItem _mapItem(dynamic row) {
+    return LegalLibraryItem(
+      id: '${row.id}',
+      type: _typeFromDb(row.itemType),
+      title: row.title,
+      category: row.category ?? '',
+      source: row.source ?? '',
+      sourceUrl: row.sourceUrl ?? '',
+      filePath: row.filePath ?? '',
+      fileName: row.fileName ?? '',
+      extractedText: row.extractedText ?? '',
+      year: row.year,
+      tags: (row.tags ?? '').split(',').where((e) => e.trim().isNotEmpty).toList(),
+      isFavorite: row.isFavorite,
+      isPrinciple: row.isPrinciple,
+      createdAt: row.createdAt,
+      createdBy: row.createdBy ?? '',
+      lawNumber: row.lawNumber ?? '',
+      lawKind: row.lawKind ?? '',
+      lastAmendment: row.lastAmendment ?? '',
+      court: row.court ?? '',
+      chamber: row.chamber ?? '',
+      decisionNumber: row.decisionNumber ?? '',
+      baseNumber: row.baseNumber ?? '',
+      decisionDate: row.decisionDate,
+      principle: row.principle ?? '',
+      journalYear: row.journalYear,
+      journalIssue: row.journalIssue ?? '',
+      page: row.page ?? '',
+      notes: row.notes ?? '',
+    );
+  }
+
+  static LegalLibraryLink _mapLink(dynamic row) {
+    return LegalLibraryLink(
+      id: '${row.id}',
+      libraryItemId: '${row.libraryItemId}',
+      entityType: '${row.entityType}',
+      entityId: '${row.entityId}',
+      entityTitle: row.entityTitle ?? '',
+      note: row.note ?? '',
+      linkedAt: row.linkedAt,
+    );
+  }
 
   static LegalLibraryState _seedState() {
     final now = DateTime(2026, 7, 10);
@@ -529,11 +633,17 @@ class LegalLibraryNotifier extends StateNotifier<LegalLibraryState> {
   }
 
   void toggleFavorite(String itemId) {
+    final current = state.itemById(itemId);
     final updated = state.items.map((item) {
       if (item.id != itemId) return item;
       return item.copyWith(isFavorite: !item.isFavorite);
     }).toList();
     state = state.copyWith(items: updated);
+    final repo = _repository;
+    final id = int.tryParse(itemId);
+    if (repo != null && id != null && current != null) {
+      repo.toggleFavorite(id, !current.isFavorite).then((_) => reload()).catchError((_) {});
+    }
   }
 
   void markAsPrinciple(String itemId, {required bool value}) {

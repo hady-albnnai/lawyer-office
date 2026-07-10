@@ -15,6 +15,8 @@ import 'daos/lookup_dao.dart';
 import 'daos/company_dao.dart';
 import 'daos/contract_dao.dart';
 import 'daos/admin_procedure_dao.dart';
+import 'daos/legal_library_dao.dart';
+import 'daos/settings_dao.dart';
 
 part 'database.g.dart';
 
@@ -45,6 +47,8 @@ part 'database.g.dart';
     FeeAgreements, FeePayments, Expenses,
     // 12. النواقص والخط الزمني
     Deficiencies, TimelineEvents,
+    // 13. المكتبة القانونية
+    LegalLibraryItems, LegalLibraryLinks,
   ],
   daos: [
     CaseDao,
@@ -56,31 +60,33 @@ part 'database.g.dart';
     CompanyDao,
     ContractDao,
     AdminProcedureDao,
+    LegalLibraryDao,
+    SettingsDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openDatabase());
 
+  /// للاختبارات: قاعدة ذاكرة اختيارية.
+  AppDatabase.forTesting(QueryExecutor e) : super(e);
+
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
-      // 1. إنشاء كافة الجداول الـ 22 في قاعدة البيانات
       await m.createAll();
-      
-      // 2. بناء فهارس البحث السريع (Indexes)
       await _createCustomIndexes();
-      
-      // 3. حقن البيانات السورية المرجعية الافتراضية (المحاكم، الدوائر، وفروع النقابة)
       await _seedDefaultLookups();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      // مخطط الترقية المستقبلية وتعديل الجداول (Migrations)
+      if (from < 2) {
+        await m.createTable(legalLibraryItems);
+        await m.createTable(legalLibraryLinks);
+      }
     },
     beforeOpen: (details) async {
-      // تفعيل القيود الخارجية (Foreign Keys) عند كل اتصال
       await customStatement('PRAGMA foreign_keys = ON;');
     },
   );

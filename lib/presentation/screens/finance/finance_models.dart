@@ -1,10 +1,14 @@
-/// نماذج وحالة واجهة المرحلة 7: المالية الموحدة.
+/// نماذج وحالة واجهة المالية الموحدة.
 ///
-/// نماذج واجهة قابلة للاختبار مع seed data، وقابلة للربط لاحقاً بمستودع
-/// FinanceRepository / جداول Drift (FeeAgreements, FeePayments, Expenses).
+/// تعرض بيانات SQLite عبر FinanceRepository. في الاختبارات يمكن تشغيل
+/// FinanceNotifier بلا مستودع (ذاكرة فقط).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../data/database/database.dart' as db;
+import '../../../data/repositories/finance_repository.dart';
+import '../../providers/app_providers.dart';
 
 /// نوع الكيان المالي المرتبط بالحركة.
 enum FinanceEntityType {
@@ -405,12 +409,169 @@ class FinanceState {
   }
 }
 
+
+/// تحويل صفوف Drift إلى نماذج الواجهة.
+class FinanceMapper {
+  static FinanceEntityType entityTypeFromIndex(int index) {
+    if (index < 0 || index >= FinanceEntityType.values.length) {
+      return FinanceEntityType.caseFile;
+    }
+    return FinanceEntityType.values[index];
+  }
+
+  static String agreementTypeToDb(FeeAgreementType t) {
+    switch (t) {
+      case FeeAgreementType.fixed:
+        return 'fixed';
+      case FeeAgreementType.percentage:
+        return 'percentage';
+      case FeeAgreementType.perSession:
+        return 'per_session';
+      case FeeAgreementType.free:
+        return 'free';
+    }
+  }
+
+  static FeeAgreementType agreementTypeFromDb(String raw) {
+    switch (raw) {
+      case 'percentage':
+        return FeeAgreementType.percentage;
+      case 'per_session':
+        return FeeAgreementType.perSession;
+      case 'free':
+        return FeeAgreementType.free;
+      default:
+        return FeeAgreementType.fixed;
+    }
+  }
+
+  static FinancePaymentMethod methodFromDb(String? raw) {
+    switch (raw) {
+      case 'تحويل بنكي':
+      case 'bank':
+      case 'bankTransfer':
+        return FinancePaymentMethod.bankTransfer;
+      case 'شيك':
+      case 'cheque':
+        return FinancePaymentMethod.cheque;
+      case 'أخرى':
+      case 'other':
+        return FinancePaymentMethod.other;
+      default:
+        return FinancePaymentMethod.cash;
+    }
+  }
+
+  static String methodToDb(FinancePaymentMethod m) => m.displayName;
+
+  static ExpenseCategory categoryFromDb(String raw) {
+    for (final c in ExpenseCategory.values) {
+      if (c.displayName == raw) return c;
+    }
+    if (raw.contains('معقب')) return ExpenseCategory.expediter;
+    if (raw.contains('محكمة')) return ExpenseCategory.courtFee;
+    if (raw.contains('طابع')) return ExpenseCategory.stamps;
+    return ExpenseCategory.other;
+  }
+
+  static FinanceAgreement mapAgreement(
+    db.FeeAgreement row,
+    Map<int, String> personNames,
+  ) {
+    return FinanceAgreement(
+      id: '${row.id}',
+      entityType: entityTypeFromIndex(row.entityType),
+      entityId: '${row.entityId}',
+      entityTitle: _entityTitle(row.entityType, row.entityId),
+      partyId: '${row.partyId}',
+      partyName: personNames[row.partyId] ?? 'موكل #${row.partyId}',
+      agreementType: agreementTypeFromDb(row.agreementType),
+      totalAmount: row.totalAmount,
+      currency: row.currency,
+      agreementDate: row.createdAt,
+      contractDocumentId: row.contractPath ?? '',
+      notes: row.notes ?? '',
+    );
+  }
+
+  static FinancePayment mapPayment(db.FeePayment row) {
+    return FinancePayment(
+      id: '${row.id}',
+      agreementId: '${row.agreementId}',
+      amount: row.amount,
+      paymentDate: row.paymentDate,
+      method: methodFromDb(row.method),
+      receiptDocumentId: row.receiptPath ?? '',
+      notes: row.notes ?? '',
+      receiptNumber: 'R-${row.paymentDate.year}-${row.id.toString().padLeft(4, '0')}',
+    );
+  }
+
+  static FinanceExpense mapExpense(db.Expense row) {
+    return FinanceExpense(
+      id: '${row.id}',
+      entityType: entityTypeFromIndex(row.entityType),
+      entityId: '${row.entityId}',
+      entityTitle: _entityTitle(row.entityType, row.entityId),
+      category: categoryFromDb(row.expenseType),
+      description: row.expenseType,
+      amount: row.amount,
+      expenseDate: row.expenseDate,
+      paidBy: (row.notes != null && row.notes!.contains('معقب')) ? 'المعقب' : 'مكتب المحامي',
+      receiptDocumentId: row.receiptPath ?? '',
+      notes: row.notes ?? '',
+    );
+  }
+
+  static String _entityTitle(int type, int id) {
+    final t = entityTypeFromIndex(type).displayName;
+    return '$t #$id';
+  }
+}
+
 final financeProvider = StateNotifierProvider<FinanceNotifier, FinanceState>((ref) {
-  return FinanceNotifier();
+  return FinanceNotifier(repository: ref.watch(financeRepositoryProvider))..bootstrap();
 });
 
 class FinanceNotifier extends StateNotifier<FinanceState> {
-  FinanceNotifier() : super(_seedState());
+  FinanceNotifier({FinanceRepository? repository})
+      : _repository = repository,
+        super(repository == null ? _seedState() : const FinanceState(agreements: [], payments: [], expenses: []));
+
+  final FinanceRepository? _repository;
+  bool _bootstrapped = false;
+
+  Future<void> bootstrap() async {
+    final repo = _repository;
+    if (repo == null || _bootstrapped) return;
+    _bootstrapped = true;
+    try {
+      await repo.seedDemoIfEmpty();
+      await reload();
+    } catch (_) {
+      // إن فشل DB في بيئة بلا ملفات، نُبقي الحالة الحالية.
+      if (state.agreements.isEmpty) {
+        state = _seedState();
+      }
+    }
+  }
+
+  Future<void> reload() async {
+    final repo = _repository;
+    if (repo == null) return;
+    final agreements = await repo.getAllAgreements();
+    final payments = await repo.getAllPayments();
+    final expenses = await repo.getAllExpenses();
+    final persons = await repo.getAllPersons();
+    final names = {for (final p in persons) p.id: p.fullName};
+    state = FinanceState(
+      agreements: agreements.map((a) => FinanceMapper.mapAgreement(a, names)).toList(),
+      payments: payments.map(FinanceMapper.mapPayment).toList(),
+      expenses: expenses.map(FinanceMapper.mapExpense).toList(),
+      searchQuery: state.searchQuery,
+      entityFilter: state.entityFilter,
+    );
+  }
 
   static FinanceState _seedState() {
     final today = DateTime(2026, 7, 10);
@@ -552,13 +713,64 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
 
   void addAgreement(FinanceAgreement agreement) {
     state = state.copyWith(agreements: [agreement, ...state.agreements]);
+    final repo = _repository;
+    if (repo != null) {
+      final partyId = int.tryParse(agreement.partyId) ?? 0;
+      final entityId = int.tryParse(agreement.entityId) ?? 0;
+      repo
+          .createAgreement(
+            entityType: agreement.entityType.index,
+            entityId: entityId == 0 ? DateTime.now().millisecondsSinceEpoch % 100000 : entityId,
+            partyId: partyId == 0 ? 1 : partyId,
+            agreementType: FinanceMapper.agreementTypeToDb(agreement.agreementType),
+            totalAmount: agreement.totalAmount,
+            currency: agreement.currency,
+            notes: agreement.notes.isEmpty ? null : agreement.notes,
+            userRef: 'المحامي',
+          )
+          .then((_) => reload())
+          .catchError((_) {});
+    }
   }
 
   void addPayment(FinancePayment payment) {
     state = state.copyWith(payments: [payment, ...state.payments]);
+    final repo = _repository;
+    if (repo != null) {
+      final agreementId = int.tryParse(payment.agreementId) ?? 0;
+      if (agreementId > 0) {
+        repo
+            .addPayment(
+              agreementId: agreementId,
+              amount: payment.amount,
+              method: FinanceMapper.methodToDb(payment.method),
+              notes: payment.notes.isEmpty ? null : payment.notes,
+              userRef: 'المحامي',
+              entityType: 0,
+              entityId: 0,
+            )
+            .then((_) => reload())
+            .catchError((_) {});
+      }
+    }
   }
 
   void addExpense(FinanceExpense expense) {
     state = state.copyWith(expenses: [expense, ...state.expenses]);
+    final repo = _repository;
+    if (repo != null) {
+      final entityId = int.tryParse(expense.entityId) ?? 0;
+      repo
+          .addExpense(
+            entityType: expense.entityType.index,
+            entityId: entityId == 0 ? DateTime.now().millisecondsSinceEpoch % 100000 : entityId,
+            expenseType: expense.category.displayName,
+            amount: expense.amount,
+            notes: expense.notes.isEmpty ? expense.description : expense.notes,
+            userRef: 'المحامي',
+          )
+          .then((_) => reload())
+          .catchError((_) {});
+    }
   }
 }

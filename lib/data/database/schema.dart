@@ -666,3 +666,53 @@ class TimelineEvents extends Table {
   TextColumn get metadataJson => text().nullable()(); // تفاصيل إضافية (JSON)
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
+
+// ============================================================================
+// 13. المكتبة القانونية السورية (Legal Library)
+// ============================================================================
+
+/// مواد المكتبة القانونية (قوانين، اجتهادات، مجلة، مذكرات...)
+class LegalLibraryItems extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get itemType => text()(); // law, precedent, bar_journal, memo, research, book, template, other
+  TextColumn get title => text()();
+  TextColumn get category => text().nullable()();
+  TextColumn get source => text().nullable()();
+  TextColumn get sourceUrl => text().nullable()();
+  TextColumn get filePath => text().nullable()();
+  TextColumn get fileName => text().nullable()();
+  TextColumn get extractedText => text().nullable()();
+  IntColumn get year => integer().withDefault(const Constant(0))();
+  TextColumn get tags => text().nullable()(); // comma-separated
+  BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
+  BoolColumn get isPrinciple => boolean().withDefault(const Constant(false))();
+  // قانون
+  TextColumn get lawNumber => text().nullable()();
+  TextColumn get lawKind => text().nullable()();
+  TextColumn get lastAmendment => text().nullable()();
+  // اجتهاد
+  TextColumn get court => text().nullable()();
+  TextColumn get chamber => text().nullable()();
+  TextColumn get decisionNumber => text().nullable()();
+  TextColumn get baseNumber => text().nullable()();
+  DateTimeColumn get decisionDate => dateTime().nullable()();
+  TextColumn get principle => text().nullable()();
+  // مجلة
+  IntColumn get journalYear => integer().nullable()();
+  TextColumn get journalIssue => text().nullable()();
+  TextColumn get page => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get createdBy => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// ربط مادة مكتبية بملف في المكتب
+class LegalLibraryLinks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get libraryItemId => integer().references(LegalLibraryItems, #id, onDelete: KeyAction.cascade)();
+  IntColumn get entityType => integer()();
+  IntColumn get entityId => integer()();
+  TextColumn get entityTitle => text().nullable()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get linkedAt => dateTime().withDefault(currentDateAndTime)();
+}

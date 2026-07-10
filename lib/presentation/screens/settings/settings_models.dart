@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/crypto_utils.dart';
+import '../../../data/repositories/settings_repository.dart';
+import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 
 /// عنصر سجل نشاط.
@@ -240,12 +242,104 @@ class SettingsHubState {
 
 final settingsHubProvider =
     StateNotifierProvider<SettingsHubNotifier, SettingsHubState>((ref) {
-  return SettingsHubNotifier();
+  return SettingsHubNotifier(repository: ref.watch(settingsRepositoryProvider))..bootstrapDb();
 });
 
 class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
-  SettingsHubNotifier() : super(_seedState()) {
-    _hydrateFromPrefs();
+  SettingsHubNotifier({SettingsRepository? repository})
+      : _repository = repository,
+        super(_seedState()) {
+    if (repository == null) {
+      _hydrateFromPrefs();
+    }
+  }
+
+  final SettingsRepository? _repository;
+  bool _dbReady = false;
+
+  Future<void> bootstrapDb() async {
+    final repo = _repository;
+    if (repo == null || _dbReady) return;
+    _dbReady = true;
+    try {
+      await repo.ensureDefaults();
+      await _loadFromDb();
+    } catch (_) {
+      await _hydrateFromPrefs();
+    }
+  }
+
+  Future<void> _loadFromDb() async {
+    final repo = _repository;
+    if (repo == null) return;
+    final settings = await repo.getAllSettings();
+    final security = await repo.getSecurity();
+    final backups = await repo.getBackups();
+    final courts = await repo.getCourts();
+    final logs = await repo.getActivityLog();
+    final lastBackupRaw = settings['last_backup_at'];
+    state = state.copyWith(
+      preferences: state.preferences.copyWith(
+        officeTitle: settings[AppConstants.keyOfficeTitle] ?? state.preferences.officeTitle,
+        lawyerName: settings[AppConstants.keyLawyerName] ?? state.preferences.lawyerName,
+        officeAddress: settings[AppConstants.keyOfficeAddress] ?? state.preferences.officeAddress,
+        officePhone: settings[AppConstants.keyOfficePhone] ?? state.preferences.officePhone,
+        officeEmail: settings['office_email'] ?? state.preferences.officeEmail,
+        logoPath: settings[AppConstants.keyOfficeLogoPath] ?? state.preferences.logoPath,
+        signaturePath: settings['office_signature_path'] ?? state.preferences.signaturePath,
+        uiFont: settings['ui_font'] ?? state.preferences.uiFont,
+        printFont: settings['print_font'] ?? state.preferences.printFont,
+        externalBackupPath: settings['external_backup_path'] ?? '',
+        workOrderDefaultPriority: int.tryParse(settings['wo_default_priority'] ?? '') ?? state.preferences.workOrderDefaultPriority,
+        libraryAutoFavoritePrinciples: (settings['library_auto_favorite_principles'] ?? '1') == '1',
+        lastBackupAt: lastBackupRaw != null ? DateTime.tryParse(lastBackupRaw) : state.preferences.lastBackupAt,
+      ),
+      security: security == null
+          ? state.security
+          : SecuritySettings(
+              passwordHash: security.passwordHash,
+              securityQuestion: security.securityQuestion,
+              answerHash: security.answerHash,
+              lockTimeoutMinutes: security.lockTimeoutMinutes,
+              isConfigured: true,
+            ),
+      backups: backups
+          .map(
+            (b) => BackupRecord(
+              id: '${b.id}',
+              path: b.path,
+              type: b.type,
+              sizeMb: b.sizeMb ?? 0,
+              includesAttachments: b.includesAttachments,
+              createdAt: b.createdAt,
+              status: b.status,
+            ),
+          )
+          .toList(),
+      courts: courts
+          .map(
+            (c) => SettingsCourtItem(
+              id: '${c.id}',
+              name: c.name,
+              type: c.type ?? '',
+              city: c.city ?? '',
+              isActive: c.isActive,
+            ),
+          )
+          .toList(),
+      activityLog: logs
+          .map(
+            (e) => ActivityLogEntry(
+              id: '${e.id}',
+              action: e.action,
+              tableName: e.affectedTable,
+              details: e.details ?? '',
+              userRef: e.userRef ?? '',
+              timestamp: e.timestamp,
+            ),
+          )
+          .toList(),
+    );
   }
 
   static const _kEmail = 'office_email';
@@ -445,14 +539,14 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
   }
 
   /// تحديث كلمة المرور وسؤال الأمان بعد التحقق من الحالية.
-  String? updateSecurity({
+  Future<String?> updateSecurity({
     required String currentPassword,
     required String newPassword,
     required String confirmPassword,
     required String securityQuestion,
     required String securityAnswer,
     int? lockTimeoutMinutes,
-  }) {
+  }) async {
     if (!CryptoUtils.verifyPassword(currentPassword, state.security.passwordHash)) {
       return 'كلمة المرور الحالية غير صحيحة';
     }
@@ -474,7 +568,23 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
       isConfigured: true,
     );
 
-    // حفظ prefs بأفضل جهد — لا يفشل المسار المنطقي إن تعذّر SharedPreferences.
+    final repo = _repository;
+    if (repo != null) {
+      final err = await repo.updateSecurity(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword,
+        securityQuestion: securityQuestion,
+        securityAnswer: securityAnswer,
+        lockTimeoutMinutes: lockTimeoutMinutes ?? state.security.lockTimeoutMinutes,
+        userRef: state.preferences.lawyerName,
+      );
+      if (err != null) return err;
+      await _loadFromDb();
+      state = state.copyWith(lastMessage: 'تم تحديث بيانات الأمان');
+      return null;
+    }
+
     // ignore: unawaited_futures
     _safePrefsWrite((prefs) async {
       await prefs.setString(_kPwdHash, next.passwordHash);
@@ -501,15 +611,40 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
     return CryptoUtils.verifyPassword(answer.trim(), state.security.answerHash);
   }
 
-  /// محاكاة إنشاء نسخة احتياطية ناجحة (offline seed + سجل).
+  /// إنشاء نسخة احتياطية (BackupService الحقيقي عند توفر المستودع).
   Future<BackupRecord> createBackup({
     bool includeAttachments = true,
     String type = 'manual',
     String? customPath,
   }) async {
     state = state.copyWith(isBusy: true);
-    await Future<void>.delayed(const Duration(milliseconds: 10));
     final now = DateTime.now();
+    final repo = _repository;
+    if (repo != null) {
+      try {
+        final path = await repo.createBackup(
+          includeAttachments: includeAttachments,
+          type: type,
+          customPath: customPath ?? (state.preferences.externalBackupPath.isEmpty ? null : state.preferences.externalBackupPath),
+          userRef: state.preferences.lawyerName,
+        );
+        await _loadFromDb();
+        state = state.copyWith(isBusy: false, lastMessage: 'تم إنشاء نسخة احتياطية: $path');
+        return BackupRecord(
+          id: 'bk_${now.microsecondsSinceEpoch}',
+          path: path,
+          type: type,
+          sizeMb: 0,
+          includesAttachments: includeAttachments,
+          createdAt: now,
+        );
+      } catch (e) {
+        state = state.copyWith(isBusy: false, lastMessage: 'فشل النسخ: $e');
+        rethrow;
+      }
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 10));
     final stamp = now.toIso8601String().replaceAll(':', '-').substring(0, 19);
     final folder = customPath?.isNotEmpty == true
         ? customPath!
@@ -529,7 +664,6 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
       final sp = await SharedPreferences.getInstance();
       await sp.setString(_kLastBackup, now.toIso8601String());
     } catch (_) {}
-
     state = state.copyWith(
       isBusy: false,
       backups: [record, ...state.backups],
