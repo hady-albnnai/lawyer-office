@@ -76,3 +76,23 @@ duplicate_definition: _buildStepHeader
 ```
 
 تمت إزالة النسخة المكررة من `_buildStepHeader` والإبقاء على النسخة داخل قسم بناء محتوى المعالج.
+
+---
+
+## تحديث 2026-07-10 - إضافة اختبار Flutter Smoke
+
+نتيجة التشغيل الثالث:
+
+```text
+Analyze project => success
+flutter test => failure
+Test directory "test" not found.
+```
+
+تمت إضافة اختبار `test/stage5_case_models_test.dart` للتحقق من حسابات نموذج الدعوى:
+
+- إجمالي الأتعاب.
+- إجمالي المصروفات.
+- الرصيد.
+- عدد النواقص المفتوحة.
+- الجلسة القادمة.
