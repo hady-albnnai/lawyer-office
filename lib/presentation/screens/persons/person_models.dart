@@ -26,7 +26,8 @@ enum PersonDirectoryRole {
   notary,
   barDelegate,
   teamMember,
-  legalEntity;
+  legalEntity,
+  contractParty;
 
   String get displayName => const [
         'موكل',
@@ -36,6 +37,7 @@ enum PersonDirectoryRole {
         'مندوب نقابة',
         'فريق المكتب',
         'شركة / جهة اعتبارية',
+        'طرف عقدي',
       ][index];
 
   Color get color => const [
@@ -46,6 +48,7 @@ enum PersonDirectoryRole {
         AppColors.primaryNavy,
         AppColors.secondaryGold,
         AppColors.primaryNavy,
+        AppColors.info,
       ][index];
 }
 
