@@ -57,3 +57,27 @@
 
 - ✅ إضافة `contractParty` إلى أدوار دليل الأشخاص.
 - ⏳ إعادة الدفع لتشغيل CI من جديد.
+
+---
+
+## تحديث 2026-07-10 - نجاح Windows CI للدفعة الأولى من المرحلة 6
+
+تم تشغيل GitHub Actions بنجاح:
+
+```text
+Run ID: 29103790064
+Commit: 91af396
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29103790064
+```
+
+الخطوات الناجحة:
+
+- ✅ `flutter pub get`
+- ✅ توليد Drift عبر `build_runner`
+- ✅ `flutter analyze --no-fatal-infos --no-fatal-warnings`
+- ✅ `flutter test`
+- ✅ `flutter build windows --debug`
+
+حالة المرحلة 6 بعد الدفعة الأولى: 35% تقريباً.
