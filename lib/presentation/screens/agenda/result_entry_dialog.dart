@@ -1,346 +1,285 @@
-/// نافذة تسجيل نتيجة العمل
-/// 
-/// حسب مواصفات PRODUCT_REDESIGN_MASTER_PLAN.md - القسم 5
-/// 
-/// آخر تحديث: 2026-07-09
+/// حوار تسجيل نتيجة عمل — يحفظ في SQLite (مهمة يومية + خط زمني/نشاط).
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/enums/app_enums.dart';
+import '../../../data/database/database.dart';
+import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 
-/// أنواع نتائج العمل
-enum ResultStatus {
-  completed,    // منجز نهائياً
-  generated,    // منجز وولّد موعداً جديداً
-  postponed,    // مؤجل بسبب
-  impossible,   // متعذر بسبب
-  cancelled,    // ملغى بسبب
+enum WorkResultType {
+  completed,
+  completedWithNext,
+  postponed,
+  impossible,
+  cancelled,
 }
 
-/// نافذة تسجيل نتيجة الجلسة
-class ResultEntryDialog extends StatefulWidget {
-  const ResultEntryDialog({super.key});
+extension on WorkResultType {
+  String get label {
+    switch (this) {
+      case WorkResultType.completed:
+        return 'منجز نهائياً';
+      case WorkResultType.completedWithNext:
+        return 'منجز وولّد موعداً جديداً';
+      case WorkResultType.postponed:
+        return 'مؤجل بسبب';
+      case WorkResultType.impossible:
+        return 'متعذر بسبب';
+      case WorkResultType.cancelled:
+        return 'ملغى بسبب';
+    }
+  }
+
+  int get lifecycleStatus {
+    switch (this) {
+      case WorkResultType.completed:
+      case WorkResultType.completedWithNext:
+        return LifecycleStatus.completed.index;
+      case WorkResultType.postponed:
+        return LifecycleStatus.postponed.index;
+      case WorkResultType.cancelled:
+        return LifecycleStatus.cancelled.index;
+      case WorkResultType.impossible:
+        return LifecycleStatus.cancelled.index;
+    }
+  }
+}
+
+class ResultEntryDialog extends ConsumerStatefulWidget {
+  final int? taskId;
+  final String? initialTitle;
+
+  const ResultEntryDialog({super.key, this.taskId, this.initialTitle});
 
   @override
-  State<ResultEntryDialog> createState() => _ResultEntryDialogState();
+  ConsumerState<ResultEntryDialog> createState() => _ResultEntryDialogState();
 }
 
-class _ResultEntryDialogState extends State<ResultEntryDialog> {
-  ResultStatus? _selectedResult;
-  final TextEditingController _decisionController = TextEditingController();
-  final TextEditingController _nextDateController = TextEditingController();
-  final TextEditingController _requiredController = TextEditingController();
-  final TextEditingController _expensesController = TextEditingController();
-  final TextEditingController _notesController = TextEditingController();
-  
-  bool _clientAttended = true;
-  bool _opponentAttended = true;
-  bool _opponentLawyerAttended = true;
+class _ResultEntryDialogState extends ConsumerState<ResultEntryDialog> {
+  WorkResultType? _selectedResult = WorkResultType.completed;
+  final _notesController = TextEditingController();
+  final _nextDateController = TextEditingController();
+  final _titleController = TextEditingController();
+  bool _clientAttended = false;
+  bool _opponentAttended = false;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController.text = widget.initialTitle ?? 'نتيجة عمل يومي';
+  }
 
   @override
   void dispose() {
-    _decisionController.dispose();
-    _nextDateController.dispose();
-    _requiredController.dispose();
-    _expensesController.dispose();
     _notesController.dispose();
+    _nextDateController.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      child: SingleChildScrollView(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 600),
-          padding: const EdgeInsets.all(24),
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.edit_note, color: AppColors.primaryNavy),
+          const SizedBox(width: 8),
+          Text('تسجيل نتيجة العمل', style: AppTextStyles.headline6),
+        ],
+      ),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'تسجيل نتيجة العمل',
-                style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text('اختر نتيجة العمل:', style: AppTextStyles.labelLarge),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: ResultStatus.values.map((status) => _buildResultOption(status)).toList(),
-              ),
-              const SizedBox(height: 16),
-              if (_selectedResult == ResultStatus.completed || _selectedResult == ResultStatus.generated) ...[
-                _buildSectionTitle('تفاصيل النتيجة'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _decisionController,
-                  decoration: InputDecoration(
-                    labelText: 'قرار المحكمة',
-                    hintText: 'ادخل نص القرار',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: CheckboxListTile(
-                        title: const Text('حضور الموكل'),
-                        value: _clientAttended,
-                        onChanged: (value) => setState(() => _clientAttended = value!),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    Expanded(
-                      child: CheckboxListTile(
-                        title: const Text('حضور الخصم'),
-                        value: _opponentAttended,
-                        onChanged: (value) => setState(() => _opponentAttended = value!),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                  ],
-                ),
-                CheckboxListTile(
-                  title: const Text('حضور محامي الخصم'),
-                  value: _opponentLawyerAttended,
-                  onChanged: (value) => setState(() => _opponentLawyerAttended = value!),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-                const SizedBox(height: 12),
-                if (_selectedResult == ResultStatus.generated) ...[
-                  TextField(
-                    controller: _nextDateController,
-                    decoration: InputDecoration(
-                      labelText: 'الموعد القادم',
-                      hintText: 'ادخل تاريخ الموعد القادم',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      prefixIcon: const Icon(Icons.calendar_today),
-                    ),
-                    readOnly: true,
-                    onTap: () => _selectDate(context),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _requiredController,
-                    decoration: InputDecoration(
-                      labelText: 'المطلوب القادم',
-                      hintText: 'ما المطلوب في الموعد القادم؟',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
-              ],
-              if (_selectedResult == ResultStatus.postponed) ...[
-                _buildSectionTitle('سبب التأجيل'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _requiredController,
-                  decoration: InputDecoration(
-                    labelText: 'سبب التأجيل',
-                    hintText: 'ادخل سبب التأجيل',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _nextDateController,
-                  decoration: InputDecoration(
-                    labelText: 'الموعد الجديد',
-                    hintText: 'ادخل تاريخ الموعد الجديد',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    prefixIcon: const Icon(Icons.calendar_today),
-                  ),
-                  readOnly: true,
-                  onTap: () => _selectDate(context),
-                ),
-              ],
-              if (_selectedResult == ResultStatus.impossible) ...[
-                _buildSectionTitle('سبب التعذر'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _requiredController,
-                  decoration: InputDecoration(
-                    labelText: 'سبب التعذر',
-                    hintText: 'ادخل سبب التعذر',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-              if (_selectedResult == ResultStatus.cancelled) ...[
-                _buildSectionTitle('سبب الإلغاء'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _requiredController,
-                  decoration: InputDecoration(
-                    labelText: 'سبب الإلغاء',
-                    hintText: 'ادخل سبب الإلغاء',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-              _buildSectionTitle('مصاريف'),
-              const SizedBox(height: 8),
               TextField(
-                controller: _expensesController,
-                decoration: InputDecoration(
-                  labelText: 'قيمة المصاريف',
-                  hintText: 'ادخل قيمة المصاريف بالليرة السورية',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  prefixText: 'ل.س ',
-                ),
-                keyboardType: TextInputType.number,
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'عنوان العمل/الجلسة'),
               ),
               const SizedBox(height: 12),
-              _buildSectionTitle('ملاحظة للأستاذ'),
+              Text('نتيجة العمل *', style: AppTextStyles.labelLarge),
               const SizedBox(height: 8),
+              ...WorkResultType.values.map(
+                (type) => RadioListTile<WorkResultType>(
+                  title: Text(type.label, style: AppTextStyles.bodyMedium),
+                  value: type,
+                  groupValue: _selectedResult,
+                  onChanged: (v) => setState(() => _selectedResult = v),
+                  activeColor: AppColors.primaryNavy,
+                ),
+              ),
+              if (_selectedResult == WorkResultType.completedWithNext ||
+                  _selectedResult == WorkResultType.postponed) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _nextDateController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'الموعد القادم',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.calendar_today),
+                      onPressed: _pickDate,
+                    ),
+                  ),
+                  onTap: _pickDate,
+                ),
+              ],
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                title: const Text('حضور الموكل'),
+                value: _clientAttended,
+                onChanged: (v) => setState(() => _clientAttended = v ?? false),
+              ),
+              CheckboxListTile(
+                title: const Text('حضور الخصم'),
+                value: _opponentAttended,
+                onChanged: (v) => setState(() => _opponentAttended = v ?? false),
+              ),
               TextField(
                 controller: _notesController,
-                decoration: InputDecoration(
-                  labelText: 'ملاحظات',
-                  hintText: 'ادخل أي ملاحظات إضافية',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'الملاحظات / السبب / قرار المحكمة',
+                  alignLabelWithHint: true,
                 ),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('إلغاء'),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _selectedResult == null ? null : _submitResult,
-                    child: const Text('حفظ'),
-                  ),
-                ],
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-  
-  Widget _buildResultOption(ResultStatus status) {
-    final isSelected = _selectedResult == status;
-    final color = isSelected ? AppColors.primaryNavy : AppColors.textSecondary;
-    final backgroundColor = isSelected ? AppColors.primaryNavy.withOpacity(0.1) : AppColors.cardBackground;
-    
-    String label;
-    IconData icon;
-    
-    switch (status) {
-      case ResultStatus.completed:
-        label = 'منجز نهائياً';
-        icon = Icons.check_circle;
-        break;
-      case ResultStatus.generated:
-        label = 'منجز + موعد جديد';
-        icon = Icons.add_circle;
-        break;
-      case ResultStatus.postponed:
-        label = 'مؤجل';
-        icon = Icons.pause_circle;
-        break;
-      case ResultStatus.impossible:
-        label = 'متعذر';
-        icon = Icons.cancel;
-        break;
-      case ResultStatus.cancelled:
-        label = 'ملغى';
-        icon = Icons.delete;
-        break;
-    }
-    
-    return InkWell(
-      onTap: () => setState(() => _selectedResult = status),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryNavy : AppColors.cardBorder,
-            width: isSelected ? 2 : 0.5,
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton(
+          onPressed: _saving ? null : _submitResult,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryNavy,
+            foregroundColor: AppColors.textOnLight,
           ),
+          child: Text(_saving ? 'جارٍ الحفظ...' : 'حفظ النتيجة'),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: color,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
-  
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy),
-    );
-  }
-  
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('ar', 'SY'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.primaryNavy,
-              onPrimary: AppColors.textOnLight,
-              surface: AppColors.cardBackground,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
-    
     if (picked != null) {
-      _nextDateController.text = '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+      _nextDateController.text =
+          '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
     }
   }
-  
-  void _submitResult() {
-    if (_selectedResult == null) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم حفظ نتيجة العمل بنجاح'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+
+  Future<void> _submitResult() async {
+    final result = _selectedResult;
+    if (result == null) return;
+    if ((result == WorkResultType.completedWithNext || result == WorkResultType.postponed) &&
+        _nextDateController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('حدد الموعد القادم'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final db = ref.read(databaseProvider);
+      final now = DateTime.now();
+      final title = _titleController.text.trim().isEmpty ? 'نتيجة عمل' : _titleController.text.trim();
+      final notes =
+          '${result.label}\nحضور موكل: ${_clientAttended ? 'نعم' : 'لا'} | حضور خصم: ${_opponentAttended ? 'نعم' : 'لا'}\n${_notesController.text.trim()}';
+
+      // حفظ كمهمة يومية مكتملة/مؤجلة
+      final taskId = await db.into(db.dailyTasks).insert(
+            DailyTasksCompanion.insert(
+              taskType: 'manual_result',
+              title: title,
+              taskDate: DateTime(now.year, now.month, now.day),
+              taskTime: Value('${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
+              status: Value(result.lifecycleStatus),
+              assignedTo: const Value('المحامي'),
+              priority: const Value(1),
+              sourceType: const Value('manual'),
+              notes: Value(notes),
+            ),
+          );
+
+      // موعد قادم كمهمة جديدة
+      if (_nextDateController.text.trim().isNotEmpty) {
+        final parts = _nextDateController.text.trim().split('-');
+        if (parts.length == 3) {
+          final next = DateTime(
+            int.parse(parts[0]),
+            int.parse(parts[1]),
+            int.parse(parts[2]),
+          );
+          await db.into(db.dailyTasks).insert(
+                DailyTasksCompanion.insert(
+                  taskType: 'follow_up',
+                  title: 'متابعة: $title',
+                  taskDate: next,
+                  status: Value(LifecycleStatus.scheduled.index),
+                  assignedTo: const Value('المحامي'),
+                  priority: const Value(1),
+                  sourceType: const Value('manual'),
+                  notes: Value('مولَّد من نتيجة العمل #$taskId'),
+                ),
+              );
+        }
+      }
+
+      await db.into(db.activityLog).insert(
+            ActivityLogCompanion.insert(
+              affectedTable: 'daily_tasks',
+              recordId: taskId,
+              action: 'insert',
+              userRef: const Value('المحامي'),
+              details: Value('تسجيل نتيجة عمل: ${result.label}'),
+            ),
+          );
+
+      await db.into(db.timelineEvents).insert(
+            TimelineEventsCompanion.insert(
+              entityType: EntityType.caseEntity.index,
+              entityId: 0,
+              eventType: 'work_result_logged',
+              eventDate: Value(now),
+              description: 'تسجيل نتيجة: $title — ${result.label}',
+              userRef: const Value('المحامي'),
+            ),
+          );
+
+      ref.invalidate(tasksByDateProvider(DateTime.now()));
+
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('تم حفظ نتيجة العمل في قاعدة البيانات'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل الحفظ: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }

@@ -197,6 +197,30 @@ class SettingsRepository {
     return id;
   }
 
+  Future<void> setSecurityDirect({
+    required String password,
+    required String securityQuestion,
+    required String securityAnswer,
+    int lockTimeoutMinutes = 10,
+    String? userRef,
+  }) async {
+    await _dao.upsertSecurity(
+      SecurityCompanion.insert(
+        passwordHash: CryptoUtils.hashPassword(password),
+        securityQuestion: securityQuestion.trim(),
+        answerHash: CryptoUtils.hashPassword(securityAnswer.trim()),
+        lockTimeoutMinutes: Value(lockTimeoutMinutes),
+      ),
+    );
+    await logActivity(
+      table: 'security',
+      recordId: 0,
+      action: 'update',
+      userRef: userRef,
+      details: 'تعيين كلمة المرور من معالج أول تشغيل',
+    );
+  }
+
   Future<void> ensureDefaults() async {
     final security = await _dao.getSecurity();
     if (security == null) {

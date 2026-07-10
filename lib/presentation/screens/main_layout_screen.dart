@@ -12,6 +12,8 @@ import 'tasks/daily_tasks_screen.dart';
 import 'search/advanced_search_screen.dart';
 import 'reports/legal_printing_screen.dart';
 import 'settings/settings_screen.dart';
+import 'work_orders/work_orders_screen.dart';
+import 'dashboard/today_dashboard_screen.dart';
 
 /// الشاشة الرئيسية وتخطيط الملاحة العام لتطبيقات إدارة مكتب المحاماة السوري (V6.2)
 class MainLayoutScreen extends ConsumerStatefulWidget {
@@ -59,10 +61,17 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.assignment_ind_outlined, color: AppConstants.accentGold),
+            tooltip: 'أوامر العمل',
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WorkOrdersScreen()));
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.notifications_active_outlined, color: AppConstants.accentGold),
             tooltip: 'تنبيهات المواعيد والنواقص',
             onPressed: () {
-              setState(() => _selectedIndex = 2); // الانتقال للأعمال اليومية
+              setState(() => _selectedIndex = 2);
             },
           ),
           const SizedBox(width: 8),
@@ -96,9 +105,9 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
             ),
             destinations: const [
               NavigationRailDestination(
-                icon: Icon(Icons.add_circle_outline),
-                selectedIcon: Icon(Icons.add_circle),
-                label: Text('جديد ➕'),
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
+                label: Text('اليوم'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.folder_outlined),
@@ -141,7 +150,7 @@ class _MainLayoutScreenState extends ConsumerState<MainLayoutScreen> {
   Widget _buildBodyContent(int index, AsyncValue<OfficeSettingsModel> settingsAsync) {
     switch (index) {
       case 0:
-        return _buildNewWorkDashboard(settingsAsync);
+        return const TodayDashboardScreen();
       case 1:
         return const ArchiveScreen();
       case 2:

@@ -1,92 +1,168 @@
-/// شاشة عمل جديد لتطبيق مكتب المحامي
-/// 
-/// هذه شاشة Placeholder للمرحلة 1
-/// ستتم تطويرها في المرحلة 2
-/// 
-/// آخر تحديث: 2026-07-09
+/// شاشة عمل جديد — مسارات إنشاء حقيقية (لا Placeholder).
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../theme/app_theme.dart';
+import '../admin_procedures/create_procedure_screen.dart';
+import '../cases/create_case_wizard.dart';
+import '../companies/create_company_wizard.dart';
+import '../contracts/create_contract_screen.dart';
+import '../work_orders/work_order_dialogs.dart';
 
-class NewWorkScreen extends StatelessWidget {
+class NewWorkScreen extends ConsumerWidget {
   const NewWorkScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('عمل جديد'),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = <_NewWorkAction>[
+      _NewWorkAction(
+        title: 'دعوى قضائية',
+        subtitle: 'معالج إنشاء دعوى كاملة',
+        icon: Icons.gavel,
+        color: AppColors.primaryNavy,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CreateCaseWizard()),
+        ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_circle_outline,
-              size: 64,
-              color: AppColors.primaryNavy,
+      _NewWorkAction(
+        title: 'عقد',
+        subtitle: 'تنظيم عقد وحفظه',
+        icon: Icons.description,
+        color: AppColors.info,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CreateContractScreen()),
+        ),
+      ),
+      _NewWorkAction(
+        title: 'شركة',
+        subtitle: 'تأسيس شركة ومراحلها',
+        icon: Icons.business,
+        color: AppColors.secondaryGold,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CreateCompanyWizard()),
+        ),
+      ),
+      _NewWorkAction(
+        title: 'إجراء إداري',
+        subtitle: 'معاملة إدارية + Checklist',
+        icon: Icons.assignment,
+        color: AppColors.warning,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CreateProcedureScreen()),
+        ),
+      ),
+      _NewWorkAction(
+        title: 'أمر عمل للمعقب',
+        subtitle: 'إنشاء أمر offline (PDF/واتساب)',
+        icon: Icons.assignment_ind,
+        color: AppColors.success,
+        onTap: () => showDialog(
+          context: context,
+          builder: (_) => const CreateWorkOrderDialog(),
+        ),
+      ),
+      _NewWorkAction(
+        title: 'شخص / جهة',
+        subtitle: 'فتح دليل الأشخاص',
+        icon: Icons.person_add,
+        color: AppColors.primaryNavy,
+        onTap: () => context.go('/persons'),
+      ),
+      _NewWorkAction(
+        title: 'وكالة',
+        subtitle: 'أرشيف الوكالات',
+        icon: Icons.verified_user,
+        color: AppColors.info,
+        onTap: () => context.go('/poa'),
+      ),
+      _NewWorkAction(
+        title: 'مستند',
+        subtitle: 'إدارة المستندات',
+        icon: Icons.attach_file,
+        color: AppColors.secondaryGold,
+        onTap: () => context.go('/documents'),
+      ),
+    ];
+
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          appBar: AppBar(title: const Text('عمل جديد')),
+          body: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ابدأ عملاً جديدًا', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy)),
+                const SizedBox(height: 8),
+                Text(
+                  'اختر نوع العمل. كل مسار يفتح شاشة إدخال حقيقية.',
+                  style: AppTextStyles.bodyMediumSecondary,
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 280,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 1.35,
+                    ),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return Card(
+                        elevation: 2,
+                        child: InkWell(
+                          onTap: item.onTap,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: item.color.withOpacity(0.12),
+                                  child: Icon(item.icon, color: item.color),
+                                ),
+                                const Spacer(),
+                                Text(item.title, style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
+                                const SizedBox(height: 4),
+                                Text(item.subtitle, style: AppTextStyles.bodySmallSecondary),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'عمل جديد',
-              style: AppTextStyles.headline3,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'قيد التطوير - المرحلة 2',
-              style: AppTextStyles.bodyMediumSecondary,
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'هذه الشاشة ستسمح ب:',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            ..._buildFeatureList(),
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
-  List<Widget> _buildFeatureList() {
-    return [
-      _buildFeatureItem('بدء عمل جديد'),
-      _buildFeatureItem('أرشفة عمل سابق'),
-      _buildFeatureItem('إنشاء دعوى قضائية'),
-      _buildFeatureItem('إنشاء عقد'),
-      _buildFeatureItem('تأسيس شركة'),
-      _buildFeatureItem('إجراء إداري'),
-      _buildFeatureItem('تنظيم وكالة'),
-      _buildFeatureItem('إضافة شخص أو جهة'),
-      _buildFeatureItem('إضافة مستند مستقل'),
-      _buildFeatureItem('إنشاء أمر عمل للمعقب'),
-      _buildFeatureItem('إنشاء مهمة يدوية'),
-    ];
-  }
-
-  Widget _buildFeatureItem(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.check_circle_outline,
-            size: 20,
-            color: AppColors.success,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: AppTextStyles.bodySmall,
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _NewWorkAction {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  _NewWorkAction({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 }

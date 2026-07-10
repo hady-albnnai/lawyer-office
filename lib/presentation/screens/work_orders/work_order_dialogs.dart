@@ -1,130 +1,509 @@
-/// حوارات أوامر العمل
+import 'dart:typed_data';
+/// حوارات أوامر العمل — تنفيذ حقيقي على SQLite + PDF + واتساب.
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../core/constants/app_constants.dart';
+import '../../providers/app_providers.dart';
+import '../../providers/office_settings_provider.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import 'work_order_models.dart';
 
-class CreateWorkOrderDialog extends StatefulWidget {
-  const CreateWorkOrderDialog({super.key});
-  @override State<CreateWorkOrderDialog> createState() => _CreateWorkOrderDialogState();
-}
-class _CreateWorkOrderDialogState extends State<CreateWorkOrderDialog> {
-  String _entityType = 'case'; final _entityIdCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController(); final _phoneCtrl = TextEditingController();
-  WorkOrderType _type = WorkOrderType.courtAttendance; WorkOrderPriority _priority = WorkOrderPriority.medium;
-  DateTime _dueDate = DateTime.now().add(const Duration(days: 1));
-  final _instructionsCtrl = TextEditingController();
-  @override void dispose() { _entityIdCtrl.dispose(); _nameCtrl.dispose(); _phoneCtrl.dispose(); _instructionsCtrl.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
-    return Dialog(child: SingleChildScrollView(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text('إنشاء أمر عمل جديد', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy), textAlign: TextAlign.center),
-      const SizedBox(height: 24),
-      Text('الكيان المرتبط', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-      const SizedBox(height: 8),
-      Row(children: [Expanded(child: DropdownButtonFormField(value: _entityType, items: const [DropdownMenuItem(value: 'case', child: Text('دعوى')), DropdownMenuItem(value: 'contract', child: Text('عقد')), DropdownMenuItem(value: 'company', child: Text('شركة')), DropdownMenuItem(value: 'procedure', child: Text('إجراء'))], onChanged: (v) => setState(() => _entityType = v!), decoration: InputDecoration(labelText: 'نوع الكيان', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 12), Expanded(child: TextField(controller: _entityIdCtrl, decoration: InputDecoration(labelText: 'رقم الكيان', hintText: '2026/001', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))))]),
-      const SizedBox(height: 16),
-      Text('المكلف', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-      const SizedBox(height: 8),
-      Row(children: [Expanded(child: TextField(controller: _nameCtrl, decoration: InputDecoration(labelText: 'الاسم', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))))), const SizedBox(width: 12), Expanded(child: TextField(controller: _phoneCtrl, decoration: InputDecoration(labelText: 'الهاتف', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))), keyboardType: TextInputType.phone))]),
-      const SizedBox(height: 16),
-      DropdownButtonFormField(value: _type, items: WorkOrderType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(), onChanged: (v) => setState(() => _type = v!), decoration: InputDecoration(labelText: 'نوع الأمر', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
-      const SizedBox(height: 16),
-      DropdownButtonFormField(value: _priority, items: WorkOrderPriority.values.map((p) => DropdownMenuItem(value: p, child: Text(p.displayName))).toList(), onChanged: (v) => setState(() => _priority = v!), decoration: InputDecoration(labelText: 'الأولوية', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)))),
-      const SizedBox(height: 16),
-      Row(children: [Expanded(child: Text('الموعد: ${_dueDate.year}-${_dueDate.month.toString().padLeft(2, "0")}-${_dueDate.day.toString().padLeft(2, "0")}', style: AppTextStyles.bodyMedium)), TextButton.icon(onPressed: () async { final d = await showDatePicker(context: context, initialDate: _dueDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365))); if(d != null) setState(() => _dueDate = d); }, icon: const Icon(Icons.calendar_today), label: const Text('اختر'))]),
-      const SizedBox(height: 16),
-      TextField(controller: _instructionsCtrl, decoration: InputDecoration(labelText: 'التعليمات', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))), maxLines: 3),
-      const SizedBox(height: 24),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إنشاء أمر العمل'), backgroundColor: AppColors.success)); }, child: const Text('إنشاء'))])
-    ]))));
+String workOrderTypeToDb(WorkOrderType t) {
+  switch (t) {
+    case WorkOrderType.courtAttendance:
+      return 'court_attendance';
+    case WorkOrderType.documentPhotocopy:
+      return 'document_photocopy';
+    case WorkOrderType.feePayment:
+      return 'fee_payment';
+    case WorkOrderType.extractCopy:
+      return 'extract_copy';
+    case WorkOrderType.organizeAgency:
+      return 'organize_agency';
+    case WorkOrderType.notaryReview:
+      return 'notary_review';
+    case WorkOrderType.notificationFollowup:
+      return 'notification_followup';
+    case WorkOrderType.executionFollowup:
+      return 'execution_followup';
+    case WorkOrderType.commercialRegistry:
+      return 'commercial_registry';
+    case WorkOrderType.financialReview:
+      return 'financial_review';
+    case WorkOrderType.other:
+      return 'other';
   }
 }
 
-class EnterWorkOrderResultDialog extends StatefulWidget {
+String workOrderPriorityToDb(WorkOrderPriority p) {
+  switch (p) {
+    case WorkOrderPriority.high:
+      return 'high';
+    case WorkOrderPriority.low:
+      return 'low';
+    case WorkOrderPriority.medium:
+      return 'medium';
+  }
+}
+
+class CreateWorkOrderDialog extends ConsumerStatefulWidget {
+  const CreateWorkOrderDialog({super.key});
+
+  @override
+  ConsumerState<CreateWorkOrderDialog> createState() => _CreateWorkOrderDialogState();
+}
+
+class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _instructions = TextEditingController();
+  final _entityId = TextEditingController(text: '1');
+  WorkOrderType _type = WorkOrderType.courtAttendance;
+  WorkOrderPriority _priority = WorkOrderPriority.medium;
+  DateTime _due = DateTime.now().add(const Duration(days: 1));
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    _instructions.dispose();
+    _entityId.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('إنشاء أمر عمل للمعقب'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: _name, decoration: const InputDecoration(labelText: 'اسم المكلف *')),
+              const SizedBox(height: 10),
+              TextField(controller: _phone, decoration: const InputDecoration(labelText: 'هاتف المكلف')),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<WorkOrderType>(
+                value: _type,
+                decoration: const InputDecoration(labelText: 'نوع التكليف'),
+                items: WorkOrderType.values
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.displayName)))
+                    .toList(),
+                onChanged: (v) => setState(() => _type = v ?? _type),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<WorkOrderPriority>(
+                value: _priority,
+                decoration: const InputDecoration(labelText: 'الأولوية'),
+                items: WorkOrderPriority.values
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p.displayName)))
+                    .toList(),
+                onChanged: (v) => setState(() => _priority = v ?? _priority),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _entityId,
+                decoration: const InputDecoration(labelText: 'معرف الملف المرتبط (دعوى/إجراء)'),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('موعد التنفيذ: ${_due.toString().substring(0, 10)}'),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _due,
+                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    locale: const Locale('ar', 'SY'),
+                  );
+                  if (picked != null) setState(() => _due = picked);
+                },
+              ),
+              TextField(
+                controller: _instructions,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'تعليمات الأستاذ'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton(
+          onPressed: _saving ? null : _save,
+          child: Text(_saving ? 'جارٍ الحفظ...' : 'إنشاء وحفظ'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    if (_name.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('اسم المكلف إلزامي'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(workOrderRepositoryProvider);
+      await repo.create(
+        assignedToName: _name.text.trim(),
+        assignedToPhone: _phone.text.trim(),
+        orderType: workOrderTypeToDb(_type),
+        priority: workOrderPriorityToDb(_priority),
+        status: 'draft',
+        dueDate: _due,
+        instructions: _instructions.text.trim(),
+        createdBy: 'المحامي',
+        linkedEntityType: 0,
+        linkedEntityId: int.tryParse(_entityId.text.trim()) ?? 0,
+      );
+      ref.invalidate(uiWorkOrdersProvider);
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('تم إنشاء أمر العمل وحفظه'), backgroundColor: AppColors.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل الحفظ: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+}
+
+class EnterWorkOrderResultDialog extends ConsumerStatefulWidget {
   final WorkOrder workOrder;
   const EnterWorkOrderResultDialog({super.key, required this.workOrder});
-  @override State<EnterWorkOrderResultDialog> createState() => _EnterWorkOrderResultDialogState();
+
+  @override
+  ConsumerState<EnterWorkOrderResultDialog> createState() => _EnterWorkOrderResultDialogState();
 }
-class _EnterWorkOrderResultDialogState extends State<EnterWorkOrderResultDialog> {
+
+class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResultDialog> {
   WorkOrderResultStatus? _status = WorkOrderResultStatus.completed;
-  final _resultCtrl = TextEditingController(); final _nextDateCtrl = TextEditingController();
-  final _expensesCtrl = TextEditingController(); final _notesCtrl = TextEditingController();
-  @override void dispose() { _resultCtrl.dispose(); _nextDateCtrl.dispose(); _expensesCtrl.dispose(); _notesCtrl.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
-    return Dialog(child: SingleChildScrollView(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text('إدخال نتيجة أمر العمل', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy), textAlign: TextAlign.center),
-      const SizedBox(height: 8), Text('الأمر: ${widget.workOrder.internalNumber}', style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
-      const SizedBox(height: 24),
-      Text('نتيجة الأمر', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, runSpacing: 8, children: WorkOrderResultStatus.values.map((s) => InkWell(onTap: () => setState(() => _status = s), borderRadius: BorderRadius.circular(8), child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: _status == s ? AppColors.primaryNavy.withOpacity(0.1) : AppColors.cardBackground, borderRadius: BorderRadius.circular(8), border: Border.all(color: _status == s ? AppColors.primaryNavy : AppColors.cardBorder, width: _status == s ? 2 : 0.5)), child: Text(s.displayName, style: AppTextStyles.bodySmall.copyWith(color: _status == s ? AppColors.primaryNavy : AppColors.textSecondary, fontWeight: _status == s ? FontWeight.bold : FontWeight.normal))))).toList()),
-      const SizedBox(height: 16),
-      Text('وصف النتيجة', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-      const SizedBox(height: 8),
-      TextField(controller: _resultCtrl, decoration: InputDecoration(labelText: 'النتيجة', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))), maxLines: 3),
-      const SizedBox(height: 16),
-      TextField(controller: _nextDateCtrl, decoration: InputDecoration(labelText: 'الموعد القادم', hintText: 'اختياري', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), prefixIcon: Icon(Icons.calendar_today)), readOnly: true, onTap: () async { final d = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365))); if(d != null) _nextDateCtrl.text = '${d.year}-${d.month.toString().padLeft(2, "0")}-${d.day.toString().padLeft(2, "0")}'; }),
-      const SizedBox(height: 16),
-      TextField(controller: _expensesCtrl, decoration: InputDecoration(labelText: 'المصاريف', hintText: 'ل.س', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), prefixText: 'ل.س '), keyboardType: TextInputType.number),
-      const SizedBox(height: 16),
-      TextField(controller: _notesCtrl, decoration: InputDecoration(labelText: 'ملاحظات', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))), maxLines: 3),
-      const SizedBox(height: 24),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton(onPressed: () { if(_status != null) { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ النتيجة'), backgroundColor: AppColors.success)); } }, child: const Text('حفظ'))])
-    ]))));
+  final _result = TextEditingController();
+  DateTime? _nextDate;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _result.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('نتيجة أمر ${widget.workOrder.internalNumber}'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<WorkOrderResultStatus>(
+              value: _status,
+              decoration: const InputDecoration(labelText: 'نتيجة التنفيذ'),
+              items: WorkOrderResultStatus.values
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s.displayName)))
+                  .toList(),
+              onChanged: (v) => setState(() => _status = v),
+            ),
+            const SizedBox(height: 10),
+            TextField(controller: _result, maxLines: 3, decoration: const InputDecoration(labelText: 'تفاصيل النتيجة')),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(_nextDate == null ? 'موعد لاحق (اختياري)' : 'موعد لاحق: ${_nextDate!.toString().substring(0, 10)}'),
+              trailing: const Icon(Icons.event),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 1)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) setState(() => _nextDate = picked);
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton(onPressed: _saving ? null : _save, child: const Text('حفظ النتيجة')),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    if (_status == null) return;
+    setState(() => _saving = true);
+    try {
+      final id = int.tryParse(widget.workOrder.id);
+      if (id == null) throw Exception('معرف غير صالح');
+      await ref.read(workOrderRepositoryProvider).enterResult(
+            id: id,
+            resultStatus: _status!.name,
+            resultText: _result.text.trim().isEmpty ? _status!.displayName : _result.text.trim(),
+            nextDate: _nextDate,
+            userRef: 'المكتب',
+          );
+      // بعد إدخال النتيجة تصبح بانتظار الاعتماد
+      await ref.read(workOrderRepositoryProvider).setStatus(id, 'waiting_for_approval', userRef: 'المكتب');
+      ref.invalidate(uiWorkOrdersProvider);
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('تم حفظ النتيجة في قاعدة البيانات'), backgroundColor: AppColors.success),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 
-class ApproveWorkOrderDialog extends StatelessWidget {
+class ApproveWorkOrderDialog extends ConsumerWidget {
   final WorkOrder workOrder;
   const ApproveWorkOrderDialog({super.key, required this.workOrder});
-  @override Widget build(BuildContext context) {
-    return Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text('اعتماد نتيجة أمر العمل', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy), textAlign: TextAlign.center),
-      const SizedBox(height: 8), Text('الأمر: ${workOrder.internalNumber}', style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
-      const SizedBox(height: 24),
-      if(workOrder.resultStatus != null) ...[Column(children: [Text('النتيجة: ${workOrder.resultStatus!.displayName}', style: AppTextStyles.bodyMedium), const SizedBox(height: 8), if(workOrder.resultText != null) Text('الوصف: ${workOrder.resultText}', style: AppTextStyles.bodySmall), if(workOrder.nextDate != null) Text('الموعد القادم: ${workOrder.nextDate!.year}-${workOrder.nextDate!.month}-${workOrder.nextDate!.day}', style: AppTextStyles.bodySmall)])],
-      const SizedBox(height: 24),
-      Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.warning, width: 0.5)), child: Row(children: [Icon(Icons.info_outline, color: AppColors.warning, size: 20), const SizedBox(width: 8), Expanded(child: Text('بعد الاعتماد، سيتم معالجتها تلقائياً', style: AppTextStyles.bodySmall))])),
-      const SizedBox(height: 24),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم الاعتماد'), backgroundColor: AppColors.success)); }, style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: AppColors.textOnLight), child: const Text('اعتماد'))])
-    ])));
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AlertDialog(
+      title: const Text('اعتماد نتيجة أمر العمل'),
+      content: Text('اعتماد ${workOrder.internalNumber}؟\n${workOrder.resultText ?? ''}'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: AppColors.textOnLight),
+          onPressed: () async {
+            final id = int.tryParse(workOrder.id);
+            if (id == null) return;
+            await ref.read(workOrderRepositoryProvider).approve(id, userRef: 'الأستاذ');
+            ref.invalidate(uiWorkOrdersProvider);
+            if (context.mounted) {
+              Navigator.pop(context, true);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: const Text('تم الاعتماد وحفظه'), backgroundColor: AppColors.success),
+              );
+            }
+          },
+          child: const Text('اعتماد'),
+        ),
+      ],
+    );
   }
 }
 
-class PrintWorkOrderDialog extends StatelessWidget {
+class PrintWorkOrderDialog extends ConsumerWidget {
   final WorkOrder workOrder;
   const PrintWorkOrderDialog({super.key, required this.workOrder});
-  @override Widget build(BuildContext context) {
-    return Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text('طباعة أمر العمل', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy), textAlign: TextAlign.center),
-      const SizedBox(height: 8), Text('الأمر: ${workOrder.internalNumber}', style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
-      const SizedBox(height: 24),
-      Text('اختر طريقة الطباعة:', style: AppTextStyles.labelLarge),
-      const SizedBox(height: 16),
-      ElevatedButton.icon(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم توليد PDF'), backgroundColor: AppColors.success)); }, icon: const Icon(Icons.picture_as_pdf), label: const Text('توليد PDF'), style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12))),
-      const SizedBox(height: 12),
-      OutlinedButton.icon(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إرسال إلى الطابعة'), backgroundColor: AppColors.info)); }, icon: const Icon(Icons.print), label: const Text('طباعة مباشرة'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12))),
-      const SizedBox(height: 24), TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء'))
-    ])));
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AlertDialog(
+      title: Text('طباعة ${workOrder.internalNumber}'),
+      content: const Text('سيتم توليد PDF رسمي وتحديث حالة الأمر إلى «مطبوع».'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.picture_as_pdf),
+          label: const Text('توليد PDF وحفظ الحالة'),
+          onPressed: () async {
+            final settings = ref.read(officeSettingsProvider).maybeWhen(
+                  data: (s) => s,
+                  orElse: () => const OfficeSettingsModel(
+                    officeTitle: AppConstants.defaultOfficeTitle,
+                    lawyerName: AppConstants.defaultLawyerName,
+                    officeAddress: AppConstants.defaultAddress,
+                    officePhone: AppConstants.defaultPhone,
+                  ),
+                );
+            final bytes = await WorkOrderPdfBuilder.build(settings: settings, order: workOrder);
+            final id = int.tryParse(workOrder.id);
+            if (id != null) {
+              await ref.read(workOrderRepositoryProvider).markPrinted(id, userRef: 'المكتب');
+              ref.invalidate(uiWorkOrdersProvider);
+            }
+            await Printing.layoutPdf(onLayout: (_) async => bytes, name: '${workOrder.internalNumber}.pdf');
+            if (context.mounted) {
+              Navigator.pop(context, true);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: const Text('تم توليد PDF وتحديث الحالة'), backgroundColor: AppColors.success),
+              );
+            }
+          },
+        ),
+      ],
+    );
   }
 }
 
-class WhatsAppDialog extends StatelessWidget {
+class WhatsAppDialog extends ConsumerWidget {
   final WorkOrder workOrder;
   const WhatsAppDialog({super.key, required this.workOrder});
-  @override Widget build(BuildContext context) {
-    final msg = 'مكتب المحامي - هادي فيصل البني\n\nرقم الأمر: ${workOrder.internalNumber}\nنوع الأمر: ${workOrder.orderTypeText}\n\nالمكلف: ${workOrder.assignedToName}\n\nالمطلوب: ${workOrder.instructions}\n\nالموعد: ${workOrder.dueDate.year}-${workOrder.dueDate.month.toString().padLeft(2, "0")}-${workOrder.dueDate.day.toString().padLeft(2, "0")}\n\nالرجاء إرسال صور المرفقات بعد الانتهاء.';
-    return Dialog(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text('إرسال عبر واتساب', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy), textAlign: TextAlign.center),
-      const SizedBox(height: 8), Text('الأمر: ${workOrder.internalNumber}', style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
-      const SizedBox(height: 24),
-      Text('نص الرسالة:', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-      const SizedBox(height: 8),
-      Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.backgroundLight, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.cardBorder, width: 0.5)), child: Text(msg, style: AppTextStyles.bodySmall)),
-      const SizedBox(height: 16),
-      Row(children: [Icon(Icons.phone, color: AppColors.textSecondary, size: 18), const SizedBox(width: 8), Text('إلى: ${workOrder.assignedToName} - ${workOrder.assignedToPhone}', style: AppTextStyles.bodySmall)]),
-      const SizedBox(height: 24),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')), const SizedBox(width: 12), ElevatedButton.icon(onPressed: () { Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إرسال واتساب'), backgroundColor: AppColors.success)); }, icon: const Icon(Icons.message), label: const Text('إرسال واتساب'), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: AppColors.textOnLight))])
-    ])));
+
+  String _message(OfficeSettingsModel settings) {
+    final due = '${workOrder.dueDate.year}-${workOrder.dueDate.month.toString().padLeft(2, '0')}-${workOrder.dueDate.day.toString().padLeft(2, '0')}';
+    return '''
+السلام عليكم ${workOrder.assignedToName}،
+أمر عمل من ${settings.officeTitle}
+الأستاذ: ${settings.lawyerName}
+رقم الأمر: ${workOrder.internalNumber}
+الملف: ${workOrder.linkedEntityType} ${workOrder.linkedEntityId}
+المطلوب: ${workOrder.orderTypeText}
+الموعد: $due
+التعليمات: ${workOrder.instructions}
+يرجى تنفيذ المطلوب وإرسال صور المرفقات إن وجدت.
+'''.trim();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(officeSettingsProvider).maybeWhen(
+          data: (s) => s,
+          orElse: () => const OfficeSettingsModel(
+            officeTitle: AppConstants.defaultOfficeTitle,
+            lawyerName: AppConstants.defaultLawyerName,
+            officeAddress: AppConstants.defaultAddress,
+            officePhone: AppConstants.defaultPhone,
+          ),
+        );
+    final msg = _message(settings);
+    return AlertDialog(
+      title: const Text('رسالة واتساب للمعقب'),
+      content: SizedBox(
+        width: 480,
+        child: SelectableText(msg, style: AppTextStyles.bodyMedium),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.copy),
+          label: const Text('نسخ'),
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: msg));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: const Text('تم نسخ الرسالة'), backgroundColor: AppColors.info),
+              );
+            }
+          },
+        ),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.message),
+          label: const Text('فتح واتساب وتحديث الحالة'),
+          onPressed: () async {
+            final phone = workOrder.assignedToPhone.replaceAll(RegExp(r'[^0-9]'), '');
+            final uri = Uri.parse(
+              phone.isEmpty
+                  ? 'https://wa.me/?text=${Uri.encodeComponent(msg)}'
+                  : 'https://wa.me/$phone?text=${Uri.encodeComponent(msg)}',
+            );
+            final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+            final id = int.tryParse(workOrder.id);
+            if (id != null) {
+              await ref.read(workOrderRepositoryProvider).markWhatsAppSent(id, userRef: 'المكتب');
+              ref.invalidate(uiWorkOrdersProvider);
+            }
+            if (context.mounted) {
+              Navigator.pop(context, true);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(ok ? 'تم فتح واتساب وتحديث الحالة' : 'تم تحديث الحالة (تعذر فتح واتساب تلقائياً — انسخ الرسالة)'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class WorkOrderPdfBuilder {
+  static Future<Uint8List> build({
+    required OfficeSettingsModel settings,
+    required WorkOrder order,
+  }) async {
+    final pdf = pw.Document();
+    final font = await PdfGoogleFonts.cairoRegular();
+    final bold = await PdfGoogleFonts.cairoBold();
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: font, bold: bold),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.Text(settings.officeTitle, style: pw.TextStyle(font: bold, fontSize: 18), textAlign: pw.TextAlign.center),
+            pw.Text('الأستاذ: ${settings.lawyerName}', textAlign: pw.TextAlign.center),
+            pw.SizedBox(height: 8),
+            pw.Divider(),
+            pw.Text('أمر عمل للمعقب', style: pw.TextStyle(font: bold, fontSize: 16), textAlign: pw.TextAlign.center),
+            pw.SizedBox(height: 12),
+            _row('رقم الأمر', order.internalNumber, bold),
+            _row('المكلف', '${order.assignedToName} — ${order.assignedToPhone}', font),
+            _row('النوع', order.orderTypeText, font),
+            _row('الأولوية', order.priorityText, font),
+            _row('الملف', '${order.linkedEntityType} ${order.linkedEntityId}', font),
+            _row('الموعد', order.dueDate.toString().substring(0, 10), font),
+            _row('الحالة', order.statusText, font),
+            pw.SizedBox(height: 10),
+            pw.Text('التعليمات:', style: pw.TextStyle(font: bold)),
+            pw.Text(order.instructions.isEmpty ? '—' : order.instructions),
+            pw.Spacer(),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('توقيع المعقب: ............'),
+                pw.Text('ختم المكتب: ............'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    return pdf.save();
+  }
+
+  static pw.Widget _row(String k, String v, pw.Font font) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 6),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [pw.Text(k, style: pw.TextStyle(font: font)), pw.Text(v, style: pw.TextStyle(font: font))],
+      ),
+    );
   }
 }

@@ -8,23 +8,45 @@ class WorkOrderRepository {
 
   Stream<List<WorkOrder>> watchAll() => _dao.watchAll();
   Future<List<WorkOrder>> getAll() => _dao.getAll();
+  Future<WorkOrder?> getById(int id) async {
+    final all = await _dao.getAll();
+    for (final w in all) {
+      if (w.id == id) return w;
+    }
+    return null;
+  }
+
+  Future<String> nextInternalNumber() async {
+    final year = DateTime.now().year;
+    final all = await _dao.getAll();
+    var maxSeq = 0;
+    final prefix = 'WO-$year-';
+    for (final w in all) {
+      if (w.internalNumber.startsWith(prefix)) {
+        final seq = int.tryParse(w.internalNumber.substring(prefix.length)) ?? 0;
+        if (seq > maxSeq) maxSeq = seq;
+      }
+    }
+    return '$prefix${(maxSeq + 1).toString().padLeft(3, '0')}';
+  }
 
   Future<int> create({
-    required String internalNumber,
+    String? internalNumber,
     required String assignedToName,
     String? assignedToPhone,
     required String orderType,
     required String priority,
-    required String status,
+    String status = 'draft',
     required DateTime dueDate,
     String? instructions,
     String? createdBy,
     int linkedEntityType = 0,
     int linkedEntityId = 0,
-  }) {
-    return _dao.insertOrder(
+  }) async {
+    final number = internalNumber ?? await nextInternalNumber();
+    final id = await _dao.insertOrder(
       WorkOrdersCompanion.insert(
-        internalNumber: internalNumber,
+        internalNumber: number,
         assignedToName: assignedToName,
         assignedToPhone: Value(assignedToPhone),
         orderType: orderType,
@@ -37,6 +59,190 @@ class WorkOrderRepository {
         linkedEntityId: Value(linkedEntityId),
       ),
     );
+    await _log('work_orders', id, 'insert', createdBy, 'إنشاء أمر عمل $number');
+    return id;
+  }
+
+  Future<void> markPrinted(int id, {String? userRef}) async {
+    final current = await getById(id);
+    if (current == null) return;
+    await _dao.updateOrder(
+      WorkOrdersCompanion(
+        id: Value(id),
+        internalNumber: Value(current.internalNumber),
+        linkedEntityType: Value(current.linkedEntityType),
+        linkedEntityId: Value(current.linkedEntityId),
+        assignedToName: Value(current.assignedToName),
+        assignedToPhone: Value(current.assignedToPhone),
+        orderType: Value(current.orderType),
+        priority: Value(current.priority),
+        status: const Value('printed'),
+        dueDate: Value(current.dueDate),
+        instructions: Value(current.instructions),
+        createdBy: Value(current.createdBy),
+        printedAt: Value(DateTime.now()),
+        whatsappSentAt: Value(current.whatsappSentAt),
+        resultStatus: Value(current.resultStatus),
+        resultText: Value(current.resultText),
+        resultDate: Value(current.resultDate),
+        nextDate: Value(current.nextDate),
+        approvedAt: Value(current.approvedAt),
+        createdAt: Value(current.createdAt),
+      ),
+    );
+    await _log('work_orders', id, 'update', userRef, 'طباعة أمر العمل');
+  }
+
+  Future<void> markWhatsAppSent(int id, {String? userRef}) async {
+    final current = await getById(id);
+    if (current == null) return;
+    await _dao.updateOrder(
+      WorkOrdersCompanion(
+        id: Value(id),
+        internalNumber: Value(current.internalNumber),
+        linkedEntityType: Value(current.linkedEntityType),
+        linkedEntityId: Value(current.linkedEntityId),
+        assignedToName: Value(current.assignedToName),
+        assignedToPhone: Value(current.assignedToPhone),
+        orderType: Value(current.orderType),
+        priority: Value(current.priority),
+        status: const Value('waiting_for_result'),
+        dueDate: Value(current.dueDate),
+        instructions: Value(current.instructions),
+        createdBy: Value(current.createdBy),
+        printedAt: Value(current.printedAt ?? DateTime.now()),
+        whatsappSentAt: Value(DateTime.now()),
+        resultStatus: Value(current.resultStatus),
+        resultText: Value(current.resultText),
+        resultDate: Value(current.resultDate),
+        nextDate: Value(current.nextDate),
+        approvedAt: Value(current.approvedAt),
+        createdAt: Value(current.createdAt),
+      ),
+    );
+    await _log('work_orders', id, 'update', userRef, 'إرسال واتساب / بانتظار النتيجة');
+  }
+
+  Future<void> enterResult({
+    required int id,
+    required String resultStatus,
+    required String resultText,
+    DateTime? nextDate,
+    String? userRef,
+  }) async {
+    final current = await getById(id);
+    if (current == null) return;
+    await _dao.updateOrder(
+      WorkOrdersCompanion(
+        id: Value(id),
+        internalNumber: Value(current.internalNumber),
+        linkedEntityType: Value(current.linkedEntityType),
+        linkedEntityId: Value(current.linkedEntityId),
+        assignedToName: Value(current.assignedToName),
+        assignedToPhone: Value(current.assignedToPhone),
+        orderType: Value(current.orderType),
+        priority: Value(current.priority),
+        status: const Value('result_entered'),
+        dueDate: Value(current.dueDate),
+        instructions: Value(current.instructions),
+        createdBy: Value(current.createdBy),
+        printedAt: Value(current.printedAt),
+        whatsappSentAt: Value(current.whatsappSentAt),
+        resultStatus: Value(resultStatus),
+        resultText: Value(resultText),
+        resultDate: Value(DateTime.now()),
+        nextDate: Value(nextDate),
+        approvedAt: Value(current.approvedAt),
+        createdAt: Value(current.createdAt),
+      ),
+    );
+    await _log('work_orders', id, 'update', userRef, 'إدخال نتيجة: $resultStatus');
+  }
+
+  Future<void> approve(int id, {String? userRef}) async {
+    final current = await getById(id);
+    if (current == null) return;
+    await _dao.updateOrder(
+      WorkOrdersCompanion(
+        id: Value(id),
+        internalNumber: Value(current.internalNumber),
+        linkedEntityType: Value(current.linkedEntityType),
+        linkedEntityId: Value(current.linkedEntityId),
+        assignedToName: Value(current.assignedToName),
+        assignedToPhone: Value(current.assignedToPhone),
+        orderType: Value(current.orderType),
+        priority: Value(current.priority),
+        status: const Value('approved'),
+        dueDate: Value(current.dueDate),
+        instructions: Value(current.instructions),
+        createdBy: Value(current.createdBy),
+        printedAt: Value(current.printedAt),
+        whatsappSentAt: Value(current.whatsappSentAt),
+        resultStatus: Value(current.resultStatus),
+        resultText: Value(current.resultText),
+        resultDate: Value(current.resultDate),
+        nextDate: Value(current.nextDate),
+        approvedAt: Value(DateTime.now()),
+        createdAt: Value(current.createdAt),
+      ),
+    );
+
+    // أتمتة بسيطة: إن وُجد nextDate اربط كحدث timeline على الكيان المرتبط
+    if (current.nextDate != null) {
+      await _dao.db.into(_dao.db.timelineEvents).insert(
+            TimelineEventsCompanion.insert(
+              entityType: current.linkedEntityType,
+              entityId: current.linkedEntityId,
+              eventType: 'work_order_approved',
+              eventDate: Value(DateTime.now()),
+              description: 'اعتماد أمر ${current.internalNumber} — موعد لاحق: ${current.nextDate}',
+              userRef: Value(userRef),
+            ),
+          );
+    }
+    await _log('work_orders', id, 'update', userRef, 'اعتماد أمر العمل');
+  }
+
+  Future<void> setStatus(int id, String status, {String? userRef}) async {
+    final current = await getById(id);
+    if (current == null) return;
+    await _dao.updateOrder(
+      WorkOrdersCompanion(
+        id: Value(id),
+        internalNumber: Value(current.internalNumber),
+        linkedEntityType: Value(current.linkedEntityType),
+        linkedEntityId: Value(current.linkedEntityId),
+        assignedToName: Value(current.assignedToName),
+        assignedToPhone: Value(current.assignedToPhone),
+        orderType: Value(current.orderType),
+        priority: Value(current.priority),
+        status: Value(status),
+        dueDate: Value(current.dueDate),
+        instructions: Value(current.instructions),
+        createdBy: Value(current.createdBy),
+        printedAt: Value(current.printedAt),
+        whatsappSentAt: Value(current.whatsappSentAt),
+        resultStatus: Value(current.resultStatus),
+        resultText: Value(current.resultText),
+        resultDate: Value(current.resultDate),
+        nextDate: Value(current.nextDate),
+        approvedAt: Value(current.approvedAt),
+        createdAt: Value(current.createdAt),
+      ),
+    );
+    await _log('work_orders', id, 'update', userRef, 'تغيير الحالة إلى $status');
+  }
+
+  Future<void> _log(String table, int id, String action, String? user, String details) async {
+    await _dao.db.into(_dao.db.activityLog).insert(
+          ActivityLogCompanion.insert(
+            affectedTable: table,
+            recordId: id,
+            action: action,
+            userRef: Value(user),
+            details: Value(details),
+          ),
+        );
   }
 
   Future<void> seedDemoIfEmpty() async {
@@ -44,11 +250,11 @@ class WorkOrderRepository {
     if (existing.isNotEmpty) return;
     final now = DateTime.now();
     final samples = [
-      ('WO-2026-001', 'أحمد محمد', '0912345678', 'court_attendance', 'high', 'draft', now, 'حضور جلسة الدعوى 2026/001'),
-      ('WO-2026-002', 'محمد أحمد', '0987654321', 'document_photocopy', 'medium', 'printed', now.add(const Duration(days: 1)), 'تصوير ضبط المحكمة'),
-      ('WO-2026-003', 'أحمد محمد', '0912345678', 'fee_payment', 'high', 'waiting_for_result', now.subtract(const Duration(days: 1)), 'دفع رسم الدعوى'),
-      ('WO-2026-004', 'محمد أحمد', '0987654321', 'notary_review', 'low', 'result_entered', now.add(const Duration(days: 2)), 'مراجعة كاتب عدل'),
-      ('WO-2026-005', 'أحمد محمد', '0912345678', 'execution_followup', 'medium', 'waiting_for_approval', now.add(const Duration(days: 3)), 'متابعة تنفيذ'),
+      ('WO-${now.year}-001', 'أحمد محمد', '0912345678', 'court_attendance', 'high', 'draft', now, 'حضور جلسة الدعوى'),
+      ('WO-${now.year}-002', 'محمد أحمد', '0987654321', 'document_photocopy', 'medium', 'printed', now.add(const Duration(days: 1)), 'تصوير ضبط المحكمة'),
+      ('WO-${now.year}-003', 'أحمد محمد', '0912345678', 'fee_payment', 'high', 'waiting_for_result', now.subtract(const Duration(days: 1)), 'دفع رسم الدعوى'),
+      ('WO-${now.year}-004', 'محمد أحمد', '0987654321', 'notary_review', 'low', 'result_entered', now.add(const Duration(days: 2)), 'مراجعة كاتب عدل'),
+      ('WO-${now.year}-005', 'أحمد محمد', '0912345678', 'execution_followup', 'medium', 'waiting_for_approval', now.add(const Duration(days: 3)), 'متابعة تنفيذ'),
     ];
     for (final s in samples) {
       await create(
@@ -60,7 +266,7 @@ class WorkOrderRepository {
         status: s.$6,
         dueDate: s.$7,
         instructions: s.$8,
-        createdBy: 'هادي البني',
+        createdBy: 'المكتب',
         linkedEntityType: 0,
         linkedEntityId: 1,
       );
