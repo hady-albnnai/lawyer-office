@@ -26,3 +26,14 @@ flutter test → 25/25 passed
 
 **المرحلة 10: مكتملة 100%.**  
 **المراحل 1–10: مكتملة.**
+
+
+### Windows CI — إغلاق المرحلة 10 والمشروع
+
+```text
+Run ID: 29109861767
+Commit: adecaf1
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
+```
