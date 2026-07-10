@@ -366,7 +366,6 @@ class LegalLibraryNotifier extends StateNotifier<LegalLibraryState> {
     if (repo == null || _ready) return;
     _ready = true;
     try {
-      await repo.seedDemoIfEmpty();
       await reload();
     } catch (_) {
       if (state.items.isEmpty) state = _seedState();

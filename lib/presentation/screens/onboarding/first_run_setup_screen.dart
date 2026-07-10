@@ -9,6 +9,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/crypto_utils.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/office_settings_provider.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -162,20 +163,24 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
           );
 
       if (_seedDemo) {
+        ref.read(allowDemoSeedProvider.notifier).state = true;
         await ref.read(personRepositoryProvider).seedDemoIfEmpty();
         await ref.read(caseRepositoryProvider).seedDemoIfEmpty();
         await ref.read(documentRepositoryProvider).seedDemoIfEmpty();
         await ref.read(workOrderRepositoryProvider).seedDemoIfEmpty();
         await ref.read(financeRepositoryProvider).seedDemoIfEmpty();
         await ref.read(legalLibraryRepositoryProvider).seedDemoIfEmpty();
+      } else {
+        ref.read(allowDemoSeedProvider.notifier).state = false;
       }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(kFirstRunDoneKey, true);
+      await prefs.setBool('demo_seed_enabled', _seedDemo);
       await prefs.setString('security_password_hash_hint', CryptoUtils.hashPassword(_password.text).substring(0, 8));
 
       ref.invalidate(firstRunCompletedProvider);
-      if (mounted) context.go('/');
+      if (mounted) context.go('/today');
     } catch (e) {
       _err('فشل الإعداد: $e');
     } finally {

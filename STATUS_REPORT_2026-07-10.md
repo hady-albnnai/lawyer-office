@@ -490,3 +490,13 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
 - دليل الزبون `CLIENT_RUNBOOK.md`
 - خطة التسليم `DELIVERY_100_PLAN.md`
 - اختبارات `stage13_delivery_critical_test.dart`
+
+
+---
+
+## ✅ تحديث التسليم النهائي — توحيد الملاحة ومكتب فاضي (2026-07-10)
+
+- ShellRoute + `MainShellScreen` + `AppSidebar` موحّد لكل التبويبات.
+- المسارات: `/today /agenda /new-work /files /persons /work-orders /finance /documents /legal-library /search-reports /settings`.
+- لا بذر تجريبي تلقائي (فقط إذا اختاره الزبون بأول تشغيل).
+- `BUILD_RELEASE.md` + `RELEASE_NOTES_v1.0.md` + `CLIENT_RUNBOOK.md`.

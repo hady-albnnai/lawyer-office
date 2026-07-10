@@ -13,16 +13,24 @@ import 'app_providers.dart';
 // Bootstrap seeds for remaining modules
 // =============================================================================
 
+/// هل يُسمح ببذر بيانات تجريبية؟ (يُفعّل فقط من معالج أول تشغيل عند اختيار الزبون)
+final allowDemoSeedProvider = StateProvider<bool>((ref) => false);
+
 final coreDataBootstrapProvider = FutureProvider<void>((ref) async {
+  final settingsRepo = ref.watch(settingsRepositoryProvider);
+  await settingsRepo.ensureDefaults();
+
+  // لا تُزرع بيانات تجريبية تلقائياً — فقط عند السماح الصريح.
+  final allowDemo = ref.watch(allowDemoSeedProvider);
+  if (!allowDemo) return;
+
   final personRepo = ref.watch(personRepositoryProvider);
   final caseRepo = ref.watch(caseRepositoryProvider);
   final docRepo = ref.watch(documentRepositoryProvider);
   final woRepo = ref.watch(workOrderRepositoryProvider);
   final financeRepo = ref.watch(financeRepositoryProvider);
   final legalRepo = ref.watch(legalLibraryRepositoryProvider);
-  final settingsRepo = ref.watch(settingsRepositoryProvider);
 
-  await settingsRepo.ensureDefaults();
   await personRepo.seedDemoIfEmpty();
   await caseRepo.seedDemoIfEmpty();
   await docRepo.seedDemoIfEmpty();

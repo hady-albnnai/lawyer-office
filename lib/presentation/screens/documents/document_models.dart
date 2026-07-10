@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../../data/database/database.dart' as db;
 
 /// نماذج نظام المستندات والمرفقات المشتركة بين شاشات المستندات والدعاوى.
@@ -128,7 +129,9 @@ final documentsProvider = Provider<List<DocumentItem>>((ref) {
 
 final documentsFutureProvider = FutureProvider<List<DocumentItem>>((ref) async {
   final repo = ref.watch(documentRepositoryProvider);
-  await repo.seedDemoIfEmpty();
+  if (ref.read(allowDemoSeedProvider)) {
+    await repo.seedDemoIfEmpty();
+  }
   final docs = await repo.getAllDocuments();
   final links = await repo.getAllLinks();
   final byDoc = <int, db.DocumentLink>{};

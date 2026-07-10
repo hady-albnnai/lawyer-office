@@ -8,6 +8,7 @@ import '../screens/cases/cases_screen.dart';
 import '../screens/cases/create_case_wizard.dart';
 import '../screens/dashboard/today_dashboard_screen.dart';
 import '../screens/documents/documents_screen.dart';
+import '../screens/files/files_screen.dart';
 import '../screens/finance/finance_screen.dart';
 import '../screens/legal_library/legal_library_screen.dart';
 import '../screens/main_layout_screen.dart';
@@ -24,27 +25,40 @@ import '../screens/work_orders/work_orders_screen.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   final firstRun = ref.watch(firstRunCompletedProvider);
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/today',
     redirect: (context, state) {
       final done = firstRun.maybeWhen(data: (v) => v, orElse: () => true);
-      final onSetup = state.matchedLocation == '/setup';
+      final loc = state.matchedLocation;
+      final onSetup = loc == '/setup';
       if (!done && !onSetup) return '/setup';
-      if (done && onSetup) return '/';
+      if (done && onSetup) return '/today';
+      if (loc == '/') return '/today';
       return null;
     },
     routes: [
-      GoRoute(path: '/setup', name: 'setup', builder: (_, __) => const FirstRunSetupScreen()),
-      GoRoute(path: '/', name: 'home', builder: (_, __) => const MainLayoutScreen()),
-      GoRoute(path: '/today', name: 'today', builder: (_, __) => const TodayDashboardScreen()),
-      GoRoute(path: '/agenda', name: 'agenda', builder: (_, __) => const AgendaScreen()),
-      GoRoute(path: '/new-work', name: 'new-work', builder: (_, __) => const NewWorkScreen()),
-      GoRoute(path: '/work-orders', name: 'work-orders', builder: (_, __) => const WorkOrdersScreen()),
-      GoRoute(path: '/search-reports', name: 'search-reports', builder: (_, __) => const SearchReportsScreen()),
-      GoRoute(path: '/finance', name: 'finance', builder: (_, __) => const FinanceScreen()),
-      GoRoute(path: '/legal-library', name: 'legal-library', builder: (_, __) => const LegalLibraryScreen()),
-      GoRoute(path: '/settings', name: 'settings', builder: (_, __) => const SettingsScreen()),
-      GoRoute(path: '/documents', name: 'documents', builder: (_, __) => const DocumentsScreen()),
-      GoRoute(path: '/persons', name: 'persons', builder: (_, __) => const PersonsScreen()),
+      GoRoute(
+        path: '/setup',
+        name: 'setup',
+        builder: (_, __) => const FirstRunSetupScreen(),
+      ),
+      ShellRoute(
+        builder: (context, state, child) => MainShellScreen(child: child),
+        routes: [
+          GoRoute(path: '/today', name: 'today', builder: (_, __) => const TodayDashboardScreen()),
+          GoRoute(path: '/agenda', name: 'agenda', builder: (_, __) => const AgendaScreen()),
+          GoRoute(path: '/new-work', name: 'new-work', builder: (_, __) => const NewWorkScreen()),
+          GoRoute(path: '/files', name: 'files', builder: (_, __) => const FilesScreen()),
+          GoRoute(path: '/persons', name: 'persons', builder: (_, __) => const PersonsScreen()),
+          GoRoute(path: '/work-orders', name: 'work-orders', builder: (_, __) => const WorkOrdersScreen()),
+          GoRoute(path: '/finance', name: 'finance', builder: (_, __) => const FinanceScreen()),
+          GoRoute(path: '/documents', name: 'documents', builder: (_, __) => const DocumentsScreen()),
+          GoRoute(path: '/legal-library', name: 'legal-library', builder: (_, __) => const LegalLibraryScreen()),
+          GoRoute(path: '/search-reports', name: 'search-reports', builder: (_, __) => const SearchReportsScreen()),
+          GoRoute(path: '/settings', name: 'settings', builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/cases', name: 'cases', builder: (_, __) => const CasesScreen()),
+        ],
+      ),
+      // Detail routes outside shell (full page with back)
       GoRoute(
         path: '/persons/:personId',
         name: 'person-detail',
@@ -56,7 +70,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'poa-detail',
         builder: (_, state) => PoaDetailScreen(agencyId: state.pathParameters['agencyId'] ?? ''),
       ),
-      GoRoute(path: '/cases', name: 'cases', builder: (_, __) => const CasesScreen()),
       GoRoute(path: '/cases/create', name: 'case-create', builder: (_, __) => const CreateCaseWizard()),
       GoRoute(
         path: '/cases/:caseId',
@@ -66,16 +79,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return CaseDetailScreen(caseId: caseId);
         },
       ),
+      // legacy root
+      GoRoute(path: '/', redirect: (_, __) => '/today'),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(child: Text('خطأ في الملاحة: ${state.error}')),
     ),
   );
 });
-
-/// توافق خلفي لبعض الاستدعاءات القديمة.
-final GoRouter appRouter = GoRouter(
-  routes: [
-    GoRoute(path: '/', builder: (_, __) => const MainLayoutScreen()),
-  ],
-);

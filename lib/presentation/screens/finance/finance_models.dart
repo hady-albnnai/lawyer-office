@@ -546,7 +546,6 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
     if (repo == null || _bootstrapped) return;
     _bootstrapped = true;
     try {
-      await repo.seedDemoIfEmpty();
       await reload();
     } catch (_) {
       // إن فشل DB في بيئة بلا ملفات، نُبقي الحالة الحالية.

@@ -1,14 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'presentation/navigation/app_router.dart';
+import 'presentation/providers/ui_data_providers.dart';
 import 'presentation/theme/app_theme.dart';
 
-class LawyerOfficeApp extends ConsumerWidget {
+class LawyerOfficeApp extends ConsumerStatefulWidget {
   const LawyerOfficeApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LawyerOfficeApp> createState() => _LawyerOfficeAppState();
+}
+
+class _LawyerOfficeAppState extends ConsumerState<LawyerOfficeApp> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final demo = prefs.getBool('demo_seed_enabled') ?? false;
+      ref.read(allowDemoSeedProvider.notifier).state = demo;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'مكتب المحامي • إدارة وأرشفة قانونية',
