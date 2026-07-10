@@ -520,6 +520,40 @@ class PersonsDirectoryNotifier extends StateNotifier<PersonsDirectoryState> {
     state = state.copyWith(persons: [person, ...state.persons]);
   }
 
+  void updatePerson(PersonDirectoryRecord updatedPerson) {
+    state = state.copyWith(
+      persons: state.persons
+          .map((person) => person.id == updatedPerson.id ? updatedPerson : person)
+          .toList(),
+    );
+  }
+
+  void addAgency(AgencyRecord agency) {
+    final event = DirectoryTimelineEvent(
+      id: 'agency_created_${DateTime.now().microsecondsSinceEpoch}',
+      title: 'إضافة وكالة',
+      description: 'تمت إضافة الوكالة رقم ${agency.number}.',
+      type: 'agency_created',
+      date: DateTime.now(),
+    );
+
+    final updatedPersons = state.persons.map((person) {
+      if (person.id != agency.principalPersonId || person.agencyIds.contains(agency.id)) {
+        return person;
+      }
+      return person.copyWith(
+        agencyIds: [...person.agencyIds, agency.id],
+        updatedAt: event.date,
+        timeline: [event, ...person.timeline],
+      );
+    }).toList();
+
+    state = state.copyWith(
+      agencies: [agency.copyWith(timeline: [event, ...agency.timeline]), ...state.agencies],
+      persons: updatedPersons,
+    );
+  }
+
   void addTimelineEvent(String personId, DirectoryTimelineEvent event) {
     final updatedPersons = state.persons.map((person) {
       if (person.id != personId) {
@@ -542,17 +576,30 @@ class PersonsDirectoryNotifier extends StateNotifier<PersonsDirectoryState> {
       date: DateTime.now(),
     );
 
+    String? principalPersonId;
     final updatedAgencies = state.agencies.map((agency) {
       if (agency.id != agencyId || agency.linkedCaseIds.contains(caseId)) {
         return agency;
       }
+      principalPersonId = agency.principalPersonId;
       return agency.copyWith(
         linkedCaseIds: [...agency.linkedCaseIds, caseId],
         timeline: [event, ...agency.timeline],
       );
     }).toList();
 
-    state = state.copyWith(agencies: updatedAgencies);
+    final updatedPersons = state.persons.map((person) {
+      if (person.id != principalPersonId || person.caseIds.contains(caseId)) {
+        return person;
+      }
+      return person.copyWith(
+        caseIds: [...person.caseIds, caseId],
+        updatedAt: event.date,
+        timeline: [event, ...person.timeline],
+      );
+    }).toList();
+
+    state = state.copyWith(agencies: updatedAgencies, persons: updatedPersons);
   }
 }
 

@@ -8,6 +8,7 @@ import '../screens/main_layout_screen.dart';
 import '../screens/new_work/new_work_screen.dart';
 import '../screens/persons/person_detail_screen.dart';
 import '../screens/persons/persons_screen.dart';
+import '../screens/poa/poa_detail_screen.dart';
 import '../screens/poa/poa_list_screen.dart';
 import '../screens/search_reports/search_reports_screen.dart';
 
@@ -55,6 +56,13 @@ final GoRouter appRouter = GoRouter(
       name: 'poa',
       builder: (BuildContext context, GoRouterState state) {
         return const PoaListScreen();
+      },
+    ),
+    GoRoute(
+      path: '/poa/:agencyId',
+      name: 'poa-detail',
+      builder: (BuildContext context, GoRouterState state) {
+        return PoaDetailScreen(agencyId: state.pathParameters['agencyId'] ?? '');
       },
     ),
     GoRoute(
