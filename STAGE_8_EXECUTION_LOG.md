@@ -40,3 +40,14 @@ flutter analyze lib/presentation/screens/search_reports/
 ### الحالة
 
 **المرحلة 8: مكتملة 100%.**
+
+
+### Windows CI — إغلاق المرحلة 8
+
+```text
+Run ID: 29108319072
+Commit: 42ae9cd
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29108319072
+```
