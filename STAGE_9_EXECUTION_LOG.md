@@ -30,3 +30,14 @@ flutter test → 19/19 passed
 ### الحالة
 
 **المرحلة 9: مكتملة 100%.**
+
+
+### Windows CI — إغلاق المرحلة 9
+
+```text
+Run ID: 29109028880
+Commit: c75490e
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109028880
+```

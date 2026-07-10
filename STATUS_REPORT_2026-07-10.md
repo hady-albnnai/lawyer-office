@@ -418,3 +418,14 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29108319072
 **حالة المرحلة 9:** مكتملة 100%.
 
 **الخطوة التالية:** المرحلة 10 (الإعدادات والأمان والنسخ).
+
+
+### Windows CI — إغلاق المرحلة 9
+
+```text
+Run ID: 29109028880
+Commit: c75490e
+Status: completed
+Conclusion: success
+URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109028880
+```
