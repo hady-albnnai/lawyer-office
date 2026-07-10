@@ -6,6 +6,9 @@ import '../screens/cases/cases_screen.dart';
 import '../screens/cases/create_case_wizard.dart';
 import '../screens/main_layout_screen.dart';
 import '../screens/new_work/new_work_screen.dart';
+import '../screens/persons/person_detail_screen.dart';
+import '../screens/persons/persons_screen.dart';
+import '../screens/poa/poa_list_screen.dart';
 import '../screens/search_reports/search_reports_screen.dart';
 
 /// تكوين نظام الملاحة والتوجيه الموحد في التطبيق باستخدام GoRouter.
@@ -31,6 +34,27 @@ final GoRouter appRouter = GoRouter(
       name: 'search-reports',
       builder: (BuildContext context, GoRouterState state) {
         return const SearchReportsScreen();
+      },
+    ),
+    GoRoute(
+      path: '/persons',
+      name: 'persons',
+      builder: (BuildContext context, GoRouterState state) {
+        return const PersonsScreen();
+      },
+    ),
+    GoRoute(
+      path: '/persons/:personId',
+      name: 'person-detail',
+      builder: (BuildContext context, GoRouterState state) {
+        return PersonDetailScreen(personId: state.pathParameters['personId'] ?? '');
+      },
+    ),
+    GoRoute(
+      path: '/poa',
+      name: 'poa',
+      builder: (BuildContext context, GoRouterState state) {
+        return const PoaListScreen();
       },
     ),
     GoRoute(
