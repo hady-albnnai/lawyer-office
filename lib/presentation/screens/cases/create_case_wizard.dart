@@ -5,15 +5,15 @@
 /// 
 /// آخر تحديث: 2026-07-09
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:drift/drift.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
+import 'package:drift/drift.dart' show Value;
 import '../../data/database/database.dart';
 import '../../data/repositories/case_repository.dart';
-import '../../presentation/providers/app_providers.dart';
+import '../../providers/app_providers.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 import 'case_models.dart';
 
 /// معالج إنشاء دعوى جديدة
@@ -1326,7 +1326,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
       
       // إعداد بيانات الدعوى
       final caseData = CasesCompanion.insert(
-        internalNumber: 'TMP', // سيتم استبداله بالترقيم التلقائي
+        internalNumber: 'TMP',
         year: int.tryParse(_baseYearController.text) ?? DateTime.now().year,
         caseType: _caseType.name,
         subType: Value(_caseSubType),
@@ -1351,7 +1351,6 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
       setState(() => _isSaving = false);
       
       if (mounted) {
-        // الانتقال إلى تفاصيل الدعوى الجديدة
         context.go('/cases/$caseId');
         
         ScaffoldMessenger.of(context).showSnackBar(
