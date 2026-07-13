@@ -94,7 +94,7 @@ final agendaProvider = FutureProvider<AgendaData>((ref) async {
             id: t.id.toString(),
             time: TimeOfDay(hour: 14, minute: 0),
             title: t.title,
-            caseNumber: t.caseId?.toString() ?? '',
+            caseNumber: '',
             status: ReviewStatus.scheduled,
           ))
       .toList();
