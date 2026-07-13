@@ -8,7 +8,7 @@ import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/database/database.dart';
+import '../../../data/database/database.dart' as db;
 import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -237,11 +237,11 @@ final caseDetailProvider =
     final phasesAsync = ref.watch(casePhasesProvider(caseId));
     final deficienciesAsync = ref.watch(caseOpenDeficienciesProvider(caseId));
 
-    final caseItem = caseFuture.value;
-    final parties = partiesAsync.value ?? [];
-    final sessions = sessionsAsync.value ?? [];
-    final phases = phasesAsync.value ?? [];
-    final deficiencies = deficienciesAsync.value ?? [];
+    final dynamic caseItem = caseFuture.value;
+    final dynamic parties = partiesAsync.value ?? [];
+    final dynamic sessions = sessionsAsync.value ?? [];
+    final dynamic phases = phasesAsync.value ?? [];
+    final dynamic deficiencies = deficienciesAsync.value ?? [];
 
     return CaseDetailNotifier.fromRepository(
       caseItem,
@@ -258,20 +258,29 @@ class CaseDetailNotifier extends StateNotifier<CaseDetailState> {
   CaseDetailNotifier(Case? caseItem, List<DocumentItem> allDocuments)
       : super(_initialState(caseItem, allDocuments));
 
-  /// إنشاء الحالة من بيانات المستودع الحقيقي (Drift) - نسخة 100%
+  CaseDetailNotifier._(CaseDetailState state) : super(state);
+
+  /// إنشاء الحالة من بيانات المستودع الحقيقي (Drift)
   factory CaseDetailNotifier.fromRepository(
-    Case? caseItem, {
-    List<CaseParty> parties = const [],
-    List<CaseSession> sessions = const [],
-    List<CasePhase> phases = const [],
-    List<Deficiency> deficiencies = const [],
+    dynamic caseItemDynamic, {
+    List<dynamic> parties = const [],
+    List<dynamic> sessions = const [],
+    List<dynamic> phases = const [],
+    List<dynamic> deficiencies = const [],
   }) {
+    final db.Case? caseItem = caseItemDynamic as db.Case?;
     if (caseItem == null) {
       return CaseDetailNotifier(null, []);
     }
 
-    // تحويل CaseParty إلى CasePartyView
-    final clients = parties
+    final dbParties = parties.cast<db.CaseParty>();
+    final dbSessions = sessions.cast<db.CaseSession>();
+    final dbPhases = phases.cast<db.CasePhase>();
+    final dbDeficiencies = deficiencies.cast<db.Deficiency>();
+
+    final uiCase = _convertDbCase(caseItem, dbPhases, dbSessions, dbDeficiencies);
+
+    final clients = dbParties
         .where((p) => p.isClient)
         .map((p) => CasePartyView(
               id: p.id.toString(),
@@ -283,7 +292,7 @@ class CaseDetailNotifier extends StateNotifier<CaseDetailState> {
             ))
         .toList();
 
-    final opponents = parties
+    final opponents = dbParties
         .where((p) => !p.isClient)
         .map((p) => CasePartyView(
               id: p.id.toString(),
@@ -295,28 +304,150 @@ class CaseDetailNotifier extends StateNotifier<CaseDetailState> {
             ))
         .toList();
 
-    // تحويل Deficiency إلى CaseDeficiency (للتوافق مع الواجهة)
-    final caseDeficiencies = deficiencies
-        .map((d) => CaseDeficiency(
-              id: d.id.toString(),
-              field: d.field ?? 'غير محدد',
-              description: d.description,
-              severity: d.severity ?? 'medium',
-              createdAt: d.createdAt,
-              resolvedAt: d.resolvedAt,
-              isResolved: d.status == 'resolved',
-            ))
-        .toList();
-
-    return CaseDetailNotifier(caseItem, [])
-      ..state = CaseDetailState(
-        caseItem: caseItem,
+    return CaseDetailNotifier._(
+      CaseDetailState(
+        caseItem: uiCase,
         clients: clients,
         opponents: opponents,
-        sessions: sessions,
-        phases: phases,
-        deficiencies: caseDeficiencies,
-      );
+        phases: uiCase.phases,
+        sessions: uiCase.sessions,
+        deficiencies: uiCase.deficiencies,
+      ),
+    );
+  }
+
+  static Case _convertDbCase(db.Case dbCase, List<db.CasePhase> phases, List<db.CaseSession> sessions, List<db.Deficiency> deficiencies) {
+    return Case(
+      id: dbCase.id.toString(),
+      caseNumber: dbCase.internalNumber,
+      title: dbCase.subject ?? dbCase.internalNumber,
+      type: _parseCaseType(dbCase.caseType),
+      status: _parseCaseStatus(dbCase.status),
+      court: dbCase.courtId?.toString() ?? '',
+      subject: dbCase.subject ?? '',
+      claim: dbCase.subjectDetails ?? '',
+      notes: dbCase.notes ?? '',
+      creationDate: dbCase.createdAt,
+      lastUpdated: dbCase.updatedAt,
+      baseNumber: dbCase.baseNumber,
+      baseYear: dbCase.year,
+      phases: phases.map(_convertPhase).toList(),
+      sessions: sessions.map((s) => _convertSession(s, dbCase.courtId?.toString() ?? '')).toList(),
+      deficiencies: deficiencies.map(_convertDeficiency).toList(),
+    );
+  }
+
+  static CaseType _parseCaseType(String type) {
+    switch (type) {
+      case 'مدني': return CaseType.civil;
+      case 'تجاري': return CaseType.commercial;
+      case 'جزائي': return CaseType.criminal;
+      case 'إداري': return CaseType.administrative;
+      case 'شرعي': return CaseType.personalStatus;
+      case 'عقاري': return CaseType.realEstate;
+      case 'عمالي': return CaseType.labor;
+      case 'دستوري': return CaseType.constitutional;
+      default: return CaseType.other;
+    }
+  }
+
+  static CaseStatus _parseCaseStatus(String status) {
+    switch (status) {
+      case 'registered': return CaseStatus.inProgress;
+      case 'closed': return CaseStatus.completed;
+      case 'preparing': return CaseStatus.pendingDocuments;
+      case 'pending_registration': return CaseStatus.pendingBaseNumber;
+      default: return CaseStatus.scheduled;
+    }
+  }
+
+  static CasePhase _convertPhase(db.CasePhase p) {
+    return CasePhase(
+      id: p.id.toString(),
+      type: _parsePhaseType(p.phaseType),
+      court: p.courtId?.toString() ?? '',
+      baseNumber: p.baseNumber,
+      baseYear: p.year,
+      startDate: p.startDate ?? DateTime.now(),
+      endDate: p.endDate,
+      description: p.decisionText ?? '',
+      documents: p.decisionDocPath != null ? [p.decisionDocPath!] : const [],
+    );
+  }
+
+  static CasePhaseType _parsePhaseType(String type) {
+    switch (type) {
+      case 'بداية': return CasePhaseType.initial;
+      case 'استئناف': return CasePhaseType.appeal;
+      case 'نقض': return CasePhaseType.cassation;
+      case 'إعادة محاكمة': return CasePhaseType.initial;
+      case 'صلح': return CasePhaseType.settlement;
+      case 'جلسات': return CasePhaseType.hearing;
+      case 'إثبات': return CasePhaseType.evidence;
+      case 'حكم': return CasePhaseType.judgment;
+      case 'تنفيذ': return CasePhaseType.execution;
+      default: return CasePhaseType.initial;
+    }
+  }
+
+  static CaseSession _convertSession(db.CaseSession s, String court) {
+    return CaseSession(
+      id: s.id.toString(),
+      sessionDate: s.sessionDate,
+      sessionTime: _parseTime(s.sessionTime),
+      type: _parseSessionType(s.sessionType),
+      status: _parseSessionStatus(s.status),
+      court: court,
+      decision: s.decision ?? '',
+      result: SessionResult(
+        notes: s.notes ?? '',
+        decision: s.decision ?? '',
+        nextRequired: s.nextAction ?? '',
+      ),
+      attendees: const [],
+      documents: const [],
+    );
+  }
+
+  static TimeOfDay _parseTime(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return const TimeOfDay(hour: 9, minute: 0);
+    final parts = timeStr.split(':');
+    final hour = int.tryParse(parts.first) ?? 9;
+    final minute = parts.length > 1 ? int.tryParse(parts.last) ?? 0 : 0;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  static SessionType _parseSessionType(String? type) {
+    switch (type) {
+      case 'مرافعة': return SessionType.ordinary;
+      case 'تدقيق': return SessionType.review;
+      case 'سماع شهود': return SessionType.evidence;
+      case 'خبرة': return SessionType.other;
+      case 'تفهيم حكم': return SessionType.judgment;
+      default: return SessionType.ordinary;
+    }
+  }
+
+  static SessionStatus _parseSessionStatus(int status) {
+    switch (status) {
+      case 0: return SessionStatus.scheduled;
+      case 1: return SessionStatus.held;
+      case 2: return SessionStatus.postponed;
+      case 3: return SessionStatus.cancelled;
+      default: return SessionStatus.scheduled;
+    }
+  }
+
+  static CaseDeficiency _convertDeficiency(db.Deficiency d) {
+    return CaseDeficiency(
+      id: d.id.toString(),
+      field: d.fieldName,
+      description: d.description,
+      severity: d.severity == 0 ? 'low' : (d.severity == 2 ? 'high' : 'medium'),
+      createdAt: d.createdAt,
+      resolvedAt: d.resolvedAt,
+      isResolved: d.status == 'resolved',
+    );
   }
 
   static CaseDetailState _initialState(

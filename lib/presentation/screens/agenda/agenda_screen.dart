@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../data/repositories/case_repository.dart';
-import '../../data/repositories/task_repository.dart';
+import '../../../data/repositories/case_repository.dart';
+import '../../../data/repositories/task_repository.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';

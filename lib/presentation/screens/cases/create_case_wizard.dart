@@ -10,8 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' show Value;
 
-import '../../data/database/database.dart';
-import '../../data/repositories/case_repository.dart';
+import '../../../data/database/database.dart' as db;
+import '../../../data/repositories/case_repository.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -1326,7 +1326,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
       final caseRepo = ref.read(caseRepositoryProvider);
       
       // إعداد بيانات الدعوى
-      final caseData = CasesCompanion.insert(
+      final caseData = db.CasesCompanion.insert(
         internalNumber: 'TMP',
         year: int.tryParse(_baseYearController.text) ?? DateTime.now().year,
         caseType: _caseType.name,
