@@ -1505,7 +1505,7 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
       if (mounted) {
         Navigator.of(context).pop(id);
         ref.invalidate(allPersonsProvider(null));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الموكل: ${_nameController.text}'), backgroundColor: AppColors.success));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الموكل: ${_nameController.text}'), backgroundColor: AppColors.success));;
       }
     } catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
@@ -1655,7 +1655,7 @@ class _AddPoaDialogState extends ConsumerState<AddPoaDialog> {
       );
       if (mounted) {
         Navigator.of(context).pop(id);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الوكالة: ${_numberController.text}'), backgroundColor: AppColors.success));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الوكالة: ${_numberController.text}'), backgroundColor: AppColors.success));;
       }
     } catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
@@ -1785,7 +1785,7 @@ class _AddOpponentDialogState extends ConsumerState<AddOpponentDialog> {
       if (mounted) {
         Navigator.of(context).pop(id);
         ref.invalidate(allPersonsProvider(null));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الخصم: ${_nameController.text}'), backgroundColor: AppColors.success));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الخصم: ${_nameController.text}'), backgroundColor: AppColors.success));;
       }
     } catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
