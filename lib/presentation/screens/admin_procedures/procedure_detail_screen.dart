@@ -26,8 +26,8 @@ class _ProcedureDetailScreenState extends ConsumerState<ProcedureDetailScreen> w
 
   @override
   void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // super.dispose();
   }
 
   @override

@@ -122,7 +122,7 @@ class AgendaScreen extends ConsumerWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.cardBackground,
         appBar: AppBar(
           title: const Text('الأجندة الموحدة'),
           actions: [

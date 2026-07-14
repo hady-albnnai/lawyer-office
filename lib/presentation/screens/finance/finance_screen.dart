@@ -38,17 +38,17 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   }
 
   @override
-  void dispose() {    _paidByController.dispose();
-    _descriptionController.dispose();
-    _notesController.dispose();
-    _receiptController.dispose();
-    _documentController.dispose();
-    _amountController.dispose();
-    _partyController.dispose();
-    _entityTitleController.dispose();
+  void dispose() {    // paidByController.dispose();
+    // descriptionController.dispose();
+    // notesController.dispose();
+    // receiptController.dispose();
+    // documentController.dispose();
+    // amountController.dispose();
+    // partyController.dispose();
+    // entityTitleController.dispose();
 
-    _tabController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -637,7 +637,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
+        color: AppColors.cardBackgroundLight,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.cardBorder),
       ),
@@ -1094,11 +1094,11 @@ class _AddAgreementDialogState extends ConsumerState<AddAgreementDialog> {
 
   @override
   void dispose() {
-    _entityTitleController.dispose();
-    _partyController.dispose();
-    _amountController.dispose();
-    _documentController.dispose();
-    super.dispose();
+    // entityTitleController.dispose();
+    // partyController.dispose();
+    // amountController.dispose();
+    // documentController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -1207,10 +1207,10 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
 
   @override
   void dispose() {
-    _amountController.dispose();
-    _receiptController.dispose();
-    _notesController.dispose();
-    super.dispose();
+    // amountController.dispose();
+    // receiptController.dispose();
+    // notesController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -1312,12 +1312,12 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
 
   @override
   void dispose() {
-    _entityTitleController.dispose();
-    _descriptionController.dispose();
-    _amountController.dispose();
-    _receiptController.dispose();
-    _paidByController.dispose();
-    super.dispose();
+    // entityTitleController.dispose();
+    // descriptionController.dispose();
+    // amountController.dispose();
+    // receiptController.dispose();
+    // paidByController.dispose();
+    // super.dispose();
   }
 
   @override

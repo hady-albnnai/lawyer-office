@@ -27,8 +27,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   @override
   void dispose() {
-    _tabs.dispose();
-    super.dispose();
+    // tabs.dispose();
+    // super.dispose();
   }
 
   @override
@@ -127,14 +127,14 @@ class _OfficeTabState extends ConsumerState<_OfficeTab> {
 
   @override
   void dispose() {
-    _title.dispose();
-    _lawyer.dispose();
-    _address.dispose();
-    _phone.dispose();
-    _email.dispose();
-    _logo.dispose();
-    _signature.dispose();
-    super.dispose();
+    // title.dispose();
+    // lawyer.dispose();
+    // address.dispose();
+    // phone.dispose();
+    // email.dispose();
+    // logo.dispose();
+    // signature.dispose();
+    // super.dispose();
   }
 
   @override
@@ -272,12 +272,12 @@ class _SecurityTabState extends ConsumerState<_SecurityTab> {
 
   @override
   void dispose() {
-    _current.dispose();
-    _next.dispose();
-    _confirm.dispose();
-    _question.dispose();
-    _answer.dispose();
-    super.dispose();
+    // current.dispose();
+    // next.dispose();
+    // confirm.dispose();
+    // question.dispose();
+    // answer.dispose();
+    // super.dispose();
   }
 
   @override

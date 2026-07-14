@@ -73,11 +73,11 @@ class _ResultEntryDialogState extends ConsumerState<ResultEntryDialog> {
 
   @override
   void dispose() {
-    _notesController.dispose();
-    _nextDateController.dispose();
-    _titleController.dispose();
-    _expenseController.dispose();
-    super.dispose();
+    // notesController.dispose();
+    // nextDateController.dispose();
+    // titleController.dispose();
+    // expenseController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -104,7 +104,7 @@ class _ResultEntryDialogState extends ConsumerState<ResultEntryDialog> {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppColors.cardBackground, borderRadius: BorderRadius.circular(8)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -259,7 +259,7 @@ class _ResultEntryDialogState extends ConsumerState<ResultEntryDialog> {
               amount: expenseValue,
               notes: Value('مصاريف آلية من الجلسة: $title'),
               expenseDate: Value(now),
-              recordedBy: Value('المحامي'),
+              
             ),
           );
         }
@@ -285,7 +285,7 @@ class _ResultEntryDialogState extends ConsumerState<ResultEntryDialog> {
           // د. الأتمتة: إغلاق "النواقص" المتعلقة بغياب موعد قادم (Cascading)
           if (widget.entityId != null && widget.entityType == 'case') {
              await (db.delete(db.deficiencies)
-                ..where((t) => t.entityId.equals(widget.entityId!) & t.deficiencyType.contains('موعد'))
+                ..where((t) => t.entityId.equals(widget.entityId!) & t.description.contains('موعد'))
              ).go();
           }
         }

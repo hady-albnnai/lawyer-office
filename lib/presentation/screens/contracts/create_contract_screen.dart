@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:file_picker/file_picker.dart';
@@ -302,7 +303,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
       if (mounted) {
         ref.invalidate(allContractsProvider);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تنظيم وحفظ العقد وتوليد التذكيرات بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-        context.pushReplacement('/contracts/$contractId');
+        GoRouter.of(context).pushReplacement('/contracts/$contractId');
       }
     } catch (e) {
       if (mounted) {

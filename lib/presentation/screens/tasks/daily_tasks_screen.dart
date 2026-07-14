@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../core/constants/app_constants.dart';
@@ -31,8 +32,8 @@ class _DailyTasksScreenState extends ConsumerState<DailyTasksScreen> with Single
 
   @override
   void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -284,7 +285,7 @@ class _DailyTasksScreenState extends ConsumerState<DailyTasksScreen> with Single
       case 'admin_procedures': screen = ProcedureDetailScreen(procedureId: id); break;
       default: return;
     }
-    context.push(route);
+    GoRouter.of(context).push(route);
   }
 
   void _openPostponeDialog(DailyTask t) {

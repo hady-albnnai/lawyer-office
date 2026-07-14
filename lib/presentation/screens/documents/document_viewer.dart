@@ -23,4 +23,4 @@ class DocumentViewerScreen extends StatelessWidget {
   DocumentItem? _getDoc(String id) => DocumentItem(id: id, title: 'مستند $id', documentType: DocumentType.decision, entityType: 'case', entityId: '1', entityTitle: 'الدعوى 2026/001', filePath: 'docs/test.pdf', fileName: 'test_$id.pdf', fileSize: 512*1024, fileType: FileType.pdf, uploadDate: DateTime.now(), uploadedBy: 'هادي البني', physicalLocation: 'مكتب المحامي');
 }
 
-void openDocument(BuildContext context, String documentId) => context.push('/documents/$documentId');
+void openDocument(BuildContext context, String documentId) => GoRouter.of(context).push('/documents/$documentId');

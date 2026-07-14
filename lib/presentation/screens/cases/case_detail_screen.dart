@@ -911,10 +911,10 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _terminationNumberController.dispose();
-    _terminationSummaryController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // terminationNumberController.dispose();
+    // terminationSummaryController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -1962,7 +1962,7 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
+        color: AppColors.cardBackgroundLight,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.cardBorder, width: 0.5),
       ),
@@ -2432,8 +2432,8 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
       },
     );
 
-    decisionController.dispose();
-    notesController.dispose();
+    // decisionController.dispose();
+    // notesController.dispose();
   }
 
   Future<void> _showAddPhaseDialog(BuildContext context, CaseDetailState state) async {
@@ -2499,10 +2499,10 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
       ),
     );
 
-    courtController.dispose();
-    baseController.dispose();
-    yearController.dispose();
-    descriptionController.dispose();
+    // courtController.dispose();
+    // baseController.dispose();
+    // yearController.dispose();
+    // descriptionController.dispose();
   }
 
   Future<void> _pickAndAddDocument(CaseDetailState state) async {
@@ -2636,8 +2636,8 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
       ),
     );
 
-    fieldController.dispose();
-    descriptionController.dispose();
+    // fieldController.dispose();
+    // descriptionController.dispose();
   }
 
   void _showFinancialReport(CaseDetailState state) {

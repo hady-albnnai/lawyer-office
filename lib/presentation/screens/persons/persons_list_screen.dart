@@ -41,12 +41,12 @@ class _PersonsListScreenState extends ConsumerState<PersonsListScreen> with Sing
   }
 
   @override
-  void dispose() {    _cityController.dispose();
-    _phoneController.dispose();
-    _nameController.dispose();
+  void dispose() {    // cityController.dispose();
+    // phoneController.dispose();
+    // nameController.dispose();
 
-    _tabController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -270,7 +270,7 @@ class PersonDirectoryCard extends StatelessWidget {
   Widget _kindBadge(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: AppColors.backgroundLight, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: AppColors.cardBackgroundLight, borderRadius: BorderRadius.circular(8)),
       child: Text(label, style: AppTextStyles.labelSmall),
     );
   }
@@ -315,10 +315,10 @@ class _QuickAddPersonDialogState extends ConsumerState<QuickAddPersonDialog> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _cityController.dispose();
-    super.dispose();
+    // nameController.dispose();
+    // phoneController.dispose();
+    // cityController.dispose();
+    // super.dispose();
   }
 
   @override

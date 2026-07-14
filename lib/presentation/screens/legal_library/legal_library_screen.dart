@@ -43,9 +43,9 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _searchController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // searchController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -143,7 +143,7 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
         child: Text(value, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
       ),
       label: Text(label),
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: AppColors.cardBackgroundLight,
     );
   }
 
@@ -428,9 +428,9 @@ class _AddLegalItemDialogState extends ConsumerState<AddLegalItemDialog> {
       _fileName,
       _text,
     ]) {
-      c.dispose();
+      // c.dispose();
     }
-    super.dispose();
+    // super.dispose();
   }
 
   @override
@@ -595,10 +595,10 @@ class _LinkLegalItemDialogState extends ConsumerState<LinkLegalItemDialog> {
 
   @override
   void dispose() {
-    _entityId.dispose();
-    _entityTitle.dispose();
-    _note.dispose();
-    super.dispose();
+    // entityId.dispose();
+    // entityTitle.dispose();
+    // note.dispose();
+    // super.dispose();
   }
 
   @override

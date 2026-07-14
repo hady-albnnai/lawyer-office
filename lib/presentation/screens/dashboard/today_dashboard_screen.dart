@@ -30,7 +30,7 @@ class TodayDashboardScreen extends ConsumerWidget {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: AppColors.cardBackground,
           body: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth > 800;
@@ -302,7 +302,7 @@ class TodayDashboardScreen extends ConsumerWidget {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: AppColors.cardBackground, borderRadius: BorderRadius.circular(16)),
             child: Text(time, style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSecondary)),
           ),
         ],

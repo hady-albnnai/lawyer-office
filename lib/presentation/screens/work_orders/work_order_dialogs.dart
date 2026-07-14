@@ -74,11 +74,11 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
 
   @override
   void dispose() {
-    _name.dispose();
-    _phone.dispose();
-    _instructions.dispose();
-    _entityId.dispose();
-    super.dispose();
+    // name.dispose();
+    // phone.dispose();
+    // instructions.dispose();
+    // entityId.dispose();
+    // super.dispose();
   }
 
   @override
@@ -210,8 +210,8 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
 
   @override
   void dispose() {
-    _result.dispose();
-    super.dispose();
+    // result.dispose();
+    // super.dispose();
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/app_providers.dart';
@@ -118,7 +119,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
             title: Text('دعوى قضائية [${c.internalNumber}] • ${c.caseType}', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('الموضوع: ${c.subject ?? "---"} • رقم الأساس: ${c.baseNumber ?? "---"}'),
             trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => context.push('/cases/${c.id}'),
+            onTap: () => GoRouter.of(context).push('/cases/${c.id}'),
           ),
         )).toList();
       },
@@ -140,7 +141,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
             title: Text('عقد [${c.internalNumber}] • ${c.title}', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('النوع: ${c.contractType} • القيمة: ${c.financialValue} ${c.currency}'),
             trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => context.push('/contracts/${c.id}'),
+            onTap: () => GoRouter.of(context).push('/contracts/${c.id}'),
           ),
         )).toList();
       },
@@ -162,7 +163,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
             title: Text('شركة [${c.name}] • رقم الملف: ${c.internalNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('الشكل: ${c.companyType} • السجل: ${c.registrationNumber ?? "بانتظار الصدور"}'),
             trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => context.push('/companies/${c.id}'),
+            onTap: () => GoRouter.of(context).push('/companies/${c.id}'),
           ),
         )).toList();
       },
@@ -184,7 +185,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
             title: Text('معاملة [${p.title}] • رقم الملف: ${p.internalNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('التصنيف: ${p.procedureType} • الدائرة: ${p.department ?? "---"}'),
             trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => context.push('/procedures/${p.id}'),
+            onTap: () => GoRouter.of(context).push('/procedures/${p.id}'),
           ),
         )).toList();
       },
@@ -213,7 +214,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
               title: Text('سجل شخص/جهة: ${person.fullName}', style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text('الأدوار: ${person.roles.map((role) => role.displayName).join(', ')} • الهاتف: ${person.phone.isEmpty ? '---' : person.phone}'),
               trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () => context.push('/persons/${person.id}'),
+              onTap: () => GoRouter.of(context).push('/persons/${person.id}'),
             ),
           ),
         )
@@ -238,7 +239,7 @@ class _AdvancedSearchScreenState extends ConsumerState<AdvancedSearchScreen> {
               title: Text('وكالة [${agency.number}] • ${agency.type.displayName}', style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text('الموكل: ${directoryState.personById(agency.principalPersonId)?.fullName ?? '---'} • ${agency.source.displayName} - ${agency.branch}'),
               trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () => context.push('/poa/${agency.id}'),
+              onTap: () => GoRouter.of(context).push('/poa/${agency.id}'),
             ),
           ),
         )

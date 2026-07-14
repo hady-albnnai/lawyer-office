@@ -121,16 +121,16 @@ class _TopBar extends ConsumerWidget {
   void _handleQuickAction(BuildContext context, String action) {
     switch (action) {
       case "case":
-        context.push("/cases/create");
+        GoRouter.of(context).push("/cases/create");
         break;
       case "company":
-        context.push("/companies/create");
+        GoRouter.of(context).push("/companies/create");
         break;
       case "contract":
-        context.push("/contracts/create");
+        GoRouter.of(context).push("/contracts/create");
         break;
       case "procedure":
-        context.push("/procedures/create");
+        GoRouter.of(context).push("/procedures/create");
         break;
       case "work_order":
         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
@@ -311,8 +311,8 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _controller.dispose();
-    super.dispose();
+    // controller.dispose();
+    // super.dispose();
   }
 
   void _search(String query) {
@@ -405,9 +405,9 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
                       if (hit["route"] == "/search-reports") {
                         context.go("/search-reports");
                       } else if (hit["route"] == "create_case") {
-                        context.push("/cases/create");
+                        GoRouter.of(context).push("/cases/create");
                       } else if (hit["route"] == "create_company") {
-                        context.push("/companies/create");
+                        GoRouter.of(context).push("/companies/create");
                       } else if (hit["route"] == "create_wo") {
                         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
                       }

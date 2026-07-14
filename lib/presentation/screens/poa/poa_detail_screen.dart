@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../theme/app_colors.dart';
@@ -29,8 +30,8 @@ class _PoaDetailScreenState extends ConsumerState<PoaDetailScreen> with SingleTi
 
   @override
   void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -157,7 +158,7 @@ class _PoaDetailScreenState extends ConsumerState<PoaDetailScreen> with SingleTi
             subtitle: Text('الموكل / صاحب التوكيل', style: AppTextStyles.bodySmallSecondary),
             onTap: principal == null
                 ? null
-                : () => context.push('/persons/${principal.id}'),
+                : () => GoRouter.of(context).push('/persons/${principal.id}'),
           ),
         ),
         Card(

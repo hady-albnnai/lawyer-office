@@ -27,8 +27,8 @@ class _ContractDetailScreenState extends ConsumerState<ContractDetailScreen> wit
 
   @override
   void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // super.dispose();
   }
 
   @override

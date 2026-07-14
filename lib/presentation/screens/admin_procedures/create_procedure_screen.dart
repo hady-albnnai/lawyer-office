@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../core/constants/app_constants.dart';
@@ -214,7 +215,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
       if (mounted) {
         ref.invalidate(allProceduresProvider);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل المعاملة وتوليد خطوات الـ Checklist بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-        context.pushReplacement('/procedures/$procId');
+        GoRouter.of(context).pushReplacement('/procedures/$procId');
       }
     } catch (e) {
       if (mounted) {

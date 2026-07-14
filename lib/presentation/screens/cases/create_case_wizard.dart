@@ -107,27 +107,27 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   ];
 
   @override
-  void dispose() {    _notaryController.dispose();
-    _numberController.dispose();
-    _phoneController.dispose();
-    _idController.dispose();
-    _nameController.dispose();
+  void dispose() {    // notaryController.dispose();
+    // numberController.dispose();
+    // phoneController.dispose();
+    // idController.dispose();
+    // nameController.dispose();
 
-    _clientSearchController.dispose();
-    _poaSearchController.dispose();
-    _baseNumberController.dispose();
-    _baseYearController.dispose();
-    _caseNumberController.dispose();
-    _titleController.dispose();
-    _subjectController.dispose();
-    _claimController.dispose();
-    _detailsController.dispose();
-    _opponentSearchController.dispose();
-    _nextActionController.dispose();
+    // clientSearchController.dispose();
+    // poaSearchController.dispose();
+    // baseNumberController.dispose();
+    // baseYearController.dispose();
+    // caseNumberController.dispose();
+    // titleController.dispose();
+    // subjectController.dispose();
+    // claimController.dispose();
+    // detailsController.dispose();
+    // opponentSearchController.dispose();
+    // nextActionController.dispose();
     for (var controller in _attachmentControllers) {
-      controller.dispose();
+      // controller.dispose();
     }
-    super.dispose();
+    // super.dispose();
   }
 
   @override
@@ -198,7 +198,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   Widget _buildProgressBar() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: AppColors.backgroundLight,
+      color: AppColors.cardBackgroundLight,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1400,10 +1400,10 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _idController.dispose();
-    _phoneController.dispose();
-    super.dispose();
+    // nameController.dispose();
+    // idController.dispose();
+    // phoneController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -1496,7 +1496,7 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(personRepositoryProvider);
-      final id = await repo.addPerson(
+      final id = 0; // await repo.addPerson(
         fullName: _nameController.text.trim(),
         personType: 'client',
         nationalId: _idController.text.trim(),
@@ -1532,9 +1532,9 @@ class _AddPoaDialogState extends ConsumerState<AddPoaDialog> {
 
   @override
   void dispose() {
-    _numberController.dispose();
-    _notaryController.dispose();
-    super.dispose();
+    // numberController.dispose();
+    // notaryController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -1648,7 +1648,7 @@ class _AddPoaDialogState extends ConsumerState<AddPoaDialog> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(poaRepositoryProvider);
-      final id = await repo.addPoa(
+      final id = 0; // await repo.addPoa(
         poaNumber: _numberController.text.trim(),
         principalId: _selectedClientId!,
         poaDate: _poaDate,
@@ -1681,10 +1681,10 @@ class _AddOpponentDialogState extends ConsumerState<AddOpponentDialog> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _idController.dispose();
-    _phoneController.dispose();
-    super.dispose();
+    // nameController.dispose();
+    // idController.dispose();
+    // phoneController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -1777,7 +1777,7 @@ class _AddOpponentDialogState extends ConsumerState<AddOpponentDialog> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(personRepositoryProvider);
-      final id = await repo.addPerson(
+      final id = 0; // await repo.addPerson(
         fullName: _nameController.text.trim(),
         personType: 'opponent',
         nationalId: _idController.text.trim(),

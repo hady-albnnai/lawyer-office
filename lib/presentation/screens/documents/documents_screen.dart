@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import '../../providers/app_providers.dart';
 /// شاشة المستندات (Smart File Explorer)
 /// بناءً على الخطة الماسية لإعادة الهيكلة 2026 (المرحلة 4)
 
@@ -7,7 +10,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
-import 'document_models.dart';
+import 'document_models.dart' as doc_models;
+import 'document_models.dart' show DocumentItem, DocumentType, documentsProvider, inferFileType;
 import 'document_viewer.dart';
 
 class DocumentsScreen extends ConsumerWidget {
@@ -18,7 +22,7 @@ class DocumentsScreen extends ConsumerWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.cardBackground,
         appBar: AppBar(
           title: const Text('مستعرض المستندات الذكي'),
           actions: [
@@ -95,7 +99,7 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
               // View Toggles
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: AppColors.cardBackground,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -299,7 +303,7 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
 
   Color _getFileColor(FileType type) {
     switch (type) {
-      case FileType.pdf: return AppColors.error;
+      case doc_models.FileType.pdf: return AppColors.error;
       case FileType.docx:
       case FileType.doc: return Colors.blue;
       case FileType.jpg:
@@ -336,9 +340,7 @@ class UploadDocDialog extends ConsumerStatefulWidget {
   ConsumerState<UploadDocDialog> createState() => _UploadDocDialogState();
 }
 
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import '../../providers/app_providers.dart';
+
 
 
   File? _selectedFile;
@@ -401,11 +403,11 @@ import '../../providers/app_providers.dart';
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _entityIdController.dispose();
-    _locationController.dispose();
-    _notesController.dispose();
-    super.dispose();
+    // titleController.dispose();
+    // entityIdController.dispose();
+    // locationController.dispose();
+    // notesController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -460,7 +462,7 @@ import '../../providers/app_providers.dart';
                 ],
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<FileType>(
+              DropdownButtonFormField<doc_models.FileType>(
                 value: _fileType,
                 items: FileType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
                 onChanged: (value) => setState(() => _fileType = value ?? _fileType),

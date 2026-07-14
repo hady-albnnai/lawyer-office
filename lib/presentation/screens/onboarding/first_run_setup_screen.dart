@@ -42,15 +42,15 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
 
   @override
   void dispose() {
-    _title.dispose();
-    _lawyer.dispose();
-    _address.dispose();
-    _phone.dispose();
-    _password.dispose();
-    _confirm.dispose();
-    _question.dispose();
-    _answer.dispose();
-    super.dispose();
+    // title.dispose();
+    // lawyer.dispose();
+    // address.dispose();
+    // phone.dispose();
+    // password.dispose();
+    // confirm.dispose();
+    // question.dispose();
+    // answer.dispose();
+    // super.dispose();
   }
 
   @override

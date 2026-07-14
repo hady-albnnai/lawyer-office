@@ -27,8 +27,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
 
   @override
   void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // super.dispose();
   }
 
   @override

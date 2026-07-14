@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../core/constants/app_constants.dart';
@@ -445,7 +446,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
           ref.invalidate(allCompaniesProvider);
           const SnackBar(content: Text('تم تأسيس الشركة وتوليد المراحل الـ 10 بنجاح!'), backgroundColor: AppConstants.statusSuccess),
         );
-        context.pushReplacement('/companies/$companyId');
+        GoRouter.of(context).pushReplacement('/companies/$companyId');
       }
     } catch (e) {
       if (mounted) {

@@ -42,9 +42,9 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _searchController.dispose();
-    super.dispose();
+    // tabController.dispose();
+    // searchController.dispose();
+    // super.dispose();
   }
 
   @override
@@ -239,7 +239,7 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
                         .map(
                           (e) => Chip(
                             label: Text('${e.key}: ${e.value}'),
-                            backgroundColor: AppColors.backgroundLight,
+                            backgroundColor: AppColors.cardBackgroundLight,
                           ),
                         )
                         .toList(),
@@ -330,17 +330,17 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
     final hint = hit.routeHint;
     if (hint.startsWith('/cases/')) {
       final id = int.tryParse(hint.split('/').last) ?? 0;
-      context.push('/cases/$id');
+      GoRouter.of(context).push('/cases/$id');
       return;
     }
     if (hint.startsWith('/persons/')) {
       final id = hint.split('/').last;
-      context.push('/persons/$id');
+      GoRouter.of(context).push('/persons/$id');
       return;
     }
     if (hint.startsWith('/poa/')) {
       final id = hint.split('/').last;
-      context.push('/poa/$id');
+      GoRouter.of(context).push('/poa/$id');
       return;
     }
     if (hint.startsWith('/finance')) {
