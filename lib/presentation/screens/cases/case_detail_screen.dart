@@ -229,7 +229,7 @@ class CaseDetailState {
 
 /// مزود تفاصيل الدعوى بحسب رقم المسار /cases/:caseId (من المستودع الحقيقي - 100%).
 final caseDetailProvider =
-    StateNotifierProvider.family<CaseDetailNotifier, CaseDetailState, int>(
+    StateNotifierProvider.autoDispose.family<CaseDetailNotifier, CaseDetailState, int>(
   (ref, caseId) {
     final caseFuture = ref.watch(caseDetailFromRepoProvider(caseId));
     final partiesAsync = ref.watch(casePartiesProvider(caseId));
