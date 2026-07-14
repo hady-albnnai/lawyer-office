@@ -198,7 +198,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   Widget _buildProgressBar() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: AppColors.cardBackgroundLight,
+      color: AppColors.cardBackground,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

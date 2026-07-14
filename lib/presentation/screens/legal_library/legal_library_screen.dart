@@ -143,7 +143,7 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
         child: Text(value, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
       ),
       label: Text(label),
-      backgroundColor: AppColors.cardBackgroundLight,
+      backgroundColor: AppColors.cardBackground,
     );
   }
 

@@ -270,7 +270,7 @@ class PersonDirectoryCard extends StatelessWidget {
   Widget _kindBadge(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: AppColors.cardBackgroundLight, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: AppColors.cardBackground, borderRadius: BorderRadius.circular(8)),
       child: Text(label, style: AppTextStyles.labelSmall),
     );
   }

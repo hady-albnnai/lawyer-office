@@ -285,7 +285,7 @@ class _ResultEntryDialogState extends ConsumerState<ResultEntryDialog> {
           // د. الأتمتة: إغلاق "النواقص" المتعلقة بغياب موعد قادم (Cascading)
           if (widget.entityId != null && widget.entityType == 'case') {
              await (db.delete(db.deficiencies)
-                ..where((t) => t.entityId.equals(widget.entityId!) & t.description.contains('موعد'))
+                ..where((t) => t.entityId.equals(widget.entityId!))
              ).go();
           }
         }

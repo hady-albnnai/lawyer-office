@@ -30,7 +30,7 @@ class AppTheme {
       // =========================================================================
       // Scaffold Background
       // =========================================================================
-      scaffoldBackgroundColor: AppColors.cardBackgroundLight,
+      scaffoldBackgroundColor: AppColors.cardBackground,
       
       // =========================================================================
       // AppBar Theme

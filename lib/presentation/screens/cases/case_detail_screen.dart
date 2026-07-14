@@ -1962,7 +1962,7 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.cardBackgroundLight,
+        color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.cardBorder, width: 0.5),
       ),

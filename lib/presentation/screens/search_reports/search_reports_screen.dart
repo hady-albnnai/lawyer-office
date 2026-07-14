@@ -239,7 +239,7 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
                         .map(
                           (e) => Chip(
                             label: Text('${e.key}: ${e.value}'),
-                            backgroundColor: AppColors.cardBackgroundLight,
+                            backgroundColor: AppColors.cardBackground,
                           ),
                         )
                         .toList(),

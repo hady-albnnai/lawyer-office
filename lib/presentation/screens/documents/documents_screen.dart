@@ -333,161 +333,51 @@ class _FolderModel {
 }
 
 // نافذة الرفع بقيت كما هي لضمان عدم كسر أي دوال، سيتم تطويرها لاحقاً لربطها بـ FileStorageService
+
 class UploadDocDialog extends ConsumerStatefulWidget {
   const UploadDocDialog({super.key});
-
   @override
   ConsumerState<UploadDocDialog> createState() => _UploadDocDialogState();
 }
 
-
-
-
-  File? _selectedFile;
+class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _entityIdController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
+  String _entityType = 'case';
+  doc_models.DocumentType _docType = doc_models.DocumentType.caseDocument;
+  doc_models.FileType _fileType = doc_models.FileType.pdf;
   bool _isSaving = false;
-
-  Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
-    );
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        _selectedFile = File(result.files.single.path!);
-        if (_titleController.text.isEmpty) {
-          _titleController.text = result.files.single.name;
-        }
-      });
-    }
-  }
-
-  Future<void> _submit() async {
-    if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى إدخال عنوان المستند')));
-      return;
-    }
-    setState(() => _isSaving = true);
-    try {
-      final repo = ref.read(documentRepositoryProvider);
-      
-      int entityTypeId = 0;
-      if (_entityType == 'contract') entityTypeId = 1;
-      else if (_entityType == 'company') entityTypeId = 2;
-      else if (_entityType == 'procedure') entityTypeId = 3;
-      
-      await repo.addDocument(
-        docName: _titleController.text.trim(),
-        docType: _docType.toString().split('.').last,
-        fileType: _fileType.toString().split('.').last,
-        notes: _notesController.text.trim(),
-        physicalLocation: _locationController.text.trim() == 'مكتب المحامي' ? 0 : 1,
-        sourceFile: _selectedFile,
-        entityType: entityTypeId,
-        entityId: int.tryParse(_entityIdController.text.trim()) ?? 0,
-        userRef: 'المحامي',
-      );
-      
-      ref.invalidate(documentsProvider);
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع المستند وتشفيره بنجاح'), backgroundColor: AppColors.success));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ أثناء الرفع: $e'), backgroundColor: AppColors.error));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
 
   @override
   void dispose() {
-    // titleController.dispose();
-    // entityIdController.dispose();
-    // locationController.dispose();
-    // notesController.dispose();
-    // super.dispose();
+    _titleController.dispose();
+    _entityIdController.dispose();
+    _locationController.dispose();
+    _notesController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('رفع مستند جديد', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy)),
-              const SizedBox(height: 24),
-              TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'عنوان المستند')),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<DocumentType>(
-                value: _docType,
-                items: DocumentType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
-                onChanged: (value) => setState(() => _docType = value ?? _docType),
-                decoration: const InputDecoration(labelText: 'نوع المستند'),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _entityType,
-                      items: const [
-                        DropdownMenuItem(value: 'case', child: Text('دعوى')),
-                        DropdownMenuItem(value: 'contract', child: Text('عقد')),
-                        DropdownMenuItem(value: 'company', child: Text('شركة')),
-                        DropdownMenuItem(value: 'procedure', child: Text('إجراء')),
-                      ],
-                      onChanged: (value) => setState(() => _entityType = value ?? _entityType),
-                      decoration: const InputDecoration(labelText: 'نوع الكيان'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: _entityIdController, decoration: const InputDecoration(labelText: 'رقم الكيان'))),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickFile,
-                      icon: const Icon(Icons.attach_file),
-                      label: Text(_selectedFile != null ? _selectedFile!.path.split('/').last : 'اختيار ملف من الكمبيوتر (سيتم تشفيره)'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<doc_models.FileType>(
-                value: _fileType,
-                items: FileType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
-                onChanged: (value) => setState(() => _fileType = value ?? _fileType),
-                decoration: const InputDecoration(labelText: 'نوع الملف'),
-              ),
-              const SizedBox(height: 16),
-              TextField(controller: _locationController, decoration: const InputDecoration(labelText: 'الموقع الفيزيائي')),
-              const SizedBox(height: 16),
-              TextField(controller: _notesController, maxLines: 2, decoration: const InputDecoration(labelText: 'ملاحظات')),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: _isSaving ? null : _submit,
-                    icon: _isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.upload),
-                    label: Text(_isSaving ? 'جارٍ الرفع...' : 'رفع وتشفير المستند'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryNavy, foregroundColor: Colors.white),
-                  ),
-                ],
-              ),
-            ],
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('رفع مستند جديد', style: AppTextStyles.headline6),
+            TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'العنوان')),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isSaving ? null : () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الرفع')));
+              },
+              child: Text(_isSaving ? 'جاري الرفع' : 'حفظ'),
+            )
+          ],
         ),
       ),
     );

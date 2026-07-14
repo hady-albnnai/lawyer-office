@@ -65,76 +65,65 @@ ui_case.CaseStatus _mapCaseStatus(String raw) {
   }
 }
 
-final uiCasesProvider = StreamProvider<List<ui_case.Case>>((ref) async* {
+final uiCasesProvider = StreamProvider.family<List<ui_case.Case>, void>((ref, _) async* {
   await ref.watch(coreDataBootstrapProvider.future);
   final caseRepo = ref.watch(caseRepositoryProvider);
   
   await for (final cases in ref.watch(allCasesProvider.stream)) {
-    final result = <ui_case.Case>[];
-  await ref.watch(coreDataBootstrapProvider.future);
-  final caseRepo = ref.watch(caseRepositoryProvider);
-  final cases = await ref.watch(allCasesProvider.future);
-  final result = <ui_case.Case>[];
+    final result = await Future.wait(cases.map((c) async {
+      final queries = await Future.wait([
+        caseRepo.getSessionsForCase(c.id),
+        caseRepo.getPartiesForCase(c.id),
+        caseRepo.getPhasesForCase(c.id),
+        if (c.courtId != null) caseRepo.getCourtById(c.courtId!) else Future.value(null)
+      ]);
 
-  for (final c in cases) {
-    final sessions = await caseRepo.getSessionsForCase(c.id);
-    final parties = await caseRepo.getPartiesForCase(c.id);
-    final phases = await caseRepo.getPhasesForCase(c.id);
-    String courtName = 'محكمة';
-    if (c.courtId != null) {
-      final court = await caseRepo.getCourtById(c.courtId!);
-      courtName = court?.name ?? courtName;
-    }
+      final sessions = queries[0] as List<db.CaseSession>;
+      final phases = queries[2] as List<db.CasePhase>;
+      final court = queries[3] as db.Court?;
+      final courtName = court?.name ?? 'محكمة';
 
-    final uiSessions = sessions
-        .map(
-          (s) => ui_case.CaseSession(
-            id: '${s.id}',
-            sessionDate: s.sessionDate,
-            sessionTime: _parseTime(s.sessionTime) ?? const TimeOfDay(hour: 9, minute: 0),
-            type: ui_case.SessionType.ordinary,
-            status: s.status == 2 ? ui_case.SessionStatus.held : ui_case.SessionStatus.scheduled,
-            court: courtName,
-          ),
-        )
-        .toList();
+      final uiSessions = sessions.map((s) => ui_case.CaseSession(
+        id: '${s.id}',
+        sessionDate: s.sessionDate,
+        sessionTime: _parseTime(s.sessionTime) ?? const TimeOfDay(hour: 9, minute: 0),
+        type: ui_case.SessionType.ordinary,
+        status: s.status == 2 ? ui_case.SessionStatus.held : ui_case.SessionStatus.scheduled,
+        court: courtName,
+      )).toList();
 
-    final uiPhases = phases
-        .map(
-          (p) => ui_case.CasePhase(
-            id: '${p.id}',
-            type: ui_case.CasePhaseType.initial,
-            court: courtName,
-            baseNumber: p.baseNumber ?? '',
-            baseYear: p.year ?? c.year,
-            startDate: p.startDate ?? c.createdAt,
-          ),
-        )
-        .toList();
+      final uiPhases = phases.map((p) => ui_case.CasePhase(
+        id: '${p.id}',
+        type: ui_case.CasePhaseType.initial,
+        court: courtName,
+        baseNumber: p.baseNumber ?? '',
+        baseYear: p.year ?? c.year,
+        startDate: p.startDate ?? c.createdAt,
+        status: p.isCurrent == 1 ? ui_case.PhaseStatus.active : ui_case.PhaseStatus.transferred,
+      )).toList();
 
-    result.add(
-      ui_case.Case(
+      return ui_case.Case(
         id: '${c.id}',
         caseNumber: c.internalNumber,
-        title: c.subject ?? c.caseType,
+        title: c.subject ?? c.internalNumber,
         type: _mapCaseType(c.caseType),
         status: _mapCaseStatus(c.status),
         court: courtName,
-        baseNumber: c.baseNumber,
-        baseYear: c.year,
         subject: c.subject ?? '',
         claim: c.subjectDetails ?? '',
+        notes: c.notes ?? '',
         creationDate: c.createdAt,
         lastUpdated: c.updatedAt,
-        clientIds: parties.where((p) => p.isClient).map((p) => '${p.personId}').toList(),
-        opponentIds: parties.where((p) => !p.isClient).map((p) => '${p.personId}').toList(),
+        baseNumber: c.baseNumber,
+        baseYear: c.year,
         sessions: uiSessions,
         phases: uiPhases,
-        notes: c.notes ?? '',
-      ),
-    );
-  }
-      yield result;
+        openDeficienciesCount: 0,
+        totalFees: 0,
+        totalExpenses: 0,
+      );
+    }));
+    yield result;
   }
 });
 
