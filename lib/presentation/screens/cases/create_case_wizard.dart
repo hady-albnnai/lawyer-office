@@ -1380,14 +1380,14 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
 // حوارات إضافة سريعة
 // ===========================================================================
 
-class AddClientDialog extends StatefulWidget {
+class AddClientDialog extends ConsumerStatefulWidget {
   const AddClientDialog({super.key});
 
   @override
-  State<AddClientDialog> createState() => _AddClientDialogState();
+  ConsumerState<AddClientDialog> createState() => _AddClientDialogState();
 }
 
-class _AddClientDialogState extends State<AddClientDialog> {
+class _AddClientDialogState extends ConsumerState<AddClientDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -1484,25 +1484,40 @@ class _AddClientDialogState extends State<AddClientDialog> {
     );
   }
 
-  void _submitClient() {
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم إضافة الموكل: ${_nameController.text}'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+
+  bool _saving = false;
+  Future<void> _submitClient() async {
+    if (_nameController.text.trim().isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(personRepositoryProvider);
+      final id = await repo.addPerson(
+        fullName: _nameController.text.trim(),
+        personType: 'client',
+        nationalId: _idController.text.trim(),
+        phone: _phoneController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.of(context).pop(id);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الموكل: ${_nameController.text}'), backgroundColor: AppColors.success));
+      }
+    } catch(e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
+
 }
 
-class AddPoaDialog extends StatefulWidget {
+class AddPoaDialog extends ConsumerStatefulWidget {
   const AddPoaDialog({super.key});
 
   @override
-  State<AddPoaDialog> createState() => _AddPoaDialogState();
+  ConsumerState<AddPoaDialog> createState() => _AddPoaDialogState();
 }
 
-class _AddPoaDialogState extends State<AddPoaDialog> {
+class _AddPoaDialogState extends ConsumerState<AddPoaDialog> {
   final TextEditingController _numberController = TextEditingController();
   int? _selectedClientId;
   String _poaType = 'عامة';
@@ -1620,25 +1635,39 @@ class _AddPoaDialogState extends State<AddPoaDialog> {
     }
   }
 
-  void _submitPoa() {
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم إضافة الوكالة: ${_numberController.text}'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+
+  bool _saving = false;
+  Future<void> _submitPoa() async {
+    if (_numberController.text.trim().isEmpty || _selectedClientId == null) return;
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(poaRepositoryProvider);
+      final id = await repo.addPoa(
+        poaNumber: _numberController.text.trim(),
+        principalId: _selectedClientId!,
+        poaDate: _poaDate,
+      );
+      if (mounted) {
+        Navigator.of(context).pop(id);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الوكالة: ${_numberController.text}'), backgroundColor: AppColors.success));
+      }
+    } catch(e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
+
 }
 
-class AddOpponentDialog extends StatefulWidget {
+class AddOpponentDialog extends ConsumerStatefulWidget {
   const AddOpponentDialog({super.key});
 
   @override
-  State<AddOpponentDialog> createState() => _AddOpponentDialogState();
+  ConsumerState<AddOpponentDialog> createState() => _AddOpponentDialogState();
 }
 
-class _AddOpponentDialogState extends State<AddOpponentDialog> {
+class _AddOpponentDialogState extends ConsumerState<AddOpponentDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -1735,13 +1764,27 @@ class _AddOpponentDialogState extends State<AddOpponentDialog> {
     );
   }
 
-  void _submitOpponent() {
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم إضافة الخصم: ${_nameController.text}'),
-        backgroundColor: AppColors.success,
-      ),
-    );
+
+  bool _saving = false;
+  Future<void> _submitOpponent() async {
+    if (_nameController.text.trim().isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(personRepositoryProvider);
+      final id = await repo.addPerson(
+        fullName: _nameController.text.trim(),
+        personType: 'opponent',
+        nationalId: _idController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.of(context).pop(id);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الخصم: ${_nameController.text}'), backgroundColor: AppColors.success));
+      }
+    } catch(e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
+
 }

@@ -327,21 +327,75 @@ class _FolderModel {
 }
 
 // نافذة الرفع بقيت كما هي لضمان عدم كسر أي دوال، سيتم تطويرها لاحقاً لربطها بـ FileStorageService
-class UploadDocDialog extends StatefulWidget {
+class UploadDocDialog extends ConsumerStatefulWidget {
   const UploadDocDialog({super.key});
 
   @override
-  State<UploadDocDialog> createState() => _UploadDocDialogState();
+  ConsumerState<UploadDocDialog> createState() => _UploadDocDialogState();
 }
 
-class _UploadDocDialogState extends State<UploadDocDialog> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _entityIdController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _notesController = TextEditingController();
-  String _entityType = 'case';
-  DocumentType _docType = DocumentType.caseDocument;
-  FileType _fileType = FileType.pdf;
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import '../../providers/app_providers.dart';
+
+
+  File? _selectedFile;
+  bool _isSaving = false;
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _selectedFile = File(result.files.single.path!);
+        if (_titleController.text.isEmpty) {
+          _titleController.text = result.files.single.name;
+        }
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى إدخال عنوان المستند')));
+      return;
+    }
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(documentRepositoryProvider);
+      
+      int entityTypeId = 0;
+      if (_entityType == 'contract') entityTypeId = 1;
+      else if (_entityType == 'company') entityTypeId = 2;
+      else if (_entityType == 'procedure') entityTypeId = 3;
+      
+      await repo.addDocument(
+        docName: _titleController.text.trim(),
+        docType: _docType.toString().split('.').last,
+        fileType: _fileType.toString().split('.').last,
+        notes: _notesController.text.trim(),
+        physicalLocation: _locationController.text.trim() == 'مكتب المحامي' ? 0 : 1,
+        sourceFile: _selectedFile,
+        entityType: entityTypeId,
+        entityId: int.tryParse(_entityIdController.text.trim()) ?? 0,
+        userRef: 'المحامي',
+      );
+      
+      ref.invalidate(documentsProvider);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع المستند وتشفيره بنجاح'), backgroundColor: AppColors.success));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ أثناء الرفع: $e'), backgroundColor: AppColors.error));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -392,6 +446,18 @@ class _UploadDocDialogState extends State<UploadDocDialog> {
                 ],
               ),
               const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickFile,
+                      icon: const Icon(Icons.attach_file),
+                      label: Text(_selectedFile != null ? _selectedFile!.path.split('/').last : 'اختيار ملف من الكمبيوتر (سيتم تشفيره)'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               DropdownButtonFormField<FileType>(
                 value: _fileType,
                 items: FileType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
@@ -408,14 +474,11 @@ class _UploadDocDialogState extends State<UploadDocDialog> {
                 children: [
                   TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')),
                   const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('تم رفع المستند'), backgroundColor: AppColors.success),
-                      );
-                    },
-                    child: const Text('رفع'),
+                  ElevatedButton.icon(
+                    onPressed: _isSaving ? null : _submit,
+                    icon: _isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.upload),
+                    label: Text(_isSaving ? 'جارٍ الرفع...' : 'رفع وتشفير المستند'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryNavy, foregroundColor: Colors.white),
                   ),
                 ],
               ),
