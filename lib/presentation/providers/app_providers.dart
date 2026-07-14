@@ -137,69 +137,58 @@ final allCasesProvider = StreamProvider<List<Case>>((ref) {
 });
 
 /// تفاصيل دعوى واحدة من المستودع الحقيقي (Drift)
-final caseDetailFromRepoProvider = FutureProvider\.family<Case?, int>((ref, caseId) {
+final caseDetailFromRepoProvider = FutureProvider.family<Case?, int>((ref, caseId) {
   return ref.watch(caseRepositoryProvider).getCaseById(caseId);
 });
 
-/// أطراف الدعوى من المستودع
-final casePartiesProvider = StreamProvider\.family<List<CaseParty>, int>((ref, caseId) {
+final casePartiesProvider = StreamProvider.family<List<CaseParty>, int>((ref, caseId) {
   return ref.watch(caseRepositoryProvider).watchCaseParties(caseId);
 });
 
-/// جلسات الدعوى من المستودع
-final caseSessionsProvider = StreamProvider\.family<List<CaseSession>, int>((ref, caseId) {
+final caseSessionsProvider = StreamProvider.family<List<CaseSession>, int>((ref, caseId) {
   return ref.watch(caseRepositoryProvider).watchCaseSessions(caseId);
 });
 
-/// مراحل الدعوى من المستودع
-final casePhasesProvider = StreamProvider\.family<List<CasePhase>, int>((ref, caseId) {
+final casePhasesProvider = StreamProvider.family<List<CasePhase>, int>((ref, caseId) {
   return ref.watch(caseRepositoryProvider).watchCasePhases(caseId);
 });
 
-/// النواقص المفتوحة لدعوى معينة
-final caseOpenDeficienciesProvider = StreamProvider\.family<List<Deficiency>, int>((ref, caseId) {
+final caseOpenDeficienciesProvider = StreamProvider.family<List<Deficiency>, int>((ref, caseId) {
   return ref.watch(taskRepositoryProvider).watchOpenDeficiencies(
     entityType: EntityType.caseEntity,
     entityId: caseId,
   );
 });
 
-/// قائمة الأشخاص والموكلين
-final allPersonsProvider = StreamProvider\.family<List<PersonEntity>, PersonType?>((ref, type) {
+final allPersonsProvider = StreamProvider.family<List<PersonEntity>, PersonType?>((ref, type) {
   return ref.watch(personRepositoryProvider).watchAllPersons(type: type);
 });
 
-/// قائمة الشركات
 final allCompaniesProvider = StreamProvider<List<Company>>((ref) {
   return ref.watch(companyRepositoryProvider).watchAllCompanies();
 });
 
-/// قائمة العقود
 final allContractsProvider = StreamProvider<List<Contract>>((ref) {
   return ref.watch(contractRepositoryProvider).watchAllContracts();
 });
 
-/// قائمة الإجراءات الإدارية
 final allProceduresProvider = StreamProvider<List<AdminProcedure>>((ref) {
   return ref.watch(adminProcedureRepositoryProvider).watchAllProcedures();
 });
 
-/// مهام يوم محدد (تلقائياً تاريخ اليوم إذا لم يُمرر تاريخ)
-final tasksByDateProvider = StreamProvider\.family<List<DailyTask>, DateTime?>((ref, date) {
+final tasksByDateProvider = StreamProvider.family<List<DailyTask>, DateTime?>((ref, date) {
   final target = date ?? DateTime.now();
   return ref.watch(taskRepositoryProvider).watchTasksByDate(target);
 });
 
-/// قائمة النواقص المفتوحة في المكتب
-final openDeficienciesProvider = StreamProvider\.family<List<Deficiency>, ({EntityType? type, int? id})?>((ref, filter) {
+final openDeficienciesProvider = StreamProvider.family<List<Deficiency>, ({EntityType? type, int? id})?>((ref, filter) {
   return ref.watch(taskRepositoryProvider).watchOpenDeficiencies(
     entityType: filter?.type,
     entityId: filter?.id,
   );
 });
 
-/// قائمة المحاكم النشطة في النظام
-final activeCourtsProvider = StreamProvider\.family<List<Court>, String?>((ref, type) {
+final activeCourtsProvider = StreamProvider.family<List<Court>, String?>((ref, type) {
   return ref.watch(lookupRepositoryProvider).watchActiveCourts(type: type);
 });
 

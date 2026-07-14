@@ -259,6 +259,7 @@ class Cases extends Table {
 
 /// جدول أطراف الدعوى (الموكلون والخصوم)
 @TableIndex(name: "idx_case_parties_case", columns: {#caseId})
+@TableIndex(name: "idx_case_parties_case", columns: {#caseId})
 class CaseParties extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get caseId => integer().references(Cases, #id, onDelete: KeyAction.cascade)();
@@ -272,6 +273,7 @@ class CaseParties extends Table {
 }
 
 /// جدول المراحل القضائية (تسلسل التقاضي من الصلح/البداية حتى النقض)
+@TableIndex(name: "idx_case_phases_case", columns: {#caseId})
 @TableIndex(name: "idx_case_phases_case", columns: {#caseId})
 class CasePhases extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -291,6 +293,7 @@ class CasePhases extends Table {
 }
 
 /// جدول جلسات المرافعة والمحاكمة
+@TableIndex(name: "idx_case_sessions_case", columns: {#caseId})
 @TableIndex(name: "idx_case_sessions_case", columns: {#caseId})
 class CaseSessions extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -537,6 +540,7 @@ class AdminProcedureTypes extends Table {
 // ============================================================================
 
 /// جدول مهام وأعمال اليوم الموحد (يتغذى من الجلسات، التذكيرات، المعاملات، أو يدوياً)
+@TableIndex(name: "idx_tasks_date", columns: {#taskDate})
 @TableIndex(name: "idx_tasks_date", columns: {#taskDate})
 class DailyTasks extends Table {
   IntColumn get id => integer().autoIncrement()();

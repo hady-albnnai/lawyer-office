@@ -32,7 +32,7 @@ class _DesktopIntegrationWrapperState extends State<DesktopIntegrationWrapper> w
       windowManager.removeListener(this);
       trayManager.removeListener(this);
     }
-    super.dispose();
+    // super.dispose();
   }
 
   Future<void> _initSystemTray() async {
