@@ -14,6 +14,7 @@ import 'cases/create_case_wizard.dart';
 import 'companies/create_company_wizard.dart';
 import 'contracts/create_contract_screen.dart';
 import 'work_orders/work_order_dialogs.dart';
+import 'search_reports/search_report_models.dart';
 
 /// غلاف التطبيق مع الشريط الجانبي الموحد.
 class MainShellScreen extends ConsumerWidget {
@@ -326,13 +327,22 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
     }
 
     // جلب محرك البحث من Riverpod
-    // final engine = ref.read(searchReportEngineProvider); 
-    // final results = engine.search(query).take(5).toList(); 
-    // حالياً سنضع داتا وهمية للمحاكاة ريثما يتم تفعيل FTS5
+    final engine = ref.read(searchReportEngineProvider); 
+    final results = engine.search(query).take(5).toList(); 
     setState(() {
-      _hits = [
-        {"title": "بحث عن: $query", "subtitle": "اضغط هنا للبحث المتقدم", "route": "/search-reports"}
-      ];
+      _hits = results.map((hit) => {
+        "title": hit.title,
+        "subtitle": hit.subtitle,
+        "route": hit.routeHint
+      }).toList();
+      
+      if (_hits.isEmpty) {
+        _hits.add({
+          "title": "لا يوجد نتائج سريعة لـ: $query",
+          "subtitle": "اضغط هنا للبحث المتقدم في السجلات",
+          "route": "/search-reports",
+        });
+      }
     });
   }
 
