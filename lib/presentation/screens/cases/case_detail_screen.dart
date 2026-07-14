@@ -1076,86 +1076,139 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
   Widget _buildSummaryTab(CaseDetailState state) {
     final caseItem = state.caseItem!;
     final nextSession = state.nextSession;
+    final progress = state.isTerminated ? 1.0 : (state.sessions.length > 5 ? 0.8 : (state.sessions.length / 10).clamp(0.1, 0.9));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionHeader(
-            title: 'الإجراءات السريعة',
-            subtitle: 'تنفيذ أكثر العمليات استخداماً داخل ملف الدعوى.',
-            icon: Icons.flash_on,
-          ),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ElevatedButton.icon(
-                onPressed: () => _showAddSessionDialog(context),
-                icon: const Icon(Icons.add_alarm),
-                label: const Text('إضافة جلسة'),
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("التقدم المالي (Micro-Dashboard)", style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
+                      const SizedBox(height: 16),
+                      _progressBar("مؤشر إنجاز الدعوى القضائية", progress, AppColors.success),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _financeSummaryBox("الأتعاب المتفق عليها", state.totalFees, AppColors.primaryNavy),
+                          _financeSummaryBox("إجمالي المصاريف", state.totalExpenses, AppColors.error),
+                          _financeSummaryBox("الرصيد الصافي", state.balance, AppColors.success),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              OutlinedButton.icon(
-                onPressed: () => _tabController.animateTo(4),
-                icon: const Icon(Icons.upload_file),
-                label: const Text('رفع مستند'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _showAddPhaseDialog(context, state),
-                icon: const Icon(Icons.account_tree),
-                label: const Text('نقل مرحلة'),
-              ),
-              TextButton.icon(
-                onPressed: () => _tabController.animateTo(8),
-                icon: const Icon(Icons.lock_outline),
-                label: const Text('إنهاء الدعوى'),
+              const SizedBox(width: 24),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("النواقص العاجلة للحل", style: AppTextStyles.headline6.copyWith(color: AppColors.warning)),
+                      const SizedBox(height: 16),
+                      if (state.openDeficienciesCount == 0)
+                        Text("الملف مكتمل ولا يوجد نواقص.", style: AppTextStyles.bodyMediumSecondary)
+                      else
+                        ...state.deficiencies.where((d) => !d.isResolved).take(3).map((d) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber, color: AppColors.error, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(d.deficiencyType, style: AppTextStyles.bodyMedium)),
+                              TextButton(
+                                onPressed: () => _tabController.animateTo(6),
+                                style: TextButton.styleFrom(minimumSize: Size.zero, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                                child: const Text("حل الآن"),
+                              ),
+                            ],
+                          ),
+                        )),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          Text("الخط الزمني المصغر", style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
           const SizedBox(height: 16),
-          _responsiveCards([
-            _metricCard('رقم الدعوى', caseItem.caseNumber, Icons.numbers, AppColors.primaryNavy),
-            _metricCard('تاريخ الإنشاء', _formatDate(caseItem.creationDate), Icons.calendar_today, AppColors.info),
-            _metricCard('نوع الدعوى', caseItem.type.displayName, Icons.category, AppColors.secondaryGold),
-            _metricCard('الحالة', state.isTerminated ? 'منتهية' : caseItem.status.displayName, Icons.verified, caseItem.status.color),
-            _metricCard('عدد المستندات', '${state.documents.length}', Icons.description, AppColors.primaryNavy),
-            _metricCard('الرصيد', _formatCurrency(state.balance), Icons.account_balance_wallet, state.balance >= 0 ? AppColors.success : AppColors.error),
-          ]),
-          const SizedBox(height: 16),
-          _infoCard(
-            title: 'موضوع الدعوى والطلبات',
-            icon: Icons.article,
-            children: [
-              _infoRow('العنوان', caseItem.title),
-              _infoRow('الموضوع', caseItem.subject.isEmpty ? 'غير مدخل' : caseItem.subject),
-              _infoRow('الطلبات', caseItem.claim.isEmpty ? 'غير مدخل' : caseItem.claim),
-              _infoRow('الملاحظات', caseItem.notes.isEmpty ? 'لا توجد ملاحظات' : caseItem.notes),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _infoCard(
-            title: 'الموعد القادم',
-            icon: Icons.event_available,
-            children: [
-              if (nextSession == null)
-                _alertBox(
-                  icon: Icons.warning_amber,
-                  title: 'لا توجد جلسة قادمة محددة',
-                  message: 'ينصح بإضافة موعد قادم أو إنشاء نقص لمتابعته من لوحة اليوم.',
-                  color: AppColors.warning,
-                )
-              else ...[
-                _infoRow('التاريخ', _formatDate(nextSession.sessionDate)),
-                _infoRow('الوقت', _formatTime(nextSession.sessionTime)),
-                _infoRow('نوع الجلسة', nextSession.type.displayName),
-                _infoRow('المحكمة', nextSession.court),
-              ],
-            ],
-          ),
+          _buildMiniTimeline(state),
         ],
       ),
     );
+  }
+
+  Widget _progressBar(String label, double value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: AppTextStyles.labelMedium),
+            Text("${(value * 100).toInt()}%", style: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(
+          value: value,
+          backgroundColor: AppColors.cardBorder,
+          valueColor: AlwaysStoppedAnimation<Color>(color),
+          minHeight: 8,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ],
+    );
+  }
+
+  Widget _financeSummaryBox(String title, double amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: AppTextStyles.bodySmallSecondary),
+        const SizedBox(height: 4),
+        Text("${amount.toStringAsFixed(0)} ل.س", style: AppTextStyles.headline6.copyWith(color: color)),
+      ],
+    );
+  }
+
+  Widget _buildMiniTimeline(CaseDetailState state) {
+    final events = state.filteredTimeline.take(3).toList();
+    if (events.isEmpty) return Text("لا يوجد أحداث بعد.", style: AppTextStyles.bodyMediumSecondary);
+    return Column(
+      children: events.map((e) => ListTile(
+        leading: Icon(Icons.history, color: AppColors.primaryNavy),
+        title: Text(e.description),
+        subtitle: Text("${e.eventDate.year}-${e.eventDate.month}-${e.eventDate.day} • بواسطة: ${e.createdBy}"),
+        dense: true,
+      )).toList(),
+    );
+  }
+
   }
 
   Widget _buildPartiesTab(CaseDetailState state) {
