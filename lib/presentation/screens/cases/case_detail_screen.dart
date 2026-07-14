@@ -628,7 +628,7 @@ class CaseDetailNotifier extends StateNotifier<CaseDetailState> {
         (session) => CaseTimelineEvent(
           id: 'timeline_session_${session.id}',
           eventDate: session.sessionDate,
-          eventType: 'session_${session.status.name}',
+          eventType: 'session_${session.status.toString().split('.').last}',
           description: 'جلسة ${session.type.displayName} في ${session.court} - ${session.decision.isEmpty ? 'بانتظار النتيجة' : session.decision}.',
           createdBy: 'جدول الجلسات',
           documents: session.documents,

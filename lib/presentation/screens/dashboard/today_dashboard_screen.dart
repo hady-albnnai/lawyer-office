@@ -11,6 +11,8 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 import '../agenda/result_entry_dialog.dart';
 import '../work_orders/work_order_dialogs.dart';
+import '../work_orders/work_order_models.dart';
+import '../cases/case_models.dart';
 
 class TodayDashboardScreen extends ConsumerWidget {
   const TodayDashboardScreen({super.key});
@@ -85,15 +87,14 @@ class TodayDashboardScreen extends ConsumerWidget {
               final workOrders = woAsync.maybeWhen(data: (w) => w, orElse: () => const []);
               final pendingWo = workOrders
                   .where((w) =>
-                      w.status.name.contains('waiting') ||
-                      w.status.name == 'draft' ||
-                      w.status.name == 'resultEntered' ||
-                      w.status.name == 'waitingForApproval' ||
-                      w.status.name == 'waitingForResult')
+                      w.status == WorkOrderStatus.waitingForResult ||
+                      w.status == WorkOrderStatus.waitingForApproval ||
+                      w.status == WorkOrderStatus.draft ||
+                      w.status == WorkOrderStatus.resultEntered)
                   .length;
               final overdueCases = cases.where((c) {
                 final n = c.nextSession?.sessionDate;
-                return n != null && n.isBefore(DateTime.now()) && c.status.name != 'completed';
+                return n != null && n.isBefore(DateTime.now()) && c.status != CaseStatus.completed;
               }).length;
               final openDefs = deficienciesAsync.maybeWhen(data: (d) => d.length, orElse: () => 0);
               final tasksCount = tasksAsync.maybeWhen(data: (t) => t.length, orElse: () => 0);

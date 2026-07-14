@@ -430,7 +430,7 @@ class FileDocsDialog extends StatelessWidget {
             id: entry.value,
             title: 'مستند ${entry.key + 1} - ${file.fileNumber}',
             documentType: entry.key == 0 ? doc_models.DocumentType.powerOfAttorney : doc_models.DocumentType.caseDocument,
-            entityType: file.type.name,
+            entityType: file.type.toString().split('.').last,
             entityId: file.id,
             entityTitle: file.title,
             filePath: 'docs/files/${file.id}_${entry.key + 1}.pdf',

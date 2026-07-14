@@ -265,7 +265,7 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
       if (id == null) throw Exception('معرف غير صالح');
       await ref.read(workOrderRepositoryProvider).enterResult(
             id: id,
-            resultStatus: _status!.name,
+            resultStatus: _status!.toString().split('.').last,
             resultText: _result.text.trim().isEmpty ? _status!.displayName : _result.text.trim(),
             nextDate: _nextDate,
             userRef: 'المكتب',

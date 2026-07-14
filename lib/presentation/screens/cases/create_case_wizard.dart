@@ -1329,7 +1329,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
       final caseData = db.CasesCompanion.insert(
         internalNumber: 'TMP',
         year: int.tryParse(_baseYearController.text) ?? DateTime.now().year,
-        caseType: _caseType.name,
+        caseType: _caseType.toString().split('.').last,
         subType: Value(_caseSubType),
         status: const Value('registered'),
         courtId: Value(_selectedCourtId),

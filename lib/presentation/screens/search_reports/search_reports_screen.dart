@@ -414,7 +414,7 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
     final bytes = await SearchReportsPdfBuilder.build(settings: settings, report: report);
     await Printing.sharePdf(
       bytes: bytes,
-      filename: 'report_${report.kind.name}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      filename: 'report_${report.kind.toString().split('.').last}_${DateTime.now().millisecondsSinceEpoch}.pdf',
     );
   }
 
@@ -434,7 +434,7 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
               allowSharing: true,
               canChangeOrientation: false,
               canChangePageFormat: false,
-              pdfFileName: '${report.kind.name}.pdf',
+              pdfFileName: '${report.kind.toString().split('.').last}.pdf',
             ),
           ),
         ),
