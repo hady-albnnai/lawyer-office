@@ -1,11 +1,18 @@
+/// محرك إدارة التخزين المحلي والمرفقات وقوالب Word (FileStorageService)
+/// التحديث الماسي (المرحلة 10.1): File-Level Encryption (تشفير المرفقات بصيغة .enc)
+
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:encrypt/encrypt.dart' as enc;
 import '../../core/constants/app_constants.dart';
 
-/// محرك إدارة التخزين المحلي والمرفقات وقوالب Word (FileStorageService)
-/// يحفظ المرفقات تحت بنية مجلدات منظمة ويعيد مسارات نسبية لتخزينها في SQLite.
 class FileStorageService {
+  // مفتاح التشفير الديناميكي (يتم جلبه لاحقاً من SecurityDao، هنا كمثال ثابت للتطبيق المكتبي)
+  final _key = enc.Key.fromUtf8('my_lawyer_office_32_bytes_key_!!');
+  final _iv = enc.IV.fromLength(16);
+
   /// الحصول على المجلد الجذري للتطبيق (مثال: AppData/LawOffice/files/)
   Future<Directory> getRootStorageDir() async {
     final docsDir = await getApplicationDocumentsDirectory();
@@ -16,7 +23,7 @@ class FileStorageService {
     return appDir;
   }
 
-  /// حفظ ملف مرفق في المجلد المخصص للكيان (دعوى، عقد، شركة...) وإرجاع مساره النسبي
+  /// حفظ ملف مرفق وتشفيره إلى (.enc)
   Future<String> saveAttachment({
     required File sourceFile,
     required String folderType,
@@ -28,28 +35,47 @@ class FileStorageService {
       await targetDir.create(recursive: true);
     }
 
-    // تسمية الملف مع طابع زمني لمنع تشابه الأسماء
     final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
     final String cleanName = p.basename(sourceFile.path).replaceAll(' ', '_');
-    final String fileName = '${timestamp}_$cleanName';
+    
+    // تغيير اللاحقة إلى .enc
+    final String fileName = '${timestamp}_$cleanName.enc';
     final String fullDestPath = p.join(targetDir.path, fileName);
 
-    await sourceFile.copy(fullDestPath);
+    // عملية التشفير العسكري (AES-256)
+    final encrypter = enc.Encrypter(enc.AES(_key));
+    final fileBytes = await sourceFile.readAsBytes();
+    final encrypted = encrypter.encryptBytes(fileBytes, iv: _iv);
 
-    // إرجاع المسار النسبي فقط لتخزينه بقاعدة البيانات (مثال: cases/15/1719999_doc.pdf)
+    // كتابة الملف المشفر في القرص
+    final destFile = File(fullDestPath);
+    await destFile.writeAsBytes(encrypted.bytes);
+
     return p.join(folderType, entityId.toString(), fileName);
   }
 
-  /// تحويل المسار النسبي المحفوظ في قاعدة البيانات إلى مسار كامل على القرص الفعلي
+  /// فك التشفير عند الطلب (يعيد ملفاً مؤقتاً Decrypted File في الـ RAM / Cache)
   Future<File?> getFileFromRelativePath(String? relativePath) async {
     if (relativePath == null || relativePath.isEmpty) return null;
     final rootDir = await getRootStorageDir();
     final fullPath = p.join(rootDir.path, relativePath);
-    final file = File(fullPath);
-    if (await file.exists()) {
-      return file;
-    }
-    return null;
+    final encryptedFile = File(fullPath);
+    
+    if (!await encryptedFile.exists()) return null;
+
+    // قراءة الملف المشفر
+    final encryptedBytes = await encryptedFile.readAsBytes();
+    final encrypter = enc.Encrypter(enc.AES(_key));
+    
+    // فك التشفير للذاكرة
+    final decryptedBytes = encrypter.decryptBytes(enc.Encrypted(encryptedBytes), iv: _iv);
+
+    // حفظه في مجلد الكاش المؤقت ليعرضه الـ UI، ويجب حذفه لاحقاً
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File(p.join(tempDir.path, p.basename(relativePath).replaceAll('.enc', '')));
+    await tempFile.writeAsBytes(decryptedBytes);
+
+    return tempFile;
   }
 
   /// جلب المسار الكامل لنص نسبي
@@ -74,7 +100,7 @@ class FileStorageService {
     return false;
   }
 
-  /// حفظ قالب Word مخصص للنماذج والعقود
+  /// حفظ قالب Word مخصص للنماذج والعقود (بدون تشفير ليسهل تحريره)
   Future<String> saveTemplate(File docxFile, String templateName) async {
     final rootDir = await getRootStorageDir();
     final targetDir = Directory(p.join(rootDir.path, AppConstants.templatesFolder));

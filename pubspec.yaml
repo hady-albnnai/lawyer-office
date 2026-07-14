@@ -27,6 +27,7 @@ dependencies:
 
   # Files, Attachments & Word/PDF Processing
   archive: ^3.6.1
+  encrypt: ^5.0.3
   file_picker: ^8.0.3
   open_filex: ^4.5.0
   pdf: ^3.11.0
