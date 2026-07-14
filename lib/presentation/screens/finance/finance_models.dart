@@ -556,6 +556,7 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
   }
 
   Future<void> reload() async {
+    try {
     final repo = _repository;
     if (repo == null) return;
     final agreements = await repo.getAllAgreements();
@@ -570,6 +571,9 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
       searchQuery: state.searchQuery,
       entityFilter: state.entityFilter,
     );
+    } catch (e, st) {
+      print('Error in reload: $e\n$st');
+    }
   }
 
   static FinanceState _seedState() {

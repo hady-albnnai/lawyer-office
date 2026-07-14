@@ -107,7 +107,12 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   ];
 
   @override
-  void dispose() {
+  void dispose() {    _notaryController.dispose();
+    _numberController.dispose();
+    _phoneController.dispose();
+    _idController.dispose();
+    _nameController.dispose();
+
     _clientSearchController.dispose();
     _poaSearchController.dispose();
     _baseNumberController.dispose();

@@ -373,6 +373,7 @@ class LegalLibraryNotifier extends StateNotifier<LegalLibraryState> {
   }
 
   Future<void> reload() async {
+    try {
     final repo = _repository;
     if (repo == null) return;
     final items = await repo.getAllItems();
@@ -384,6 +385,9 @@ class LegalLibraryNotifier extends StateNotifier<LegalLibraryState> {
       section: state.section,
       typeFilter: state.typeFilter,
     );
+    } catch (e, st) {
+      print('Error in reload: $e\n$st');
+    }
   }
 
   static LegalItemType _typeFromDb(String raw) {

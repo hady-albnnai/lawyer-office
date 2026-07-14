@@ -270,6 +270,7 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
   }
 
   Future<void> _loadFromDb() async {
+    try {
     final repo = _repository;
     if (repo == null) return;
     final settings = await repo.getAllSettings();
@@ -340,6 +341,9 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
           )
           .toList(),
     );
+    } catch (e, st) {
+      print('Error in _loadFromDb: $e\n$st');
+    }
   }
 
   static const _kEmail = 'office_email';

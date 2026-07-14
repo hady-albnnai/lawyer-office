@@ -41,7 +41,10 @@ class _PersonsListScreenState extends ConsumerState<PersonsListScreen> with Sing
   }
 
   @override
-  void dispose() {
+  void dispose() {    _cityController.dispose();
+    _phoneController.dispose();
+    _nameController.dispose();
+
     _tabController.dispose();
     super.dispose();
   }

@@ -38,7 +38,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   }
 
   @override
-  void dispose() {
+  void dispose() {    _paidByController.dispose();
+    _descriptionController.dispose();
+    _notesController.dispose();
+    _receiptController.dispose();
+    _documentController.dispose();
+    _amountController.dispose();
+    _partyController.dispose();
+    _entityTitleController.dispose();
+
     _tabController.dispose();
     super.dispose();
   }
