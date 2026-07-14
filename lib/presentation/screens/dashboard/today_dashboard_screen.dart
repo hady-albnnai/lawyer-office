@@ -198,10 +198,20 @@ class TodayDashboardScreen extends ConsumerWidget {
                         Text('النواقص الحرجة (${defs.length})', style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSecondary)),
                         const SizedBox(height: 8),
                         ...defs.take(5).map((d) => _buildAlertCard(
-                          title: d.entityTitle,
-                          description: d.deficiencyType,
+                          title: d.description ?? 'نقص في الملف',
+                          description: d.fieldName ?? 'الرجاء المراجعة والإكمال',
                           actionText: 'معالجة',
-                          onAction: () => context.go('/cases'), // توجيه للملف
+                          onAction: () {
+                            if (d.entityType == 0) { // caseEntity
+                              context.go('/cases/${d.entityId}');
+                            } else if (d.entityType == 2) { // company
+                              context.go('/companies/${d.entityId}');
+                            } else if (d.entityType == 1) { // contract
+                              context.go('/contracts/${d.entityId}');
+                            } else {
+                              context.go('/cases');
+                            }
+                          },
                           isCritical: true,
                         )),
                         const SizedBox(height: 16),

@@ -384,11 +384,11 @@ ui_wo.WorkOrderStatus _mapWoStatus(String raw) {
   }
 }
 
-final uiWorkOrdersProvider = FutureProvider<List<ui_wo.WorkOrder>>((ref) async {
+final uiWorkOrdersProvider = StreamProvider<List<ui_wo.WorkOrder>>((ref) async* {
   await ref.watch(coreDataBootstrapProvider.future);
   final repo = ref.watch(workOrderRepositoryProvider);
-  final rows = await repo.getAll();
-  return rows
+  await for (final rows in repo.watchAll()) {
+    yield rows
       .map(
         (w) => ui_wo.WorkOrder(
           id: '${w.id}',

@@ -1138,7 +1138,7 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
                             children: [
                               const Icon(Icons.warning_amber, color: AppColors.error, size: 18),
                               const SizedBox(width: 8),
-                              Expanded(child: Text(d.deficiencyType, style: AppTextStyles.bodyMedium)),
+                              Expanded(child: Text(d.description, style: AppTextStyles.bodyMedium)),
                               TextButton(
                                 onPressed: () => _tabController.animateTo(6),
                                 style: TextButton.styleFrom(minimumSize: Size.zero, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
