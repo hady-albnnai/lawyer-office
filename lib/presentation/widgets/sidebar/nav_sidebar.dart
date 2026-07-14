@@ -277,6 +277,7 @@ class AppSidebar extends NavSidebar {
 }
 
 /// قائمة عناصر SideBar الافتراضية (11 تبويب)
+
 /// مساحات العمل الستة (The 6 Workspaces)
 List<SidebarItemModel> getDefaultSidebarItems() {
   return [
@@ -288,6 +289,7 @@ List<SidebarItemModel> getDefaultSidebarItems() {
       children: [
         SidebarItemModel(id: 'ws_today', label: 'لوحة اليوم', icon: CustomIcons.todayDashboard, route: '/today'),
         SidebarItemModel(id: 'ws_agenda', label: 'الأجندة والتقويم', icon: CustomIcons.agenda, route: '/agenda'),
+        SidebarItemModel(id: 'ws_tasks', label: 'المهام اليومية', icon: Icons.task_alt, route: '/tasks'),
         SidebarItemModel(id: 'ws_wo', label: 'أوامر العمل', icon: CustomIcons.workOrders, route: '/work-orders'),
       ],
     ),
@@ -298,6 +300,9 @@ List<SidebarItemModel> getDefaultSidebarItems() {
       route: '/cases',
       children: [
         SidebarItemModel(id: 'lm_cases', label: 'الدعاوى', icon: Icons.gavel, route: '/cases'),
+        SidebarItemModel(id: 'lm_companies', label: 'الشركات', icon: Icons.business, route: '/companies'),
+        SidebarItemModel(id: 'lm_contracts', label: 'العقود', icon: Icons.description, route: '/contracts'),
+        SidebarItemModel(id: 'lm_procedures', label: 'الإجراءات الإدارية', icon: Icons.assignment, route: '/procedures'),
       ],
     ),
     const SidebarItemModel(
@@ -308,7 +313,7 @@ List<SidebarItemModel> getDefaultSidebarItems() {
       children: [
         SidebarItemModel(id: 'dir_persons', label: 'الأشخاص والجهات', icon: CustomIcons.persons, route: '/persons'),
         SidebarItemModel(id: 'dir_poa', label: 'الوكالات', icon: Icons.verified_user_outlined, route: '/poa'),
-        SidebarItemModel(id: 'dir_files', label: 'الأرشيف الفيزيائي', icon: CustomIcons.files, route: '/files'),
+        SidebarItemModel(id: 'dir_archive', label: 'الأرشيف الفيزيائي', icon: Icons.archive, route: '/archive'),
       ],
     ),
     const SidebarItemModel(
@@ -319,6 +324,7 @@ List<SidebarItemModel> getDefaultSidebarItems() {
       children: [
         SidebarItemModel(id: 'res_docs', label: 'المستندات الرقمية', icon: CustomIcons.documents, route: '/documents'),
         SidebarItemModel(id: 'res_library', label: 'المكتبة القانونية', icon: CustomIcons.legalLibrary, route: '/legal-library'),
+        SidebarItemModel(id: 'res_printing', label: 'الطباعة والنماذج', icon: Icons.print, route: '/printing'),
       ],
     ),
     const SidebarItemModel(

@@ -33,6 +33,12 @@ class MainShellScreen extends ConsumerWidget {
     '/search-reports',
     '/settings',
     '/cases',
+    '/companies',
+    '/contracts',
+    '/procedures',
+    '/tasks',
+    '/printing',
+    '/archive',
   };
 
   @override
@@ -42,16 +48,14 @@ class MainShellScreen extends ConsumerWidget {
     
     // نحدد المسار للـ Sidebar بناءً على بداية الرابط (مثلاً /cases/1 تقع ضمن الشؤون القانونية)
     String selectedRoute = '/today';
-    if (location.startsWith('/cases')) selectedRoute = '/cases';
-    else if (location.startsWith('/poa') || location.startsWith('/persons')) selectedRoute = '/persons';
-    else if (location.startsWith('/work-orders')) selectedRoute = '/work-orders';
+    if (location.startsWith('/cases') || location.startsWith('/companies') || location.startsWith('/contracts') || location.startsWith('/procedures')) selectedRoute = '/cases';
+    else if (location.startsWith('/poa') || location.startsWith('/persons') || location.startsWith('/archive')) selectedRoute = '/persons';
+    else if (location.startsWith('/work-orders') || location.startsWith('/tasks')) selectedRoute = '/work-orders';
     else if (location.startsWith('/agenda')) selectedRoute = '/agenda';
     else if (location.startsWith('/finance')) selectedRoute = '/finance';
-    else if (location.startsWith('/documents')) selectedRoute = '/documents';
-    else if (location.startsWith('/legal-library')) selectedRoute = '/legal-library';
+    else if (location.startsWith('/documents') || location.startsWith('/legal-library') || location.startsWith('/printing')) selectedRoute = '/documents';
     else if (location.startsWith('/search-reports')) selectedRoute = '/search-reports';
     else if (location.startsWith('/settings')) selectedRoute = '/settings';
-    else if (location.startsWith('/files')) selectedRoute = '/files';
 
     final officeName = settingsAsync.maybeWhen(
       data: (s) => s.officeTitle,
