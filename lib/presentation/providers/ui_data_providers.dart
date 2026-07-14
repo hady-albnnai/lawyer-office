@@ -65,22 +65,15 @@ ui_case.CaseStatus _mapCaseStatus(String raw) {
   }
 }
 
-final uiCasesProvider = StreamProvider.family<List<ui_case.Case>, void>((ref, _) async* {
+final uiCasesProvider = StreamProvider<List<ui_case.Case>>((ref) async* {
   await ref.watch(coreDataBootstrapProvider.future);
   final caseRepo = ref.watch(caseRepositoryProvider);
   
   await for (final cases in ref.watch(allCasesProvider.stream)) {
     final result = await Future.wait(cases.map((c) async {
-      final queries = await Future.wait([
-        caseRepo.getSessionsForCase(c.id),
-        caseRepo.getPartiesForCase(c.id),
-        caseRepo.getPhasesForCase(c.id),
-        if (c.courtId != null) caseRepo.getCourtById(c.courtId!) else Future.value(null)
-      ]);
-
-      final sessions = queries[0] as List<db.CaseSession>;
-      final phases = queries[2] as List<db.CasePhase>;
-      final court = queries[3] as db.Court?;
+      final sessions = await caseRepo.getSessionsForCase(c.id);
+      final phases = await caseRepo.getPhasesForCase(c.id);
+      final court = c.courtId != null ? await caseRepo.getCourtById(c.courtId!) : null;
       final courtName = court?.name ?? 'محكمة';
 
       final uiSessions = sessions.map((s) => ui_case.CaseSession(

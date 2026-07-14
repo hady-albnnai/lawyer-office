@@ -304,10 +304,10 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
   Color _getFileColor(FileType type) {
     switch (type) {
       case doc_models.FileType.pdf: return AppColors.error;
-      case FileType.docx:
-      case FileType.doc: return Colors.blue;
-      case FileType.jpg:
-      case FileType.png: return Colors.green;
+      case doc_models.FileType.docx:
+      case doc_models.FileType.doc: return Colors.blue;
+      case doc_models.FileType.jpg:
+      case doc_models.FileType.png: return Colors.green;
       default: return Colors.grey;
     }
   }
@@ -334,52 +334,22 @@ class _FolderModel {
 
 // نافذة الرفع بقيت كما هي لضمان عدم كسر أي دوال، سيتم تطويرها لاحقاً لربطها بـ FileStorageService
 
-class UploadDocDialog extends ConsumerStatefulWidget {
+
+class UploadDocDialog extends StatefulWidget {
   const UploadDocDialog({super.key});
   @override
-  ConsumerState<UploadDocDialog> createState() => _UploadDocDialogState();
+  State<UploadDocDialog> createState() => _UploadDocDialogState();
 }
-
-class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _entityIdController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _notesController = TextEditingController();
-  String _entityType = 'case';
-  doc_models.DocumentType _docType = doc_models.DocumentType.caseDocument;
-  doc_models.FileType _fileType = doc_models.FileType.pdf;
-  bool _isSaving = false;
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _entityIdController.dispose();
-    _locationController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
+class _UploadDocDialogState extends State<UploadDocDialog> {
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('رفع مستند جديد', style: AppTextStyles.headline6),
-            TextField(controller: _titleController, decoration: const InputDecoration(labelText: 'العنوان')),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isSaving ? null : () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الرفع')));
-              },
-              child: Text(_isSaving ? 'جاري الرفع' : 'حفظ'),
-            )
-          ],
-        ),
-      ),
+    return AlertDialog(
+      title: const Text('رفع مستند'),
+      content: const Text('سيتم تفعيل الرفع الآمن لاحقاً.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))
+      ]
     );
   }
 }
+
