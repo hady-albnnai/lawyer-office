@@ -122,3 +122,27 @@
 - **لوحة اليوم (Dashboard):** في الشاشات العريضة تعمل بنظام Split-View (الإنذارات يميناً، الأجندة يساراً). في شاشات الهاتف، تتحول إلى نظام تبويبات (Tabs) أو التمرير العمودي (Vertical Scroll).
 - **مستعرض الملفات:** يعتمد واجهة Grid/List View تناسب الماوس (Mouse Hover) والنقر المزدوج (Double Click).
 
+
+---
+
+## 8. المستوى الماسي (The Perfection Level - Master Concepts)
+للانتقال بالتطبيق من مجرد نظام جيد إلى نظام عالمي (World-Class ERP)، سيتم دمج المفاهيم البرمجية التالية:
+
+### 8.1 لوحات التحكم المصغرة (Matter-Centric Micro-Dashboards)
+لن تكون شاشات تفاصيل الدعوى (`CaseDetailScreen`) أو الشركة (`CompanyDetailScreen`) مجرد نماذج عرض بيانات. سيتم تحويلها إلى (Micro-Dashboards) تجلب البيانات من كافة الجداول (Polymorphic Gathering) لتعرض:
+- شريط تقدم (Progress Bar) لحالة الملف.
+- ملخص مالي فوري (Total Fees vs Paid vs Remaining) مجلوب من `FinanceRepository`.
+- خط زمني (Timeline) مصغر يخص هذا الملف فقط.
+
+### 8.2 النواقص القابلة للحل الفوري (Actionable One-Click Deficiencies)
+يتم ترقية نظام `DeficiencyService`. الإنذارات التي تظهر في الـ Dashboard لن تكون نصوصاً جامدة، بل ستكون أزراراً تفاعلية (Smart Prompts):
+- ⚠️ "وكالة الموكل غير مرفقة" -> [زر: إرفاق الآن] -> يفتح الـ POA Picker -> يغلق النقص.
+- ⚠️ "دعوى بلا موعد قادم" -> [زر: تحديد موعد] -> يفتح `ResultEntryDialog` -> يغلق النقص ويولد مهمة.
+
+### 8.3 لوحة الأوامر الشاملة (The Command Palette / Omnibar)
+تطوير شريط البحث العلوي ليعمل كـ Command Palette (مشابه لـ Ctrl+K في VS Code أو Spotlight في Mac):
+- **بحث فوري:** البحث عن الكيانات (موكل، أساس، معقب) وفتحها فوراً.
+- **أوامر سريعة:** دعم الـ Slash Commands مثل (`/دعوى` لإنشاء دعوى، `/سند` لإنشاء دفعة).
+
+### 8.4 دمج الأجندة والمهام (Unified Agenda-Task View)
+إنهاء الفصل بين المهام الإدارية والجلسات القضائية. شاشة `Agenda` والـ `Dashboard` ستقرأ من `CaseSessions` و `DailyTasks` و `CompanyPhases` وتعرضها في تقويم واحد (Unified Calendar) مع تمييز لوني (Color Coding) حسب نوع المهمة.
