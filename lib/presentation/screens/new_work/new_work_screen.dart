@@ -24,7 +24,7 @@ class NewWorkScreen extends ConsumerWidget {
         subtitle: 'معالج إنشاء دعوى كاملة',
         icon: Icons.gavel,
         color: AppColors.primaryNavy,
-        onTap: () => Navigator.of(context).push(
+        onTap: () => context.push(
           MaterialPageRoute(builder: (_) => const CreateCaseWizard()),
         ),
       ),
@@ -33,7 +33,7 @@ class NewWorkScreen extends ConsumerWidget {
         subtitle: 'تنظيم عقد وحفظه',
         icon: Icons.description,
         color: AppColors.info,
-        onTap: () => Navigator.of(context).push(
+        onTap: () => context.push(
           MaterialPageRoute(builder: (_) => const CreateContractScreen()),
         ),
       ),
@@ -42,7 +42,7 @@ class NewWorkScreen extends ConsumerWidget {
         subtitle: 'تأسيس شركة ومراحلها',
         icon: Icons.business,
         color: AppColors.secondaryGold,
-        onTap: () => Navigator.of(context).push(
+        onTap: () => context.push(
           MaterialPageRoute(builder: (_) => const CreateCompanyWizard()),
         ),
       ),
@@ -51,7 +51,7 @@ class NewWorkScreen extends ConsumerWidget {
         subtitle: 'معاملة إدارية + Checklist',
         icon: Icons.assignment,
         color: AppColors.warning,
-        onTap: () => Navigator.of(context).push(
+        onTap: () => context.push(
           MaterialPageRoute(builder: (_) => const CreateProcedureScreen()),
         ),
       ),

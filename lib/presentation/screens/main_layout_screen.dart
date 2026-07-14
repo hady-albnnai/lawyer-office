@@ -120,16 +120,16 @@ class _TopBar extends ConsumerWidget {
   void _handleQuickAction(BuildContext context, String action) {
     switch (action) {
       case "case":
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCaseWizard()));
+        context.push("/cases/create");
         break;
       case "company":
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCompanyWizard()));
+        context.push("/companies/create");
         break;
       case "contract":
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateContractScreen()));
+        context.push("/contracts/create");
         break;
       case "procedure":
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateProcedureScreen()));
+        context.push("/procedures/create");
         break;
       case "work_order":
         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
@@ -396,9 +396,9 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
                       if (hit["route"] == "/search-reports") {
                         context.go("/search-reports");
                       } else if (hit["route"] == "create_case") {
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCaseWizard()));
+                        context.push("/cases/create");
                       } else if (hit["route"] == "create_company") {
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCompanyWizard()));
+                        context.push("/companies/create");
                       } else if (hit["route"] == "create_wo") {
                         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
                       }

@@ -27,6 +27,7 @@ import '../screens/companies/create_company_wizard.dart';
 import '../screens/contracts/contracts_list_screen.dart';
 import '../screens/contracts/contract_detail_screen.dart';
 import '../screens/contracts/create_contract_screen.dart';
+import '../screens/contracts/templates_management_screen.dart';
 import '../screens/admin_procedures/procedures_list_screen.dart';
 import '../screens/admin_procedures/procedure_detail_screen.dart';
 import '../screens/admin_procedures/create_procedure_screen.dart';
@@ -85,6 +86,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/cases/:caseId', name: 'case-detail', builder: (_, state) { final caseId = int.tryParse(state.pathParameters['caseId'] ?? '0') ?? 0; return CaseDetailScreen(caseId: caseId); }),
           GoRoute(path: '/companies/create', name: 'company-create', builder: (_, __) => const CreateCompanyWizard()),
           GoRoute(path: '/companies/:companyId', name: 'company-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['companyId'] ?? '0') ?? 0; return CompanyDetailScreen(companyId: id); }),
+      GoRoute(path: '/contracts/templates', name: 'contract-templates', builder: (_, __) => const TemplatesManagementScreen()),
           GoRoute(path: '/contracts/create', name: 'contract-create', builder: (_, __) => const CreateContractScreen()),
           GoRoute(path: '/contracts/:contractId', name: 'contract-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['contractId'] ?? '0') ?? 0; return ContractDetailScreen(contractId: id); }),
           GoRoute(path: '/procedures/create', name: 'procedure-create', builder: (_, __) => const CreateProcedureScreen()),
