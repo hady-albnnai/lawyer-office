@@ -107,33 +107,33 @@ class _SidebarRouteSync extends ConsumerWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
+class _TopBar extends ConsumerWidget {
   final String officeName;
   final String lawyerName;
   const _TopBar({required this.officeName, required this.lawyerName});
 
   void _handleQuickAction(BuildContext context, String action) {
     switch (action) {
-      case 'case':
+      case "case":
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCaseWizard()));
         break;
-      case 'company':
+      case "company":
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCompanyWizard()));
         break;
-      case 'contract':
+      case "contract":
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateContractScreen()));
         break;
-      case 'procedure':
+      case "procedure":
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateProcedureScreen()));
         break;
-      case 'work_order':
+      case "work_order":
         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
         break;
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Material(
       color: AppConstants.primaryNavy,
       elevation: 1,
@@ -155,29 +155,32 @@ class _TopBar extends StatelessWidget {
               
               const SizedBox(width: 48),
               
-              // محرك البحث الشامل (Omnibar)
+              // محرك البحث الشامل والذكاء (The Command Palette / Omnibar)
               Expanded(
                 child: Container(
                   height: 40,
-                  constraints: const BoxConstraints(maxWidth: 400),
+                  constraints: const BoxConstraints(maxWidth: 500),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppConstants.accentGold.withOpacity(0.3)),
                   ),
-                  child: TextField(
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'بحث شامل (Ctrl+K)...',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                      prefixIcon: const Icon(Icons.search, color: AppConstants.accentGold),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  child: InkWell(
+                    onTap: () => _showOmnibarSearch(context, ref),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search, color: AppConstants.accentGold, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            "بحث شامل أو أمر سريع (Ctrl+K)...",
+                            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+                          ),
+                        ],
+                      ),
                     ),
-                    onSubmitted: (val) {
-                      // سيتم ربط هذا لاحقاً بشاشة البحث المتقدم ومحرك FTS5
-                      context.go('/search-reports');
-                    },
                   ),
                 ),
               ),
@@ -186,7 +189,7 @@ class _TopBar extends StatelessWidget {
               
               // زر الإجراء السريع (Quick Add)
               PopupMenuButton<String>(
-                tooltip: 'إجراء سريع',
+                tooltip: "إجراء سريع",
                 offset: const Offset(0, 48),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 child: Container(
@@ -200,7 +203,7 @@ class _TopBar extends StatelessWidget {
                       const Icon(Icons.add, color: AppConstants.primaryNavy, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'إضافة سريع',
+                        "إضافة سريع",
                         style: AppTextStyles.labelLarge.copyWith(color: AppConstants.primaryNavy, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -209,43 +212,43 @@ class _TopBar extends StatelessWidget {
                 onSelected: (action) => _handleQuickAction(context, action),
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
                   const PopupMenuItem<String>(
-                    value: 'case',
+                    value: "case",
                     child: ListTile(
                       leading: Icon(Icons.gavel, color: AppColors.primaryNavy),
-                      title: Text('دعوى قضائية جديدة'),
+                      title: Text("دعوى قضائية جديدة"),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
                   const PopupMenuItem<String>(
-                    value: 'work_order',
+                    value: "work_order",
                     child: ListTile(
                       leading: Icon(Icons.assignment_ind, color: AppColors.success),
-                      title: Text('أمر عمل لمعقب'),
+                      title: Text("أمر عمل لمعقب"),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
                   const PopupMenuDivider(),
                   const PopupMenuItem<String>(
-                    value: 'company',
+                    value: "company",
                     child: ListTile(
                       leading: Icon(Icons.business, color: AppColors.secondaryGold),
-                      title: Text('تأسيس شركة'),
+                      title: Text("تأسيس شركة"),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
                   const PopupMenuItem<String>(
-                    value: 'contract',
+                    value: "contract",
                     child: ListTile(
                       leading: Icon(Icons.description, color: AppColors.info),
-                      title: Text('تنظيم عقد'),
+                      title: Text("تنظيم عقد"),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
                   const PopupMenuItem<String>(
-                    value: 'procedure',
+                    value: "procedure",
                     child: ListTile(
                       leading: Icon(Icons.assignment, color: AppColors.warning),
-                      title: Text('إجراء إداري'),
+                      title: Text("إجراء إداري"),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -255,8 +258,8 @@ class _TopBar extends StatelessWidget {
               const SizedBox(width: 16),
               
               IconButton(
-                tooltip: 'الإعدادات',
-                onPressed: () => context.go('/settings'),
+                tooltip: "الإعدادات",
+                onPressed: () => context.go("/settings"),
                 icon: const Icon(Icons.settings_outlined, color: AppConstants.accentGold),
               ),
             ],
@@ -265,10 +268,139 @@ class _TopBar extends StatelessWidget {
       ),
     );
   }
+
+  void _showOmnibarSearch(BuildContext context, WidgetRef ref) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Omnibar",
+      barrierColor: Colors.black.withOpacity(0.5),
+      pageBuilder: (ctx, anim1, anim2) {
+        return const Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: EdgeInsets.only(top: 100),
+            child: Material(
+              color: Colors.transparent,
+              child: _OmnibarPopup(),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
-/// توافق خلفي
+class _OmnibarPopup extends ConsumerStatefulWidget {
+  const _OmnibarPopup();
+  @override
+  ConsumerState<_OmnibarPopup> createState() => _OmnibarPopupState();
+}
+
+class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
+  final _controller = TextEditingController();
+  List<dynamic> _hits = [];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _search(String query) {
+    if (query.isEmpty) {
+      setState(() => _hits = []);
+      return;
+    }
+    // Slash commands logic
+    if (query.startsWith("/")) {
+      final commands = [
+        {"title": "إنشاء دعوى", "cmd": "/دعوى", "route": "create_case"},
+        {"title": "تأسيس شركة", "cmd": "/شركة", "route": "create_company"},
+        {"title": "إضافة أمر عمل", "cmd": "/امر", "route": "create_wo"},
+      ];
+      setState(() {
+        _hits = commands.where((c) => c["cmd"]!.contains(query)).toList();
+      });
+      return;
+    }
+
+    // جلب محرك البحث من Riverpod
+    // final engine = ref.read(searchReportEngineProvider); 
+    // final results = engine.search(query).take(5).toList(); 
+    // حالياً سنضع داتا وهمية للمحاكاة ريثما يتم تفعيل FTS5
+    setState(() {
+      _hits = [
+        {"title": "بحث عن: $query", "subtitle": "اضغط هنا للبحث المتقدم", "route": "/search-reports"}
+      ];
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 600,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black26, blurRadius: 20, spreadRadius: 5),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              onChanged: _search,
+              style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy),
+              decoration: InputDecoration(
+                hintText: "ما الذي تبحث عنه؟ (اكتب / للأوامر السريعة)",
+                prefixIcon: const Icon(Icons.search, color: AppColors.primaryNavy),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+          if (_hits.isNotEmpty) const Divider(height: 1, thickness: 1),
+          if (_hits.isNotEmpty)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _hits.length,
+                itemBuilder: (ctx, i) {
+                  final hit = _hits[i];
+                  return ListTile(
+                    leading: const Icon(Icons.arrow_forward_ios, size: 16),
+                    title: Text(hit["title"] ?? "", style: AppTextStyles.labelLarge),
+                    subtitle: hit["subtitle"] != null ? Text(hit["subtitle"]!) : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (hit["route"] == "/search-reports") {
+                        context.go("/search-reports");
+                      } else if (hit["route"] == "create_case") {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCaseWizard()));
+                      } else if (hit["route"] == "create_company") {
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateCompanyWizard()));
+                      } else if (hit["route"] == "create_wo") {
+                        showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class MainLayoutScreen extends StatelessWidget {
+
   const MainLayoutScreen({super.key});
 
   @override
