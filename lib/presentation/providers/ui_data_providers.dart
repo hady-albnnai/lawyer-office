@@ -65,10 +65,15 @@ ui_case.CaseStatus _mapCaseStatus(String raw) {
   }
 }
 
-final uiCasesProvider = FutureProvider<List<ui_case.Case>>((ref) async {
+final uiCasesProvider = StreamProvider<List<ui_case.Case>>((ref) async* {
   await ref.watch(coreDataBootstrapProvider.future);
   final caseRepo = ref.watch(caseRepositoryProvider);
-  final cases = await caseRepo.getAllCases();
+  
+  await for (final cases in ref.watch(allCasesProvider.stream)) {
+    final result = <ui_case.Case>[];
+  await ref.watch(coreDataBootstrapProvider.future);
+  final caseRepo = ref.watch(caseRepositoryProvider);
+  final cases = await ref.watch(allCasesProvider.future);
   final result = <ui_case.Case>[];
 
   for (final c in cases) {
@@ -129,7 +134,8 @@ final uiCasesProvider = FutureProvider<List<ui_case.Case>>((ref) async {
       ),
     );
   }
-  return result;
+      yield result;
+  }
 });
 
 TimeOfDay? _parseTime(String? raw) {

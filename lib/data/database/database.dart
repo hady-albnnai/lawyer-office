@@ -189,6 +189,8 @@ LazyDatabase _openDatabase() {
       setup: (rawDb) {
         // فرض سلامة العلاقات الخارجية عند فتح قاعدة البيانات المحلية.
         rawDb.execute("PRAGMA foreign_keys = ON;");
+        rawDb.execute("PRAGMA journal_mode=WAL;");
+        rawDb.execute("PRAGMA synchronous=NORMAL;");
       },
     );
   });
