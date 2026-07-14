@@ -78,58 +78,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/printing', name: 'printing', builder: (_, __) => const LegalPrintingScreen()),
           GoRoute(path: '/archive', name: 'archive', builder: (_, __) => const ArchiveScreen()),
 
+          // Detail Routes inside ShellRoute
+          GoRoute(path: '/persons/:personId', name: 'person-detail', builder: (_, state) => PersonDetailScreen(personId: state.pathParameters['personId'] ?? '')),
+          GoRoute(path: '/poa/:agencyId', name: 'poa-detail', builder: (_, state) => PoaDetailScreen(agencyId: state.pathParameters['agencyId'] ?? '')),
+          GoRoute(path: '/cases/create', name: 'case-create', builder: (_, __) => const CreateCaseWizard()),
+          GoRoute(path: '/cases/:caseId', name: 'case-detail', builder: (_, state) { final caseId = int.tryParse(state.pathParameters['caseId'] ?? '0') ?? 0; return CaseDetailScreen(caseId: caseId); }),
+          GoRoute(path: '/companies/create', name: 'company-create', builder: (_, __) => const CreateCompanyWizard()),
+          GoRoute(path: '/companies/:companyId', name: 'company-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['companyId'] ?? '0') ?? 0; return CompanyDetailScreen(companyId: id); }),
+          GoRoute(path: '/contracts/create', name: 'contract-create', builder: (_, __) => const CreateContractScreen()),
+          GoRoute(path: '/contracts/:contractId', name: 'contract-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['contractId'] ?? '0') ?? 0; return ContractDetailScreen(contractId: id); }),
+          GoRoute(path: '/procedures/create', name: 'procedure-create', builder: (_, __) => const CreateProcedureScreen()),
+          GoRoute(path: '/procedures/:procedureId', name: 'procedure-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['procedureId'] ?? '0') ?? 0; return ProcedureDetailScreen(procedureId: id); }),
+
         ],
       ),
-      // Detail routes outside shell (full page with back)
-      GoRoute(
-        path: '/persons/:personId',
-        name: 'person-detail',
-        builder: (_, state) => PersonDetailScreen(personId: state.pathParameters['personId'] ?? ''),
-      ),
-      GoRoute(path: '/poa', name: 'poa', builder: (_, __) => const PoaListScreen()),
-      GoRoute(
-        path: '/poa/:agencyId',
-        name: 'poa-detail',
-        builder: (_, state) => PoaDetailScreen(agencyId: state.pathParameters['agencyId'] ?? ''),
-      ),
-      GoRoute(path: '/cases/create', name: 'case-create', builder: (_, __) => const CreateCaseWizard()),
-
-      GoRoute(
-        path: '/cases/:caseId',
-        name: 'case-detail',
-        builder: (_, state) {
-          final caseId = int.tryParse(state.pathParameters['caseId'] ?? '0') ?? 0;
-          return CaseDetailScreen(caseId: caseId);
-        },
-      ),
-      GoRoute(path: '/companies/create', name: 'company-create', builder: (_, __) => const CreateCompanyWizard()),
-      GoRoute(
-        path: '/companies/:companyId',
-        name: 'company-detail',
-        builder: (_, state) {
-          final id = int.tryParse(state.pathParameters['companyId'] ?? '0') ?? 0;
-          return CompanyDetailScreen(companyId: id);
-        },
-      ),
-      GoRoute(path: '/contracts/create', name: 'contract-create', builder: (_, __) => const CreateContractScreen()),
-      GoRoute(
-        path: '/contracts/:contractId',
-        name: 'contract-detail',
-        builder: (_, state) {
-          final id = int.tryParse(state.pathParameters['contractId'] ?? '0') ?? 0;
-          return ContractDetailScreen(contractId: id);
-        },
-      ),
-      GoRoute(path: '/procedures/create', name: 'procedure-create', builder: (_, __) => const CreateProcedureScreen()),
-      GoRoute(
-        path: '/procedures/:procedureId',
-        name: 'procedure-detail',
-        builder: (_, state) {
-          final id = int.tryParse(state.pathParameters['procedureId'] ?? '0') ?? 0;
-          return ProcedureDetailScreen(procedureId: id);
-        },
-      ),
-
       // legacy root
       GoRoute(path: '/', redirect: (_, __) => '/today'),
     ],
