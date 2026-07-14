@@ -1,4 +1,5 @@
-/// لوحة اليوم — بيانات حقيقية من SQLite (جلسات/مهام/أوامر عمل/نواقص).
+/// لوحة اليوم الذكية (Smart Dashboard) - Split Layout
+/// بناءً على الخطة الماسية لإعادة الهيكلة 2026
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,183 +30,42 @@ class TodayDashboardScreen extends ConsumerWidget {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          appBar: AppBar(
-            title: const Text('لوحة اليوم'),
-            actions: [
-              IconButton(
-                tooltip: 'تحديث',
-                icon: const Icon(Icons.refresh),
-                onPressed: () {
-                  ref.invalidate(uiCasesProvider);
-                  ref.invalidate(uiWorkOrdersProvider);
-                  ref.invalidate(tasksByDateProvider(DateTime.now()));
-                  ref.invalidate(openDeficienciesProvider(null));
-                },
-              ),
-              IconButton(
-                tooltip: 'الأجندة',
-                icon: const Icon(Icons.calendar_month),
-                onPressed: () => context.go('/agenda'),
-              ),
-            ],
-          ),
-          body: casesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('خطأ: $e')),
-            data: (cases) {
-              final today = DateTime.now();
-              bool sameDay(DateTime d) =>
-                  d.year == today.year && d.month == today.month && d.day == today.day;
+          backgroundColor: AppColors.background,
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth > 800;
+              
+              Widget timelineContent = _buildTimelinePanel(context, casesAsync, tasksAsync, woAsync);
+              Widget alertsContent = _buildAlertsPanel(context, deficienciesAsync, casesAsync, woAsync);
 
-              final todaySessions = <_TodayItem>[];
-              for (final c in cases) {
-                for (final s in c.sessions) {
-                  if (sameDay(s.sessionDate)) {
-                    todaySessions.add(
-                      _TodayItem(
-                        time: s.sessionTime,
-                        title: 'جلسة ${c.caseNumber}',
-                        subtitle: '${c.title} • ${s.court}',
-                        kind: 'جلسة',
-                      ),
-                    );
-                  }
-                }
-                final next = c.nextSession?.sessionDate;
-                if (next != null && sameDay(next) && c.sessions.isEmpty) {
-                  todaySessions.add(
-                    _TodayItem(
-                      time: const TimeOfDay(hour: 9, minute: 0),
-                      title: 'موعد ${c.caseNumber}',
-                      subtitle: c.title,
-                      kind: 'موعد',
+              if (isDesktop) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // القسم الرئيسي: خط السير اليومي والأجندة
+                    Expanded(
+                      flex: 7,
+                      child: timelineContent,
                     ),
-                  );
-                }
+                    const VerticalDivider(width: 1, thickness: 1, color: AppColors.cardBorder),
+                    // الشريط الجانبي: النواقص والتنبيهات
+                    Expanded(
+                      flex: 3,
+                      child: alertsContent,
+                    ),
+                  ],
+                );
               }
 
-              final workOrders = woAsync.maybeWhen(data: (w) => w, orElse: () => const []);
-              final pendingWo = workOrders
-                  .where((w) =>
-                      w.status == WorkOrderStatus.waitingForResult ||
-                      w.status == WorkOrderStatus.waitingForApproval ||
-                      w.status == WorkOrderStatus.draft ||
-                      w.status == WorkOrderStatus.resultEntered)
-                  .length;
-              final overdueCases = cases.where((c) {
-                final n = c.nextSession?.sessionDate;
-                return n != null && n.isBefore(DateTime.now()) && c.status != CaseStatus.completed;
-              }).length;
-              final openDefs = deficienciesAsync.maybeWhen(data: (d) => d.length, orElse: () => 0);
-              final tasksCount = tasksAsync.maybeWhen(data: (t) => t.length, orElse: () => 0);
-
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text(
-                    'ملخص اليوم — ${today.toString().substring(0, 10)}',
-                    style: AppTextStyles.headline5.copyWith(color: AppColors.primaryNavy),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _metric('جلسات اليوم', '${todaySessions.length}', Icons.gavel, AppColors.primaryNavy),
-                      _metric('مهام اليوم', '$tasksCount', Icons.task_alt, AppColors.info),
-                      _metric('أوامر بانتظار', '$pendingWo', Icons.assignment_ind, AppColors.warning),
-                      _metric('ملفات متأخرة', '$overdueCases', Icons.schedule, AppColors.error),
-                      _metric('نواقص مفتوحة', '$openDefs', Icons.warning_amber, AppColors.warning),
-                      _metric('إجمالي الدعاوى', '${cases.length}', Icons.folder, AppColors.success),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text('خط سير اليوم', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-                  const SizedBox(height: 8),
-                  if (todaySessions.isEmpty)
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.event_available),
-                        title: const Text('لا جلسات مسجّلة لهذا اليوم'),
-                        subtitle: const Text('أضف جلسة من الأجندة أو حدّث مواعيد الدعاوى'),
-                        trailing: TextButton(
-                          onPressed: () => context.go('/agenda'),
-                          child: const Text('الأجندة'),
-                        ),
-                      ),
-                    )
-                  else
-                    ...todaySessions.map(
-                      (item) => Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.primaryNavy.withOpacity(0.1),
-                            child: Text(
-                              '${item.time.hour.toString().padLeft(2, '0')}:${item.time.minute.toString().padLeft(2, '0')}',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          title: Text(item.title),
-                          subtitle: Text('${item.kind} • ${item.subtitle}'),
-                          trailing: IconButton(
-                            tooltip: 'تسجيل نتيجة',
-                            icon: const Icon(Icons.edit_note),
-                            onPressed: () => showDialog(
-                              context: context,
-                              builder: (_) => const ResultEntryDialog(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  Text('أوامر عمل تحتاج متابعة', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-                  const SizedBox(height: 8),
-                  ...workOrders.take(5).map(
-                        (w) => Card(
-                          child: ListTile(
-                            title: Text('${w.internalNumber} — ${w.orderTypeText}'),
-                            subtitle: Text('${w.assignedToName} • ${w.statusText}'),
-                            trailing: const Icon(Icons.chevron_left),
-                            onTap: () => context.go('/work-orders'),
-                          ),
-                        ),
-                      ),
-                  const SizedBox(height: 16),
-                  Text('إجراءات سريعة', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => showDialog(context: context, builder: (_) => const ResultEntryDialog()),
-                        icon: const Icon(Icons.check_circle),
-                        label: const Text('تسجيل نتيجة'),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () => showDialog(context: context, builder: (_) => const CreateWorkOrderDialog()),
-                        icon: const Icon(Icons.assignment_add),
-                        label: const Text('أمر عمل للمعقب'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => context.go('/new-work'),
-                        icon: const Icon(Icons.add),
-                        label: const Text('عمل جديد'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => context.go('/finance'),
-                        icon: const Icon(Icons.payments),
-                        label: const Text('المالية'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => context.go('/cases'),
-                        icon: const Icon(Icons.folder_open),
-                        label: const Text('الدعاوى'),
-                      ),
-                    ],
-                  ),
-                ],
+              // للموبايل والشاشات الصغيرة
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    alertsContent, // التنبيهات أهم، تظهر أولاً في الموبايل
+                    const Divider(height: 1, thickness: 1),
+                    timelineContent,
+                  ],
+                ),
               );
             },
           ),
@@ -214,31 +74,272 @@ class TodayDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _metric(String title, String value, IconData icon, Color color) {
-    return SizedBox(
-      width: 180,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  /// بناء خط السير الزمني (Timeline & Agenda)
+  Widget _buildTimelinePanel(BuildContext context, AsyncValue casesAsync, AsyncValue tasksAsync, AsyncValue woAsync) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color),
-              const SizedBox(height: 8),
-              Text(title, style: AppTextStyles.bodySmallSecondary),
-              Text(value, style: AppTextStyles.headline5.copyWith(color: color)),
+              Text(
+                'أجندة اليوم — ${DateTime.now().toString().substring(0, 10)}',
+                style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => showDialog(context: context, builder: (_) => const ResultEntryDialog()),
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('إدخال نتيجة سريعة'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryNavy,
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: casesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('خطأ: $e')),
+              data: (cases) {
+                final today = DateTime.now();
+                bool sameDay(DateTime d) => d.year == today.year && d.month == today.month && d.day == today.day;
+
+                final List<Widget> timelineItems = [];
+
+                // 1. استخراج جلسات اليوم
+                for (final c in cases) {
+                  for (final s in c.sessions) {
+                    if (sameDay(s.sessionDate)) {
+                      timelineItems.add(_buildTimelineCard(
+                        time: s.sessionTime.format(context),
+                        title: 'جلسة محكمة: ${c.caseNumber}',
+                        subtitle: '${c.title} • ${s.court}',
+                        icon: Icons.gavel,
+                        color: AppColors.primaryNavy,
+                      ));
+                    }
+                  }
+                }
+
+                // 2. مهام اليوم (من Tasks)
+                tasksAsync.whenData((tasks) {
+                  for (final t in tasks) {
+                    timelineItems.add(_buildTimelineCard(
+                      time: 'مهمة',
+                      title: t.title,
+                      subtitle: t.taskType == 'company_phase' ? 'مراحل تأسيس شركة' : 'مهمة إدارية',
+                      icon: Icons.task_alt,
+                      color: AppColors.info,
+                    ));
+                  }
+                });
+
+                if (timelineItems.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.event_available, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+                        const SizedBox(height: 16),
+                        Text('لا يوجد جلسات أو مهام مجدولة لهذا اليوم.', style: AppTextStyles.headline6.copyWith(color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  itemCount: timelineItems.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) => timelineItems[index],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
-}
 
-class _TodayItem {
-  final TimeOfDay time;
-  final String title;
-  final String subtitle;
-  final String kind;
-  _TodayItem({required this.time, required this.title, required this.subtitle, required this.kind});
+  /// بناء لوحة الإنذارات والنواقص (Alerts & Deficiencies)
+  Widget _buildAlertsPanel(BuildContext context, AsyncValue deficienciesAsync, AsyncValue casesAsync, AsyncValue woAsync) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.notifications_active, color: AppColors.error),
+              const SizedBox(width: 8),
+              Text(
+                'الإنذارات والنواقص',
+                style: AppTextStyles.headline6.copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: ListView(
+              children: [
+                // 1. النواقص الحرجة
+                deficienciesAsync.when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, _) => const SizedBox.shrink(),
+                  data: (defs) {
+                    if (defs.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('النواقص الحرجة (${defs.length})', style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSecondary)),
+                        const SizedBox(height: 8),
+                        ...defs.take(5).map((d) => _buildAlertCard(
+                          title: d.entityTitle,
+                          description: d.deficiencyType,
+                          actionText: 'معالجة',
+                          onAction: () => context.go('/cases'), // توجيه للملف
+                          isCritical: true,
+                        )),
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  },
+                ),
+
+                // 2. أوامر عمل بانتظار الاعتماد
+                woAsync.whenData((workOrders) {
+                  final pending = workOrders.where((w) => w.status == WorkOrderStatus.resultEntered || w.status == WorkOrderStatus.waitingForApproval).toList();
+                  if (pending.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('نتائج تحتاج اعتماد (${pending.length})', style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSecondary)),
+                      const SizedBox(height: 8),
+                      ...pending.take(3).map((w) => _buildAlertCard(
+                        title: w.internalNumber,
+                        description: 'تم التنفيذ بواسطة ${w.assignedToName}. بانتظار اعتماد النتيجة.',
+                        actionText: 'مراجعة',
+                        onAction: () => context.go('/work-orders'),
+                        isCritical: false,
+                        icon: Icons.fact_check,
+                        color: AppColors.warning,
+                      )),
+                      const SizedBox(height: 16),
+                    ],
+                  );
+                }).value ?? const SizedBox.shrink(),
+                
+                // 3. المتأخرات (Overdue Cases)
+                casesAsync.whenData((cases) {
+                  final overdue = cases.where((c) {
+                    final n = c.nextSession?.sessionDate;
+                    return n != null && n.isBefore(DateTime.now()) && c.status != CaseStatus.completed;
+                  }).toList();
+                  if (overdue.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ملفات متأخرة المتابعة (${overdue.length})', style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSecondary)),
+                      const SizedBox(height: 8),
+                      ...overdue.take(3).map((c) => _buildAlertCard(
+                        title: 'دعوى: ${c.caseNumber}',
+                        description: 'تجاوزت تاريخ الجلسة القادمة المبرمج.',
+                        actionText: 'تحديث',
+                        onAction: () => context.go('/cases'),
+                        isCritical: true,
+                      )),
+                    ],
+                  );
+                }).value ?? const SizedBox.shrink(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineCard({required String time, required String title, required String subtitle, required IconData icon, required Color color}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                const SizedBox(height: 4),
+                Text(subtitle, style: AppTextStyles.bodySmallSecondary),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(16)),
+            child: Text(time, style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSecondary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlertCard({required String title, required String description, required String actionText, required VoidCallback onAction, bool isCritical = false, IconData? icon, Color? color}) {
+    final alertColor = color ?? (isCritical ? AppColors.error : AppColors.secondaryGold);
+    final alertIcon = icon ?? (isCritical ? Icons.warning_amber_rounded : Icons.info_outline);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: alertColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: alertColor.withOpacity(0.3)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(alertIcon, color: alertColor, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title, style: AppTextStyles.labelLarge.copyWith(color: alertColor, fontWeight: FontWeight.bold))),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(description, style: AppTextStyles.bodySmallSecondary),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: alertColor,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(actionText),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
