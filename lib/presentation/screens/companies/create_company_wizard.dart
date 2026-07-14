@@ -444,9 +444,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم تأسيس الشركة وتوليد المراحل الـ 10 بنجاح!'), backgroundColor: AppConstants.statusSuccess),
         );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => CompanyDetailScreen(companyId: companyId)),
-        );
+        context.pushReplacement('/companies/$companyId');
       }
     } catch (e) {
       if (mounted) {

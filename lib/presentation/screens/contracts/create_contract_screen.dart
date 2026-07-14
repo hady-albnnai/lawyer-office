@@ -301,9 +301,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تنظيم وحفظ العقد وتوليد التذكيرات بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => ContractDetailScreen(contractId: contractId)),
-        );
+        context.pushReplacement('/contracts/$contractId');
       }
     } catch (e) {
       if (mounted) {

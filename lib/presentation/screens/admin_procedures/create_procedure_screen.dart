@@ -213,9 +213,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل المعاملة وتوليد خطوات الـ Checklist بنجاح!'), backgroundColor: AppConstants.statusSuccess));
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => ProcedureDetailScreen(procedureId: procId)),
-        );
+        context.pushReplacement('/procedures/$procId');
       }
     } catch (e) {
       if (mounted) {
