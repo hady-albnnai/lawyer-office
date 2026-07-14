@@ -68,39 +68,15 @@ ui_case.CaseStatus _mapCaseStatus(String raw) {
 final uiCasesProvider = StreamProvider<List<ui_case.Case>>((ref) async* {
   await ref.watch(coreDataBootstrapProvider.future);
   final caseRepo = ref.watch(caseRepositoryProvider);
-  
   await for (final cases in ref.watch(allCasesProvider.stream)) {
-    final result = await Future.wait(cases.map((c) async {
-      final sessions = await caseRepo.getSessionsForCase(c.id);
-      final phases = await caseRepo.getPhasesForCase(c.id);
-      final court = c.courtId != null ? await caseRepo.getCourtById(c.courtId!) : null;
-      final courtName = court?.name ?? 'محكمة';
-
-      final uiSessions = sessions.map((s) => ui_case.CaseSession(
-        id: '${s.id}',
-        sessionDate: s.sessionDate,
-        sessionTime: _parseTime(s.sessionTime) ?? const TimeOfDay(hour: 9, minute: 0),
-        type: ui_case.SessionType.ordinary,
-        status: s.status == 2 ? ui_case.SessionStatus.held : ui_case.SessionStatus.scheduled,
-        court: courtName,
-      )).toList();
-
-      final uiPhases = phases.map((p) => ui_case.CasePhase(
-        id: '${p.id}',
-        type: ui_case.CasePhaseType.initial,
-        court: courtName,
-        baseNumber: p.baseNumber ?? '',
-        baseYear: p.year ?? c.year,
-        startDate: p.startDate ?? c.createdAt,
-      )).toList();
-
+    final List<ui_case.Case> result = await Future.wait<ui_case.Case>(cases.map((c) async {
       return ui_case.Case(
         id: '${c.id}',
         caseNumber: c.internalNumber,
         title: c.subject ?? c.internalNumber,
         type: _mapCaseType(c.caseType),
         status: _mapCaseStatus(c.status),
-        court: courtName,
+        court: 'محكمة',
         subject: c.subject ?? '',
         claim: c.subjectDetails ?? '',
         notes: c.notes ?? '',
@@ -108,10 +84,8 @@ final uiCasesProvider = StreamProvider<List<ui_case.Case>>((ref) async* {
         lastUpdated: c.updatedAt,
         baseNumber: c.baseNumber,
         baseYear: c.year,
-        sessions: uiSessions,
-        phases: uiPhases,
-        totalFees: 0,
-        totalExpenses: 0,
+        sessions: [],
+        phases: [],
       );
     }));
     yield result;

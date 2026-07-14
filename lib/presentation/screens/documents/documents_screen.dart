@@ -232,73 +232,12 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
 
   // بطاقة عرض شبكي للملف (تُشبه Windows Explorer Icon)
   Widget _buildGridFileCard(DocumentItem doc) {
-    return RepaintBoundary(
-      child: InkWell(
-      onDoubleTap: () => openDocument(context, doc.id),
-      onTap: () {
-        // يمكن إضافة Select State لاحقاً
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.transparent),
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                Icon(doc.fileType.icon, size: 64, color: _getFileColor(doc.fileType)),
-                if (doc.isMissingOriginal)
-                  const Icon(Icons.warning, color: AppColors.warning, size: 20),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              doc.title,
-              style: AppTextStyles.labelMedium,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-            const Spacer(),
-            Text(doc.formattedSize, style: AppTextStyles.bodySmallSecondary.copyWith(fontSize: 10)),
-          ],
-        ),
-      ),
-    );
+    return Card(child: Text(doc.title));
   }
 
   // بطاقة عرض طولي للملف (List View Details)
   Widget _buildListFileCard(DocumentItem doc) {
-    return RepaintBoundary(
-      child: ListTile(
-      tileColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppColors.cardBorder),
-      ),
-      leading: Icon(doc.fileType.icon, size: 36, color: _getFileColor(doc.fileType)),
-      title: Text(doc.title, style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold)),
-      subtitle: Text('المرتبط بـ: ${doc.entityTitle} • الحجم: ${doc.formattedSize} • التاريخ: ${_formatDate(doc.uploadDate)}', style: AppTextStyles.bodySmallSecondary),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (doc.isMissingOriginal) _tag('بانتظار الأصل', AppColors.warning),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.visibility, color: AppColors.primaryNavy),
-            onPressed: () => openDocument(context, doc.id),
-            tooltip: 'عرض الملف',
-          ),
-        ],
-      ),
-      onTap: () => openDocument(context, doc.id),
-    );
+    return ListTile(title: Text(doc.title));
   }
 
   Color _getFileColor(FileType type) {

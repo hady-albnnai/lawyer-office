@@ -398,53 +398,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
 
   void _onContinue() {
     if (_currentStep == 2 && _nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اسم الشركة إلزامي!'), backgroundColor: AppConstants.statusDanger));
-      return;
-    }
-    if (_currentStep < 4) {
-      setState(() => _currentStep++);
-    } else {
-      _submitCompany();
-    }
-  }
-
-  void _onCancel() {
-    if (_currentStep > 0) {
-      setState(() => _currentStep--);
-    } else {
-      Navigator.of(context).pop();
-    }
-  }
-
-  Future<void> _submitCompany() async {
-    setState(() => _isSaving = true);
-    try {
-      final repo = ref.read(companyRepositoryProvider);
-
-      final companyCompanion = CompaniesCompanion.insert(
-        internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
-        companyType: _companyType,
-        legalStatus: drift.Value(_isNewEstablishment ? 'under_establishment' : 'active'),
-        name: _nameController.text.trim(),
-        activity: drift.Value(_activityController.text.trim()),
-        capitalDeclared: drift.Value(double.tryParse(_capitalController.text.trim()) ?? 0),
-        capitalPaid: drift.Value(double.tryParse(_paidCapitalController.text.trim()) ?? 0),
-        durationYears: drift.Value(int.tryParse(_durationController.text.trim()) ?? 99),
-        mainAddress: drift.Value(_addressController.text.trim()),
-        propertyDetails: drift.Value(_propertyDetailsController.text.trim()),
-      );
-
-      final companyId = await repo.createCompany(
-        company: companyCompanion,
-        partners: _selectedPartners,
-        directors: _selectedDirectors,
-        userRef: AppConstants.defaultLawyerName,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          ref.invalidate(allCompaniesProvider);
-          SnackBar(content: Text('تم تأسيس الشركة وتوليد المراحل الـ 10 بنجاح!'), backgroundColor: AppColors.success)
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تأسيس الشركة بنجاح!'))); backgroundColor: AppColors.success)
         );
         GoRouter.of(context).pushReplacement('/companies/$companyId');
       }
