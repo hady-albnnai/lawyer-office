@@ -1,5 +1,6 @@
 /// الهيكل الرئيسي الموحّد: SideBar + ShellRoutes.
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -304,20 +305,20 @@ class _OmnibarPopup extends ConsumerStatefulWidget {
 
 class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
   final _controller = TextEditingController();
+  Timer? _debounce;
   List<dynamic> _hits = [];
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   void _search(String query) {
-    if (query.isEmpty) {
-      setState(() => _hits = []);
-      return;
-    }
-    // Slash commands logic
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    // الأوامر السريعة لا تحتاج تأخير زمني لأنها تعمل بالذاكرة فورا
     if (query.startsWith("/")) {
       final commands = [
         {"title": "إنشاء دعوى", "cmd": "/دعوى", "route": "create_case"},
@@ -330,23 +331,31 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
       return;
     }
 
-    // جلب محرك البحث من Riverpod
-    final engine = ref.read(searchReportEngineProvider); 
-    final results = engine.search(query).take(5).toList(); 
-    setState(() {
-      _hits = results.map((hit) => {
-        "title": hit.title,
-        "subtitle": hit.subtitle,
-        "route": hit.routeHint
-      }).toList();
-      
-      if (_hits.isEmpty) {
-        _hits.add({
-          "title": "لا يوجد نتائج سريعة لـ: $query",
-          "subtitle": "اضغط هنا للبحث المتقدم في السجلات",
-          "route": "/search-reports",
-        });
+    // تأخير البحث العميق بمقدار 300 ملي ثانية (Quantum Debouncing)
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (query.isEmpty) {
+        setState(() => _hits = []);
+        return;
       }
+      
+      final engine = ref.read(searchReportEngineProvider); 
+      final results = engine.search(query).take(5).toList(); 
+
+      setState(() {
+        _hits = results.map((hit) => {
+          "title": hit.title,
+          "subtitle": hit.subtitle,
+          "route": hit.routeHint
+        }).toList();
+        
+        if (_hits.isEmpty) {
+          _hits.add({
+            "title": "لا يوجد نتائج سريعة لـ: $query",
+            "subtitle": "اضغط هنا للبحث المتقدم في السجلات",
+            "route": "/search-reports",
+          });
+        }
+      });
     });
   }
 
