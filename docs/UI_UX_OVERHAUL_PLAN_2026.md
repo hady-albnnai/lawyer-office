@@ -146,3 +146,22 @@
 
 ### 8.4 دمج الأجندة والمهام (Unified Agenda-Task View)
 إنهاء الفصل بين المهام الإدارية والجلسات القضائية. شاشة `Agenda` والـ `Dashboard` ستقرأ من `CaseSessions` و `DailyTasks` و `CompanyPhases` وتعرضها في تقويم واحد (Unified Calendar) مع تمييز لوني (Color Coding) حسب نوع المهمة.
+
+---
+
+## 9. الجهاز العصبي والنواة الصلبة (The Nervous System & Deep Core)
+للوصول للتفاعلية المطلقة ومنع أي تعارض في البيانات، سيتم تنفيذ التعديلات العميقة التالية على مستوى الـ State و الـ DB:
+
+### 9.1 التفاعلية الحية المطلقة (Full Reactive Streams)
+الاستغناء التدريجي عن `FutureProvider` واستبداله بـ `StreamProvider` المربوط مباشرة بـ `Drift .watch()`.
+- **الهدف:** القضاء على الحاجة لـ `ref.invalidate()`. 
+- **النتيجة:** أي تغيير في حالة دعوى أو مهمة أو مبلغ مالي من أي مكان في التطبيق (مثلاً عبر الزر السريع)، ينعكس فوراً (Real-Time) على الـ Dashboard وكل الشاشات المفتوحة دون إعادة تحميل.
+
+### 9.2 تفعيل نظام الرقابة والمساءلة (Audit Trail & Activity Log)
+استغلال جدول `ActivityLog` المدفون في الـ Schema.
+- كل عملية تتم عبر الـ `Unified Result Wizard` أو `Quick Add` ستقوم بكتابة سطر في الـ ActivityLog.
+- سيتم عرض (خط زمني / History) داخل كل كيان (دعوى، شركة) يوضح: (من قام بالتعديل، متى، وماذا عُدّل)، مما يمنح مدير المكتب رقابة مطلقة.
+
+### 9.3 تفعيل وضع WAL لمنع اختناق قواعد البيانات (SQLite Concurrency)
+نظراً لكثافة الـ Transactions والـ Background Services (مثل `TaskSync` و `Deficiency`) التي قد تعمل بآن واحد، سيتم تفعيل `PRAGMA journal_mode=WAL;` في إعدادات اتصال `NativeDatabase`. هذا يضمن عدم ظهور خطأ `database is locked` ويوفر أداءً صاروخياً في القراءة/الكتابة المتوازية.
+
