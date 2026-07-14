@@ -92,7 +92,6 @@ final uiCasesProvider = StreamProvider<List<ui_case.Case>>((ref) async* {
         baseNumber: p.baseNumber ?? '',
         baseYear: p.year ?? c.year,
         startDate: p.startDate ?? c.createdAt,
-        
       )).toList();
 
       return ui_case.Case(
@@ -111,7 +110,6 @@ final uiCasesProvider = StreamProvider<List<ui_case.Case>>((ref) async* {
         baseYear: c.year,
         sessions: uiSessions,
         phases: uiPhases,
-        
         totalFees: 0,
         totalExpenses: 0,
       );

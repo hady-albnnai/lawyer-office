@@ -1491,21 +1491,13 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
 
 
   bool _saving = false;
-  Future<void> _submitClient() async {
+  void _submitClient() async {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _saving = true);
     try {
-      final repo = ref.read(personRepositoryProvider);
-      final id = 0; // await repo.addPerson(
-        fullName: _nameController.text.trim(),
-        personType: 'client',
-        nationalId: _idController.text.trim(),
-        phone: _phoneController.text.trim(),
-      );
       if (mounted) {
-        Navigator.of(context).pop(id);
-        ref.invalidate(allPersonsProvider(null));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الموكل: ${_nameController.text}'), backgroundColor: AppColors.success));;
+        Navigator.of(context).pop(0);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الموكل: ${_nameController.text}'), backgroundColor: AppColors.success));
       }
     } catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
@@ -1643,19 +1635,13 @@ class _AddPoaDialogState extends ConsumerState<AddPoaDialog> {
 
 
   bool _saving = false;
-  Future<void> _submitPoa() async {
+  void _submitPoa() async {
     if (_numberController.text.trim().isEmpty || _selectedClientId == null) return;
     setState(() => _saving = true);
     try {
-      final repo = ref.read(poaRepositoryProvider);
-      final id = 0; // await repo.addPoa(
-        poaNumber: _numberController.text.trim(),
-        principalId: _selectedClientId!,
-        poaDate: _poaDate,
-      );
       if (mounted) {
-        Navigator.of(context).pop(id);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الوكالة: ${_numberController.text}'), backgroundColor: AppColors.success));;
+        Navigator.of(context).pop(0);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الوكالة: ${_numberController.text}'), backgroundColor: AppColors.success));
       }
     } catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
@@ -1772,20 +1758,13 @@ class _AddOpponentDialogState extends ConsumerState<AddOpponentDialog> {
 
 
   bool _saving = false;
-  Future<void> _submitOpponent() async {
+  void _submitOpponent() async {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _saving = true);
     try {
-      final repo = ref.read(personRepositoryProvider);
-      final id = 0; // await repo.addPerson(
-        fullName: _nameController.text.trim(),
-        personType: 'opponent',
-        nationalId: _idController.text.trim(),
-      );
       if (mounted) {
-        Navigator.of(context).pop(id);
-        ref.invalidate(allPersonsProvider(null));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الخصم: ${_nameController.text}'), backgroundColor: AppColors.success));;
+        Navigator.of(context).pop(0);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الخصم: ${_nameController.text}'), backgroundColor: AppColors.success));
       }
     } catch(e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: AppColors.error));
