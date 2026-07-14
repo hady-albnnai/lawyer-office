@@ -24,36 +24,28 @@ class NewWorkScreen extends ConsumerWidget {
         subtitle: 'معالج إنشاء دعوى كاملة',
         icon: Icons.gavel,
         color: AppColors.primaryNavy,
-        onTap: () => GoRouter.of(context).push(
-          MaterialPageRoute(builder: (_) => const CreateCaseWizard()),
-        ),
+        onTap: () => context.push('/cases/create'),
       ),
       _NewWorkAction(
         title: 'عقد',
         subtitle: 'تنظيم عقد وحفظه',
         icon: Icons.description,
         color: AppColors.info,
-        onTap: () => GoRouter.of(context).push(
-          MaterialPageRoute(builder: (_) => const CreateContractScreen()),
-        ),
+        onTap: () => context.push('/contracts/create'),
       ),
       _NewWorkAction(
         title: 'شركة',
         subtitle: 'تأسيس شركة ومراحلها',
         icon: Icons.business,
         color: AppColors.secondaryGold,
-        onTap: () => GoRouter.of(context).push(
-          MaterialPageRoute(builder: (_) => const CreateCompanyWizard()),
-        ),
+        onTap: () => context.push('/companies/create'),
       ),
       _NewWorkAction(
         title: 'إجراء إداري',
         subtitle: 'معاملة إدارية + Checklist',
         icon: Icons.assignment,
         color: AppColors.warning,
-        onTap: () => GoRouter.of(context).push(
-          MaterialPageRoute(builder: (_) => const CreateProcedureScreen()),
-        ),
+        onTap: () => context.push('/procedures/create'),
       ),
       _NewWorkAction(
         title: 'أمر عمل للمعقب',

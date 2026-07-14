@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_picker/file_picker.dart' hide FileType;
 import '../../providers/app_providers.dart';
 /// شاشة المستندات (Smart File Explorer)
 /// بناءً على الخطة الماسية لإعادة الهيكلة 2026 (المرحلة 4)
@@ -297,7 +297,7 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
     );
   }
 
-  Color _getFileColor(FileType type) {
+  Color _getFileColor(doc_models.FileType type) {
     switch (type) {
       case doc_models.FileType.pdf: return AppColors.error;
       case doc_models.FileType.docx:

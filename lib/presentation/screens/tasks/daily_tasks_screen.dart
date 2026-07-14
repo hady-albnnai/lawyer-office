@@ -285,7 +285,7 @@ class _DailyTasksScreenState extends ConsumerState<DailyTasksScreen> with Single
       case 'admin_procedures': screen = ProcedureDetailScreen(procedureId: id); break;
       default: return;
     }
-    GoRouter.of(context).push(route);
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
   void _openPostponeDialog(DailyTask t) {

@@ -398,7 +398,72 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
 
   void _onContinue() {
     if (_currentStep == 2 && _nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تأسيس الشركة بنجاح!'))); backgroundColor: AppColors.success)
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى إدخال الاسم التجاري للشركة!'),
+          backgroundColor: AppConstants.statusDanger,
+        ),
+      );
+      return;
+    }
+
+    if (_currentStep < 4) {
+      setState(() => _currentStep++);
+      return;
+    }
+
+    _saveCompany();
+  }
+
+  void _onCancel() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    }
+  }
+
+  Future<void> _saveCompany() async {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى إدخال الاسم التجاري للشركة!'),
+          backgroundColor: AppConstants.statusDanger,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final repo = ref.read(companyRepositoryProvider);
+      final company = CompaniesCompanion.insert(
+        internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
+        companyType: _companyType,
+        legalStatus: drift.Value(_isNewEstablishment ? 'under_establishment' : 'active'),
+        name: _nameController.text.trim(),
+        activity: drift.Value(_activityController.text.trim()),
+        capitalDeclared: drift.Value(double.tryParse(_capitalController.text.trim()) ?? 0),
+        capitalPaid: drift.Value(double.tryParse(_paidCapitalController.text.trim()) ?? 0),
+        durationType: const drift.Value('fixed'),
+        durationYears: drift.Value(int.tryParse(_durationController.text.trim()) ?? 99),
+        mainAddress: drift.Value(_addressController.text.trim()),
+        propertyDetails: drift.Value(_propertyDetailsController.text.trim()),
+        currentPhase: drift.Value(_isNewEstablishment ? 'صياغة عقد التأسيس وتصديق النقابة' : 'أرشفة شركة قائمة'),
+      );
+
+      final companyId = await repo.createCompany(
+        company: company,
+        partners: _selectedPartners,
+        directors: _selectedDirectors,
+        userRef: AppConstants.defaultLawyerName,
+      );
+
+      if (mounted) {
+        ref.invalidate(allCompaniesProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تأسيس الشركة بنجاح!'),
+            backgroundColor: AppConstants.statusSuccess,
+          ),
         );
         GoRouter.of(context).pushReplacement('/companies/$companyId');
       }
@@ -411,5 +476,20 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _activityController.dispose();
+    _capitalController.dispose();
+    _paidCapitalController.dispose();
+    _durationController.dispose();
+    _addressController.dispose();
+    _propertyDetailsController.dispose();
+    _tempShareValueController.dispose();
+    _tempSharePercentController.dispose();
+    _tempAuthorityController.dispose();
+    super.dispose();
   }
 }

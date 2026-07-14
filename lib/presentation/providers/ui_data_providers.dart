@@ -391,4 +391,5 @@ final uiWorkOrdersProvider = StreamProvider<List<ui_wo.WorkOrder>>((ref) async* 
         ),
       )
       .toList();
+  }
 });
