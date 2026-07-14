@@ -1499,6 +1499,7 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
       );
       if (mounted) {
         Navigator.of(context).pop(id);
+        ref.invalidate(allPersonsProvider(null));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الموكل: ${_nameController.text}'), backgroundColor: AppColors.success));
       }
     } catch(e) {
@@ -1778,6 +1779,7 @@ class _AddOpponentDialogState extends ConsumerState<AddOpponentDialog> {
       );
       if (mounted) {
         Navigator.of(context).pop(id);
+        ref.invalidate(allPersonsProvider(null));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الخصم: ${_nameController.text}'), backgroundColor: AppColors.success));
       }
     } catch(e) {

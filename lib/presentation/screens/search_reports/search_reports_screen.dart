@@ -335,16 +335,12 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
     }
     if (hint.startsWith('/persons/')) {
       final id = hint.split('/').last;
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => PersonDetailScreen(personId: id)),
-      );
+      context.push('/persons/$id');
       return;
     }
     if (hint.startsWith('/poa/')) {
       final id = hint.split('/').last;
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => PoaDetailScreen(agencyId: id)),
-      );
+      context.push('/poa/$id');
       return;
     }
     if (hint.startsWith('/finance')) {

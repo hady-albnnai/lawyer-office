@@ -300,6 +300,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
       );
 
       if (mounted) {
+        ref.invalidate(allContractsProvider);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تنظيم وحفظ العقد وتوليد التذكيرات بنجاح!'), backgroundColor: AppConstants.statusSuccess));
         context.pushReplacement('/contracts/$contractId');
       }

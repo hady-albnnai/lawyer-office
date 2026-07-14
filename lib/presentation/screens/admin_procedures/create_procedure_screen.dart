@@ -212,6 +212,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
       );
 
       if (mounted) {
+        ref.invalidate(allProceduresProvider);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل المعاملة وتوليد خطوات الـ Checklist بنجاح!'), backgroundColor: AppConstants.statusSuccess));
         context.pushReplacement('/procedures/$procId');
       }

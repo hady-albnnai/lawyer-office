@@ -241,6 +241,7 @@ class _DailyTasksScreenState extends ConsumerState<DailyTasksScreen> with Single
                     onPressed: () async {
                       await ref.read(taskRepositoryProvider).completeTask(t.id, AppConstants.defaultLawyerName);
                       if (context.mounted) {
+                        ref.invalidate(tasksByDateProvider(_selectedDate));
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إنجاز المهمة بنجاح!'), backgroundColor: AppConstants.statusSuccess));
                       }
                     },
@@ -283,7 +284,7 @@ class _DailyTasksScreenState extends ConsumerState<DailyTasksScreen> with Single
       case 'admin_procedures': screen = ProcedureDetailScreen(procedureId: id); break;
       default: return;
     }
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
+    context.push(route);
   }
 
   void _openPostponeDialog(DailyTask t) {
@@ -333,6 +334,7 @@ class _DailyTasksScreenState extends ConsumerState<DailyTasksScreen> with Single
                 );
                 if (context.mounted) {
                   Navigator.pop(context);
+                  ref.invalidate(tasksByDateProvider(_selectedDate));
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تأجيل الموعد وترحيله بنجاح!'), backgroundColor: AppConstants.statusWarning));
                 }
               },
@@ -377,6 +379,7 @@ class _DailyTasksScreenState extends ConsumerState<DailyTasksScreen> with Single
               );
               if (context.mounted) {
                 Navigator.pop(context);
+                ref.invalidate(tasksByDateProvider(_selectedDate));
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة المهمة بنجاح!'), backgroundColor: AppConstants.statusSuccess));
               }
             },

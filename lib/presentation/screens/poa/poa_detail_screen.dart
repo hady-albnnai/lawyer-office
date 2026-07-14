@@ -157,7 +157,7 @@ class _PoaDetailScreenState extends ConsumerState<PoaDetailScreen> with SingleTi
             subtitle: Text('الموكل / صاحب التوكيل', style: AppTextStyles.bodySmallSecondary),
             onTap: principal == null
                 ? null
-                : () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => PersonDetailScreen(personId: principal.id))),
+                : () => context.push('/persons/${principal.id}'),
           ),
         ),
         Card(
