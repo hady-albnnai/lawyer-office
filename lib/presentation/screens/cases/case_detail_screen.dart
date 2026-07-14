@@ -1209,7 +1209,6 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
     );
   }
 
-  }
 
   Widget _buildPartiesTab(CaseDetailState state) {
     return SingleChildScrollView(
