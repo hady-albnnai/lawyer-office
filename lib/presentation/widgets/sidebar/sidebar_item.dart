@@ -3,7 +3,7 @@
 /// هذا الملف ينفذ عناصر SideBar حسب مواصفات
 /// PRODUCT_REDESIGN_MASTER_PLAN.md - القسم 3.2
 /// 
-/// آخر تحديث: 2026-07-09
+/// آخر تحديث: 2026-07-14
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -97,37 +97,14 @@ class SidebarItem extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    // إذا كان العنصر مخفياً
-    if (item.isHidden) {
-      return const SizedBox.shrink();
-    }
+    if (item.isHidden) return const SizedBox.shrink();
     
-    // تحديد إذا كان العنصر مختاراً
     final isSelected = selectedRoute == item.route;
     
-    // تحديد إذا كان هناك أطفال
-    final hasChildren = item.children != null && item.children!.isNotEmpty;
-    
-    // لون خلفية العنصر
     Color backgroundColor = AppColors.sidebarBackground;
-    if (isSelected) {
-      backgroundColor = AppColors.sidebarSelected;
-    } else if (hasChildren) {
-      // يمكن إضافة لون مختلف لعناصر القائمة
-      backgroundColor = AppColors.sidebarBackground;
-    }
+    if (isSelected) backgroundColor = AppColors.sidebarSelected;
     
-    // لون النص
-    Color textColor = isSelected 
-        ? AppColors.sidebarTextSelected 
-        : AppColors.sidebarText;
-    
-    // لون الأيقونة
-    Color iconColor = isSelected 
-        ? AppColors.sidebarIconSelected 
-        : AppColors.sidebarIcon;
-    
-    // حجم العنصر
+    Color iconColor = isSelected ? AppColors.sidebarIconSelected : AppColors.sidebarIcon;
     final double itemHeight = 48.0;
     
     return Tooltip(
@@ -144,58 +121,26 @@ class SidebarItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
-              // الأيقونة
-              Icon(
-                item.icon,
-                color: iconColor,
-                size: 22,
-              ),
-              
-              // المساحة بين الأيقونة والنص
+              Icon(item.icon, color: iconColor, size: 22),
               const SizedBox(width: 12),
-              
-              // النص (يظهر فقط عند التوسعة)
               if (isExpanded) ...[
                 Expanded(
                   child: Text(
                     item.label,
-                    style: isSelected 
-                        ? AppTextStyles.sidebarItemSelected 
-                        : AppTextStyles.sidebarItem,
+                    style: isSelected ? AppTextStyles.sidebarItemSelected : AppTextStyles.sidebarItem,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                
-                // Badge (يظهر فقط عند التوسعة)
                 if (item.badgeCount > 0) ...[
                   const SizedBox(width: 8),
-                  BadgeWidget(
-                    count: item.badgeCount,
-                    type: item.badgeType,
-                    size: 20,
-                  ),
+                  BadgeWidget(count: item.badgeCount, type: item.badgeType, size: 20),
                 ],
               ] else ...[
-                // Badge (يظهر عند الطي)
                 if (item.badgeCount > 0) ...[
                   const SizedBox(width: 4),
-                  BadgeWidget(
-                    count: item.badgeCount,
-                    type: item.badgeType,
-                    size: 18,
-                  ),
+                  BadgeWidget(count: item.badgeCount, type: item.badgeType, size: 18),
                 ],
-              ],
-              
-              // سهم إذا كان هناك أطفال (يظهر فقط عند التوسعة)
-              if (isExpanded && hasChildren) ...[
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: iconColor,
-                  size: 20,
-                ),
               ],
             ],
           ),
@@ -207,16 +152,9 @@ class SidebarItem extends StatelessWidget {
 
 /// قائمة من عناصر SideBar
 class SidebarItemList extends StatelessWidget {
-  /// قائمة العناصر
   final List<SidebarItemModel> items;
-  
-  /// هل SideBar موسع
   final bool isExpanded;
-  
-  /// المسار المختار حاليا
   final String? selectedRoute;
-  
-  /// دالة عند اختيار العنصر
   final void Function(SidebarItemModel) onItemSelected;
   
   const SidebarItemList({
@@ -232,29 +170,71 @@ class SidebarItemList extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: items.map((item) {
-        // إذا كان هناك أطفال، ننشئ قائمة منبثقة
         if (item.children != null && item.children!.isNotEmpty) {
           return _buildExpandableItem(context, item);
         }
-        
-        return item.toWidget(
-          context: context,
-          isExpanded: isExpanded,
-          selectedRoute: selectedRoute,
-          onItemSelected: onItemSelected,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4.0),
+          child: item.toWidget(
+            context: context,
+            isExpanded: isExpanded,
+            selectedRoute: selectedRoute,
+            onItemSelected: onItemSelected,
+          ),
         );
       }).toList(),
     );
   }
   
   Widget _buildExpandableItem(BuildContext context, SidebarItemModel parent) {
-    // هذا يمكن تطويره لاحقاً للدعم الكامل للقوائم المنبثقة
-    // حالياً، نعرض العنصر الرئيسي فقط
-    return parent.toWidget(
-      context: context,
-      isExpanded: isExpanded,
-      selectedRoute: selectedRoute,
-      onItemSelected: onItemSelected,
+    if (!isExpanded) {
+      // إذا كان مطوياً، نعرض العنصر الرئيسي كأيقونة فقط (بدون ExpansionTile)
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4.0),
+        child: parent.toWidget(
+          context: context,
+          isExpanded: isExpanded,
+          selectedRoute: selectedRoute,
+          onItemSelected: (item) {
+            // نأخذ المستخدم لأول ابن بشكل افتراضي لتسهيل الوصول عند الطي
+            if (parent.children!.isNotEmpty) {
+              onItemSelected(parent.children!.first);
+            } else {
+              onItemSelected(parent);
+            }
+          },
+        ),
+      );
+    }
+
+    final hasSelectedChild = parent.children!.any((c) => selectedRoute == c.route) || selectedRoute == parent.route;
+    
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        initiallyExpanded: hasSelectedChild,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+        leading: Icon(
+          parent.icon,
+          color: hasSelectedChild ? AppColors.sidebarIconSelected : AppColors.sidebarIcon,
+          size: 22,
+        ),
+        title: Text(
+          parent.label,
+          style: hasSelectedChild ? AppTextStyles.sidebarItemSelected : AppTextStyles.sidebarItem,
+        ),
+        children: parent.children!.map((child) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 16.0, bottom: 4.0),
+            child: child.toWidget(
+              context: context,
+              isExpanded: isExpanded,
+              selectedRoute: selectedRoute,
+              onItemSelected: onItemSelected,
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
