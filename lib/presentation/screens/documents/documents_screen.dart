@@ -228,7 +228,8 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
 
   // بطاقة عرض شبكي للملف (تُشبه Windows Explorer Icon)
   Widget _buildGridFileCard(DocumentItem doc) {
-    return InkWell(
+    return RepaintBoundary(
+      child: InkWell(
       onDoubleTap: () => openDocument(context, doc.id),
       onTap: () {
         // يمكن إضافة Select State لاحقاً
@@ -270,7 +271,8 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
 
   // بطاقة عرض طولي للملف (List View Details)
   Widget _buildListFileCard(DocumentItem doc) {
-    return ListTile(
+    return RepaintBoundary(
+      child: ListTile(
       tileColor: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
