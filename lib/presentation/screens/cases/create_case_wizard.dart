@@ -10,9 +10,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' show Value;
 
+import '../../../core/enums/app_enums.dart';
+
 import '../../../data/database/database.dart' as db;
 import '../../../data/repositories/case_repository.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import 'case_models.dart';
@@ -32,6 +35,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   // الخطوة 1: الموكل
   // ===========================================================================
   int? _selectedClientId;
+  String _clientSearchQuery = '';
   final TextEditingController _clientSearchController = TextEditingController();
   
   // ===========================================================================
@@ -342,110 +346,159 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
         ),
         const SizedBox(height: 24),
         
-        // بحث عن موكل
-        TextField(
-          controller: _clientSearchController,
-          decoration: InputDecoration(
-            labelText: 'بحث عن موكل',
-            hintText: 'ادخل اسم الموكل أو رقم هويته',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+        // بحث عن موكل + إضافة موكل جديد في نفس موضع العمل
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _clientSearchController,
+                decoration: InputDecoration(
+                  labelText: 'بحث عن موكل',
+                  hintText: 'ادخل اسم الموكل أو رقم هويته',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onChanged: _searchClients,
+              ),
             ),
-          ),
-          onChanged: (value) => _searchClients(value),
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: () => _showAddClientDialog(context),
+                icon: const Icon(Icons.person_add),
+                label: const Text('إضافة موكل'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         
-        // قائمة الموكلين
+        // قائمة الموكلين من قاعدة البيانات الحقيقية
         _buildClientList(),
-        
-        // أو إضافة موكل جديد
-        const SizedBox(height: 16),
-        TextButton.icon(
-          onPressed: () => _showAddClientDialog(context),
-          icon: const Icon(Icons.add),
-          label: const Text('إضافة موكل جديد'),
-        ),
       ],
     );
   }
   
   Widget _buildClientList() {
-    // في التطبيق الحقيقي، سيتم استرداد الموكلين من قاعدة البيانات
-    // هنا نستخدم بيانات افتراضية
-    final clients = [
-      {'id': 1, 'name': 'أحمد محمد', 'type': 'شخص طبيعي'},
-      {'id': 2, 'name': 'محمد أحمد', 'type': 'شخص طبيعي'},
-      {'id': 3, 'name': 'شركة التطوير الحديث', 'type': 'شركة'},
-      {'id': 4, 'name': 'هادي فيصل البني', 'type': 'شخص طبيعي'},
-      {'id': 5, 'name': 'سامي عبد الله', 'type': 'شخص طبيعي'},
-    ];
-    
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.cardBorder, width: 0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: clients.length,
-        itemBuilder: (context, index) {
-          final client = clients[index];
-          final isSelected = _selectedClientId == client['id'];
-          
-          return InkWell(
-            onTap: () => setState(() => _selectedClientId = client['id'] as int?),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : AppColors.cardBackground,
-                border: Border.all(color: AppColors.cardBorder, width: 0.5),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.person,
-                    color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    client['name'] as String,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    client['type'] as String,
-                    style: AppTextStyles.bodySmallSecondary,
-                  ),
-                  if (isSelected)
-                    const Icon(
-                      Icons.check_circle,
-                      color: AppColors.success,
-                      size: 20,
-                    ),
-                ],
-              ),
+    final personsAsync = ref.watch(allPersonsProvider(null));
+
+    return personsAsync.when(
+      loading: () => const Center(child: Padding(
+        padding: EdgeInsets.all(16),
+        child: CircularProgressIndicator(),
+      )),
+      error: (e, _) => Text('تعذر تحميل الموكلين: $e', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.error)),
+      data: (persons) {
+        final query = _clientSearchQuery.trim().toLowerCase();
+        final clients = persons.where((p) {
+          if (query.isEmpty) return true;
+          return p.fullName.toLowerCase().contains(query) ||
+              (p.nationalId ?? '').toLowerCase().contains(query) ||
+              (p.phone1 ?? '').toLowerCase().contains(query);
+        }).toList();
+
+        if (clients.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.cardBorder, width: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              color: AppColors.cardBackground,
+            ),
+            child: Text(
+              query.isEmpty
+                  ? 'لا يوجد موكلون بعد — أضف أول موكل من الزر بجانب البحث.'
+                  : 'لا يوجد موكل مطابق للبحث — يمكنك إضافته مباشرة من الزر بجانب البحث.',
+              style: AppTextStyles.bodyMediumSecondary,
+              textAlign: TextAlign.center,
             ),
           );
-        },
-      ),
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.cardBorder, width: 0.5),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 280),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: clients.length,
+              itemBuilder: (context, index) {
+                final client = clients[index];
+                final isSelected = _selectedClientId == client.id;
+                final clientType = client.type == PersonType.legal.index ? 'جهة اعتبارية / شركة' : 'شخص طبيعي';
+
+                return InkWell(
+                  onTap: () => setState(() => _selectedClientId = client.id),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primaryNavy.withOpacity(0.1) : AppColors.cardBackground,
+                      border: Border.all(color: AppColors.cardBorder, width: 0.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          client.type == PersonType.legal.index ? Icons.business : Icons.person,
+                          color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                client.fullName,
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                              if ((client.phone1 ?? '').isNotEmpty || (client.nationalId ?? '').isNotEmpty)
+                                Text(
+                                  [client.phone1, client.nationalId].where((v) => (v ?? '').isNotEmpty).join(' • '),
+                                  style: AppTextStyles.bodySmallSecondary,
+                                ),
+                            ],
+                          ),
+                        ),
+                        Text(clientType, style: AppTextStyles.bodySmallSecondary),
+                        if (isSelected) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
   
   void _searchClients(String query) {
-    // بحث عن موكلين في قاعدة البيانات
+    setState(() => _clientSearchQuery = query);
   }
   
-  void _showAddClientDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showAddClientDialog(BuildContext context) async {
+    final id = await showDialog<int>(
       context: context,
       builder: (context) => const AddClientDialog(),
     );
+    if (id != null && mounted) {
+      ref.invalidate(allPersonsProvider(null));
+      ref.invalidate(uiPersonsDirectoryProvider);
+      setState(() => _selectedClientId = id);
+    }
   }
 
   // ===========================================================================
@@ -1478,8 +1531,8 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: _submitClient,
-                  child: const Text('إضافة'),
+                  onPressed: _saving ? null : _submitClient,
+                  child: Text(_saving ? 'جارٍ الإضافة...' : 'إضافة'),
                 ),
               ],
             ),
@@ -1491,12 +1544,24 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
 
 
   bool _saving = false;
-  void _submitClient() async {
-    if (_nameController.text.trim().isEmpty) return;
+  Future<void> _submitClient() async {
+    if (_nameController.text.trim().isEmpty || _saving) return;
     setState(() => _saving = true);
     try {
+      final personId = await ref.read(personRepositoryProvider).createPerson(
+        person: db.PersonsCompanion.insert(
+          fullName: _nameController.text.trim(),
+          type: Value(_clientType == 'شخص طبيعي' ? PersonType.natural.index : PersonType.legal.index),
+          nationalId: Value(_idController.text.trim().isEmpty ? null : _idController.text.trim()),
+          phone1: Value(_phoneController.text.trim().isEmpty ? null : _phoneController.text.trim()),
+          whatsapp: Value(_phoneController.text.trim().isEmpty ? null : _phoneController.text.trim()),
+        ),
+        initialRoles: [PersonRoleType.client],
+      );
+      ref.invalidate(allPersonsProvider(null));
+      ref.invalidate(uiPersonsDirectoryProvider);
       if (mounted) {
-        Navigator.of(context).pop(0);
+        Navigator.of(context).pop(personId);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة الموكل: ${_nameController.text}'), backgroundColor: AppColors.success));
       }
     } catch(e) {

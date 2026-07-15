@@ -610,6 +610,7 @@ class _BackupTab extends ConsumerWidget {
 
     ref.invalidate(coreDataBootstrapProvider);
     ref.invalidate(uiWorkOrdersProvider);
+    ref.invalidate(uiPersonsDirectoryProvider);
     ref.invalidate(allCasesProvider);
     ref.invalidate(allPersonsProvider);
     ref.invalidate(allCompaniesProvider);

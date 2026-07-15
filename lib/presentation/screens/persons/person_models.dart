@@ -351,7 +351,7 @@ final personsDirectoryProvider = StateNotifierProvider<PersonsDirectoryNotifier,
 });
 
 class PersonsDirectoryNotifier extends StateNotifier<PersonsDirectoryState> {
-  PersonsDirectoryNotifier() : super(_seedState());
+  PersonsDirectoryNotifier() : super(const PersonsDirectoryState(persons: [], agencies: []));
 
   void hydrateFromDb(PersonsDirectoryState dbState) {
     if (state.roleFilter == null) {
