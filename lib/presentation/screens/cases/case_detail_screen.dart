@@ -2705,7 +2705,7 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
         category: 'cases',
         entityType: 'case',
         entityId: '${widget.caseId}',
-        entityTitle: state.caseItem.title,
+        entityTitle: state.caseItem?.title ?? 'دعوى #${widget.caseId}',
         description: 'محاولة إنهاء دعوى دون صلاحية',
         severity: 'warning',
       );
@@ -2733,7 +2733,7 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
       category: 'cases',
       entityType: 'case',
       entityId: '${widget.caseId}',
-      entityTitle: state.caseItem.title,
+      entityTitle: state.caseItem?.title ?? 'دعوى #${widget.caseId}',
       description: 'إنهاء الدعوى',
       after: {
         'result': _selectedClosureResult.displayName,
