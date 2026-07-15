@@ -1,0 +1,736 @@
+# خطة تنفيذ نظام المستخدمين والأدوار والصلاحيات والجلسات وسجل المسؤولية — ميزان
+
+> **حالة الوثيقة:** خطة تنفيذ إلزامية قبل البرمجة.  
+> **النطاق:** Users + Custom Roles + Permissions + Login Sessions + Audit Events + أساس المساعد الذكي لاحقاً.  
+> **مبدأ حاكم:** لا تغيير في أي وظيفة أو منطق قائم خارج هذا النطاق إلا إذا كان لازماً مباشرةً لإنجاح هذه الخطة وبأقل تعديل ممكن.
+
+---
+
+## 0. الالتزام الصارم
+
+هذه الخطة جزء من دستور العمل على مشروع **ميزان — المنصة الرقمية للمحامي**، ويجب تنفيذها وفق الشروط التالية:
+
+1. **لا تغيير خارج المطلوب:**
+   - لا تعديل لمنطق الدعاوى أو العقود أو الشركات أو المالية أو المستندات أو أوامر العمل إلا عند ربطها بالصلاحيات أو سجل المسؤولية.
+   - أي تعديل خارج النطاق يجب أن يكون مبرراً وموثقاً.
+
+2. **لا تنفيذ جزئي:**
+   - لا تعتبر الميزة مكتملة إلا بعد اكتمال قاعدة البيانات، الخدمات، المزودات، الواجهات، الصلاحيات، الجلسات، سجل المسؤولية، الاختبارات، التوثيق، والرفع.
+
+3. **لا أخطاء كود:**
+   - يجب تشغيل أدوات التوليد والتحليل والاختبار المتاحة.
+   - أي خطأ يظهر أثناء التنفيذ يجب إصلاحه قبل إعلان الاكتمال.
+
+4. **قاعدة بيانات آمنة:**
+   - أي تعديل في Drift يتم عبر Migration واضح ورفع `schemaVersion`.
+   - لا حذف أو إعادة تهيئة للجداول الحالية.
+
+5. **التوثيق والرفع إلزاميان:**
+   - تحديث `docs/EXECUTION_PLAN.md` وأي وثائق مرتبطة.
+   - تنفيذ commit و push في نهاية المهمة، وفق دستور المشروع.
+
+---
+
+## 1. الهدف النهائي
+
+إضافة نظام كامل لإدارة:
+
+- المستخدمين.
+- الأدوار المخصصة التي يسميها صاحب المكتب.
+- الصلاحيات الدقيقة لكل دور.
+- تعديل الدور والصلاحيات بعد التعيين.
+- تسجيل الدخول والخروج وجلسات المستخدمين.
+- سجل مسؤولية مفهرس يعرف المدير من فعل ماذا ومتى.
+- أساس أمني للمساعد الذكي لاحقاً بحيث لا يرى ولا ينفذ إلا ضمن صلاحيات المستخدم.
+
+الصيغة المعتمدة:
+
+```text
+Custom RBAC + Permission Keys + Session Tracking + Immutable Audit Log + AI Permission Boundary
+```
+
+---
+
+## 2. قرارات التصميم المعتمدة
+
+### 2.1 المستخدم والدور
+
+- المستخدم الواحد له **دور واحد** في المرحلة الأولى.
+- إذا احتاج مستخدم صلاحيات مختلفة، يتم إنشاء دور جديد.
+- لا توجد صلاحيات فردية مخصصة لكل مستخدم في المرحلة الأولى.
+- تعديل صلاحيات الدور ينعكس على جميع المستخدمين المرتبطين به.
+
+### 2.2 المدير الأساسي Owner
+
+- أول تشغيل ينشئ مستخدماً أساسياً `isOwner = true`.
+- لا يجوز حذف أو تعطيل Owner.
+- Owner يحصل على كل الصلاحيات.
+
+### 2.3 الصلاحيات
+
+- الصلاحيات مفاتيح ثابتة داخل النظام، مثل:
+  - `cases.view`
+  - `finance.view`
+  - `settings.users.manage`
+- المستخدم لا يغير اسم الصلاحية؛ فقط يختارها ضمن دور.
+- الأصل هو المنع: **deny by default**.
+
+### 2.4 سجل المسؤولية
+
+- سجل المسؤولية Append-only من الواجهة.
+- لا يسمح بحذفه أو تعديله من داخل التطبيق.
+- يسمح فقط بالعرض والبحث والفلترة والتصدير لاحقاً.
+
+### 2.5 المساعد الذكي لاحقاً
+
+- المساعد لا يملك صلاحيات مستقلة تتجاوز المستخدم.
+- صلاحية المساعد = تقاطع صلاحية المستخدم مع صلاحية الأداة.
+- كل سؤال أو إجراء للمساعد يجب أن يسجل في Audit.
+
+---
+
+## 3. الصلاحيات الأساسية
+
+### 3.1 النظام والإعدادات
+
+```text
+settings.view
+settings.office.edit
+settings.security.edit
+settings.backup.create
+settings.backup.restore
+settings.lookups.manage
+settings.users.manage
+activity.view
+audit.view
+audit.export
+sessions.view
+```
+
+### 3.2 الأشخاص والجهات
+
+```text
+persons.view
+persons.create
+persons.edit
+persons.archive
+persons.sensitive.view
+```
+
+### 3.3 الوكالات
+
+```text
+poa.view
+poa.create
+poa.edit
+poa.archive
+poa.files.view
+```
+
+### 3.4 الدعاوى
+
+```text
+cases.view
+cases.create_new
+cases.archive_old
+cases.edit
+cases.sessions.manage
+cases.result.enter
+cases.close
+cases.archive
+```
+
+### 3.5 العقود
+
+```text
+contracts.view
+contracts.create
+contracts.edit
+contracts.reminders.manage
+contracts.archive
+```
+
+### 3.6 الشركات
+
+```text
+companies.view
+companies.create
+companies.edit
+companies.phases.manage
+companies.archive
+```
+
+### 3.7 الإجراءات الإدارية
+
+```text
+procedures.view
+procedures.create
+procedures.edit
+procedures.steps.manage
+procedures.archive
+```
+
+### 3.8 المستندات
+
+```text
+documents.view
+documents.upload
+documents.open
+documents.edit
+documents.delete
+documents.export
+```
+
+### 3.9 المالية
+
+```text
+finance.view
+finance.agreements.create
+finance.agreements.edit
+finance.payments.create
+finance.expenses.create
+finance.reports.view
+finance.delete
+```
+
+### 3.10 أوامر العمل
+
+```text
+work_orders.view
+work_orders.create
+work_orders.print
+work_orders.send
+work_orders.result.enter
+work_orders.approve
+```
+
+### 3.11 التقارير والبحث والمكتبة
+
+```text
+reports.view
+reports.export
+search.view
+library.view
+library.add
+library.edit
+library.delete
+library.link
+```
+
+---
+
+## 4. قاعدة البيانات المطلوبة
+
+### 4.1 app_roles
+
+```text
+id
+name
+description
+isSystemRole
+isActive
+createdAt
+updatedAt
+```
+
+### 4.2 app_users
+
+```text
+id
+fullName
+username
+passwordHash
+roleId
+phone
+email
+isActive
+isOwner
+lastLoginAt
+createdAt
+updatedAt
+```
+
+### 4.3 role_permissions
+
+```text
+id
+roleId
+permissionKey
+createdAt
+UNIQUE(roleId, permissionKey)
+```
+
+### 4.4 user_sessions
+
+```text
+id
+userId
+usernameSnapshot
+userFullNameSnapshot
+roleNameSnapshot
+loginAt
+logoutAt
+lastActiveAt
+status
+deviceName
+appVersion
+failedReason
+createdAt
+```
+
+القيم المقترحة للحالة:
+
+```text
+active
+closed
+expired
+failed
+```
+
+### 4.5 audit_events
+
+```text
+id
+sessionId
+userId
+usernameSnapshot
+userFullNameSnapshot
+roleNameSnapshot
+action
+category
+entityType
+entityId
+entityTitle
+description
+beforeJson
+afterJson
+severity
+deviceName
+createdAt
+```
+
+درجات الأهمية:
+
+```text
+info
+warning
+critical
+```
+
+---
+
+## 5. مراحل التنفيذ
+
+## المرحلة 0 — فحص خط الأساس
+
+### العمل
+
+- سحب آخر نسخة من `main`.
+- فحص:
+  - `schema.dart`
+  - `database.dart`
+  - `app_router.dart`
+  - `first_run_setup_screen.dart`
+  - `settings_screen.dart`
+  - `app_providers.dart`
+- تحديد نقاط الربط الحالية.
+
+### معيار الاكتمال
+
+- لا تعديلات برمجية غير ضرورية.
+- تحديد دقيق لكل الملفات التي ستتأثر.
+
+---
+
+## المرحلة 1 — كتالوج الصلاحيات
+
+### الملفات المتوقعة
+
+```text
+lib/core/auth/permission_keys.dart
+lib/core/auth/permission_catalog.dart
+```
+
+### العمل
+
+- تعريف مفاتيح الصلاحيات.
+- تجميعها ضمن مجموعات عربية مفهومة.
+- تحديد وصف ودرجة حساسية لكل صلاحية.
+
+### معيار الاكتمال
+
+- كل صلاحية لها Key واسم عربي ووصف ومجموعة.
+
+---
+
+## المرحلة 2 — تعديل قاعدة البيانات Drift
+
+### العمل
+
+- إضافة الجداول الخمسة إلى `schema.dart`.
+- إضافتها إلى `@DriftDatabase`.
+- رفع `schemaVersion`.
+- إضافة Migration.
+- تشغيل:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+### معيار الاكتمال
+
+- `database.g.dart` محدث.
+- لا أخطاء Drift.
+
+---
+
+## المرحلة 3 — خدمات Auth / Permission / Audit
+
+### الملفات المتوقعة
+
+```text
+lib/data/repositories/auth_repository.dart
+lib/data/services/permission_service.dart
+lib/data/services/audit_service.dart
+lib/presentation/providers/auth_providers.dart
+```
+
+### AuthRepository
+
+مسؤول عن:
+
+```text
+createOwnerUser
+createUser
+updateUser
+changePassword
+disableUser
+enableUser
+login
+logout
+getCurrentUser
+getRoles
+createRole
+updateRole
+setRolePermissions
+```
+
+### PermissionService
+
+مسؤول عن:
+
+```text
+can
+canAny
+canAll
+requirePermission
+```
+
+### AuditService
+
+مسؤول عن:
+
+```text
+logLoginSuccess
+logLoginFailed
+logLogout
+logCreate
+logUpdate
+logDelete
+logArchive
+logPermissionChange
+logExport
+logPrint
+logAccessDenied
+```
+
+### معيار الاكتمال
+
+- يمكن إنشاء مستخدم ودور وصلاحيات.
+- يمكن تسجيل الدخول وفتح جلسة.
+- يمكن تسجيل حدث Audit.
+
+---
+
+## المرحلة 4 — First Run جديد
+
+### التدفق
+
+```text
+بيانات المكتب
+حساب المدير
+المستخدمون والصلاحيات اختياري
+النسخ الاحتياطي
+بدء العمل
+```
+
+### شروط
+
+- إنشاء Owner إلزامي.
+- لا بيانات تجريبية افتراضياً.
+- يمكن إضافة مستخدمين آخرين أو تخطيها.
+
+### معيار الاكتمال
+
+- أول تشغيل ينشئ المدير والصلاحيات.
+- لا يمكن دخول التطبيق دون Owner.
+
+---
+
+## المرحلة 5 — Splash و Login
+
+### المسارات
+
+```text
+/splash
+/first-run
+/login
+/today
+```
+
+### منطق Splash
+
+```text
+فتح قاعدة البيانات
+هل يوجد Owner؟
+  لا → first-run
+  نعم → login
+```
+
+### Login
+
+- اسم الدخول.
+- كلمة المرور.
+- تسجيل نجاح أو فشل الدخول.
+- فتح جلسة.
+- تحميل صلاحيات المستخدم.
+
+### معيار الاكتمال
+
+- لا وصول للوحة اليوم دون تسجيل دخول.
+- الجلسات تسجل بشكل صحيح.
+
+---
+
+## المرحلة 6 — إدارة المستخدمين والأدوار
+
+### المكان
+
+```text
+الإعدادات > المستخدمون والصلاحيات
+```
+
+### المستخدمون
+
+- إضافة مستخدم.
+- تعديل مستخدم.
+- تغيير كلمة المرور.
+- تغيير الدور.
+- تفعيل/تعطيل.
+- حماية Owner.
+
+### الأدوار
+
+- إنشاء دور.
+- تعديل اسم ووصف الدور.
+- تعديل صلاحيات الدور.
+- نسخ دور.
+- تعطيل دور.
+- منع حذف دور عليه مستخدمون.
+
+### معيار الاكتمال
+
+- تعديل صلاحيات دور ينعكس فوراً على مستخدميه.
+- تحذير واضح عند تعديل دور مستخدم من عدة أشخاص.
+
+---
+
+## المرحلة 7 — سجل الجلسات وسجل المسؤولية
+
+### المكان
+
+```text
+الإعدادات > سجل المسؤولية
+```
+
+### الجلسات
+
+- عرض المستخدم.
+- وقت الدخول.
+- وقت الخروج.
+- آخر نشاط.
+- الحالة.
+
+### Audit
+
+- جدول أحداث مفهرس.
+- فلاتر:
+  - المستخدم.
+  - القسم.
+  - العملية.
+  - التاريخ.
+  - الأهمية.
+  - بحث نصي.
+
+### التفاصيل
+
+- قبل التعديل.
+- بعد التعديل.
+- المستخدم.
+- الجلسة.
+- الوقت.
+
+### معيار الاكتمال
+
+- أحداث الدخول وتغيير الصلاحيات تظهر في السجل.
+- السجل قابل للبحث والفلترة.
+
+---
+
+## المرحلة 8 — تطبيق الصلاحيات على الواجهة
+
+### العمل
+
+- الشريط الجانبي يخفي الأقسام غير المسموحة.
+- الأزرار تظهر حسب الصلاحيات.
+- المسارات الممنوعة تعرض شاشة رفض صلاحية.
+
+### أمثلة
+
+```text
+finance.view → إظهار المالية
+cases.create_new → زر إنشاء دعوى
+work_orders.approve → زر اعتماد أمر العمل
+settings.users.manage → إدارة المستخدمين
+```
+
+### معيار الاكتمال
+
+- لا تظهر واجهات محظورة.
+- فتح رابط مباشر محظور يعطي منع وصول.
+
+---
+
+## المرحلة 9 — تطبيق الصلاحيات على العمليات
+
+### العمل
+
+- عدم الاعتماد على إخفاء الأزرار فقط.
+- كل عملية حساسة تتحقق من الصلاحية قبل التنفيذ.
+- تسجيل محاولات المنع في Audit.
+
+### معيار الاكتمال
+
+- لا يمكن تنفيذ عملية حساسة من أي مسار دون صلاحية.
+
+---
+
+## المرحلة 10 — تسجيل المسؤولية في العمليات الأساسية
+
+### العمليات الأولى
+
+- إنشاء/تعديل مستخدم.
+- إنشاء/تعديل دور.
+- تغيير صلاحيات.
+- إضافة/تعديل شخص.
+- إنشاء/تعديل دعوى.
+- إضافة جلسة أو نتيجة.
+- إضافة اتفاق أتعاب أو قبض أو مصروف.
+- رفع/فتح/حذف مستند.
+- إنشاء/طباعة/اعتماد أمر عمل.
+- تعديل إعدادات المكتب.
+- النسخ الاحتياطي والاستعادة.
+
+### معيار الاكتمال
+
+- كل عملية حساسة تظهر في سجل المسؤولية.
+
+---
+
+## المرحلة 11 — أساس المساعد الذكي
+
+لن يتم إنشاء المساعد الآن، لكن يجب تثبيت القواعد التالية:
+
+```text
+assistant permissions = currentUser permissions ∩ assistant tool permissions
+```
+
+### المطلوب
+
+- كل طلب مساعد مستقبلي يسجل.
+- كل إجراء مساعد مستقبلي يمر عبر PermissionService.
+- المساعد لا يقرأ بيانات لا يملكها المستخدم.
+
+### معيار الاكتمال
+
+- التوثيق واضح.
+- البنية الحالية تسمح بإضافة المساعد دون إعادة هيكلة.
+
+---
+
+## المرحلة 12 — الاختبارات والتحقق
+
+### أوامر التحقق المطلوبة
+
+```bash
+flutter clean
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze
+flutter test
+flutter run -d windows
+```
+
+### اختبارات وظيفية
+
+- إنشاء Owner.
+- تسجيل دخول صحيح.
+- تسجيل دخول خاطئ.
+- إنشاء دور.
+- تعديل صلاحيات دور.
+- إنشاء مستخدم.
+- منع مستخدم بلا صلاحية من المالية.
+- ظهور أحداث الدخول في الجلسات.
+- ظهور تغيير الصلاحيات في Audit.
+
+---
+
+## 6. مخرجات التنفيذ النهائية
+
+عند اكتمال الخطة يجب توفر:
+
+1. First Run جديد.
+2. Login إلزامي.
+3. Users / Roles / Permissions.
+4. Session Tracking.
+5. Audit Events مفهرسة.
+6. شاشة إدارة المستخدمين والصلاحيات.
+7. شاشة سجل المسؤولية.
+8. تطبيق الصلاحيات على الواجهة.
+9. تطبيق الصلاحيات على العمليات.
+10. أساس متين للمساعد الذكي.
+11. توثيق كامل.
+12. Commit و Push.
+
+---
+
+## 7. ترتيب commits المقترح
+
+```text
+1. docs: add RBAC audit implementation plan
+2. feat(auth): add permission catalog
+3. feat(db): add auth audit schema and migrations
+4. feat(auth): add auth repository and services
+5. feat(auth): add first-run owner and login flow
+6. feat(settings): add users roles permissions UI
+7. feat(audit): add sessions and audit log UI
+8. feat(auth): enforce permissions in shell and routes
+9. feat(audit): instrument core operations
+10. docs: finalize auth audit implementation documentation
+```
+
+---
+
+## 8. ملاحظة نهائية
+
+هذه الخطة كبيرة وحساسة لأنها تمس بداية التطبيق والأمان والصلاحيات وقاعدة البيانات. لذلك يجب تنفيذها على مراحل داخلية، لكن لا يتم تسليمها للمستخدم كميزة مكتملة إلا بعد اكتمال جميع المراحل أعلاه دون أخطاء.
