@@ -97,7 +97,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 IconButton(
                   tooltip: 'تصدير تقرير PDF',
                   icon: const Icon(Icons.picture_as_pdf),
-                  onPressed: () => _exportFinanceReportPdf(state),
+                  onPressed: permissions.can(PermissionKeys.financeReportsView) ? () => _exportFinanceReportPdf(state) : null,
                 ),
             ],
             bottom: TabBar(
@@ -1471,7 +1471,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
 class _FinanceDialogFrame extends StatelessWidget {
   final String title;
   final List<Widget> children;
-  final VoidCallback onSave;
+  final Future<void> Function() onSave;
 
   const _FinanceDialogFrame({
     required this.title,
@@ -1491,7 +1491,7 @@ class _FinanceDialogFrame extends StatelessWidget {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')),
-        ElevatedButton(onPressed: onSave, child: const Text('حفظ')),
+        ElevatedButton(onPressed: () => onSave(), child: const Text('حفظ')),
       ],
     );
   }
