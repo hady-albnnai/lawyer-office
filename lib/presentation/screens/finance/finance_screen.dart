@@ -12,7 +12,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/office_settings_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -54,6 +56,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(financeProvider);
+    final permissions = ref.watch(permissionServiceProvider);
 
     return Theme(
       data: AppTheme.lightTheme,
@@ -63,35 +66,39 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           appBar: AppBar(
             title: const Text('المالية الموحدة'),
             actions: [
-              IconButton(
-                tooltip: 'إضافة اتفاق أتعاب',
-                icon: const Icon(Icons.note_add),
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (context) => const AddAgreementDialog(),
+              if (permissions.can(PermissionKeys.financeAgreementsCreate))
+                IconButton(
+                  tooltip: 'إضافة اتفاق أتعاب',
+                  icon: const Icon(Icons.note_add),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (context) => const AddAgreementDialog(),
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'إضافة دفعة',
-                icon: const Icon(Icons.payments),
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (context) => const AddPaymentDialog(),
+              if (permissions.can(PermissionKeys.financePaymentsCreate))
+                IconButton(
+                  tooltip: 'إضافة دفعة',
+                  icon: const Icon(Icons.payments),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (context) => const AddPaymentDialog(),
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'إضافة مصروف',
-                icon: const Icon(Icons.receipt_long),
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (context) => const AddExpenseDialog(),
+              if (permissions.can(PermissionKeys.financeExpensesCreate))
+                IconButton(
+                  tooltip: 'إضافة مصروف',
+                  icon: const Icon(Icons.receipt_long),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (context) => const AddExpenseDialog(),
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'تصدير تقرير PDF',
-                icon: const Icon(Icons.picture_as_pdf),
-                onPressed: () => _exportFinanceReportPdf(state),
-              ),
+              if (permissions.can(PermissionKeys.financeReportsView))
+                IconButton(
+                  tooltip: 'تصدير تقرير PDF',
+                  icon: const Icon(Icons.picture_as_pdf),
+                  onPressed: () => _exportFinanceReportPdf(state),
+                ),
             ],
             bottom: TabBar(
               controller: _tabController,
@@ -459,12 +466,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   ElevatedButton.icon(
                     icon: const Icon(Icons.picture_as_pdf),
                     label: const Text('تصدير كشف مالي PDF'),
-                    onPressed: () => _exportFinanceReportPdf(state),
+                    onPressed: ref.watch(permissionServiceProvider).can(PermissionKeys.financeReportsView) ? () => _exportFinanceReportPdf(state) : null,
                   ),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.print),
                     label: const Text('معاينة وطباعة'),
-                    onPressed: () => _previewFinanceReportPdf(state),
+                    onPressed: ref.watch(permissionServiceProvider).can(PermissionKeys.financeReportsView) ? () => _previewFinanceReportPdf(state) : null,
                   ),
                 ],
               ),
@@ -491,6 +498,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   }
 
   Widget _agreementCard(FinanceState state, FinanceAgreement agreement) {
+    final permissions = ref.watch(permissionServiceProvider);
     final paid = state.paidForAgreement(agreement.id);
     final remaining = agreement.totalAmount - paid;
     return Card(
@@ -534,14 +542,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       ? () => openDocument(context, agreement.contractDocumentId)
                       : null,
                 ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('إضافة دفعة'),
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (context) => AddPaymentDialog(defaultAgreementId: agreement.id),
+                if (permissions.can(PermissionKeys.financePaymentsCreate))
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('إضافة دفعة'),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (context) => AddPaymentDialog(defaultAgreementId: agreement.id),
+                    ),
                   ),
-                ),
               ],
             ),
           ],
@@ -1149,7 +1158,13 @@ class _AddAgreementDialogState extends ConsumerState<AddAgreementDialog> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.financeAgreementsCreate)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'finance', entityType: 'agreement', description: 'محاولة إضافة اتفاق أتعاب دون صلاحية', severity: 'warning');
+      _error('لا تملك صلاحية إضافة اتفاق أتعاب');
+      return;
+    }
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     if (_entityTitleController.text.trim().isEmpty ||
         _partyController.text.trim().isEmpty ||
@@ -1159,9 +1174,10 @@ class _AddAgreementDialogState extends ConsumerState<AddAgreementDialog> {
     }
     final now = DateTime.now();
     final partyName = _partyController.text.trim();
+    final agreementId = 'agreement_${now.microsecondsSinceEpoch}';
     ref.read(financeProvider.notifier).addAgreement(
           FinanceAgreement(
-            id: 'agreement_${now.microsecondsSinceEpoch}',
+            id: agreementId,
             entityType: _entityType,
             entityId: 'manual_${now.microsecondsSinceEpoch}',
             entityTitle: _entityTitleController.text.trim(),
@@ -1173,6 +1189,16 @@ class _AddAgreementDialogState extends ConsumerState<AddAgreementDialog> {
             contractDocumentId: _documentController.text.trim(),
           ),
         );
+    await ref.read(auditServiceProvider).log(
+      action: 'create',
+      category: 'finance',
+      entityType: 'fee_agreement',
+      entityId: agreementId,
+      entityTitle: _entityTitleController.text.trim(),
+      description: 'إضافة اتفاق أتعاب',
+      after: {'party': partyName, 'amount': amount, 'type': _agreementType.displayName},
+      severity: 'warning',
+    );
     Navigator.of(context).pop();
   }
 
@@ -1263,7 +1289,13 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.financePaymentsCreate)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'finance', entityType: 'payment', description: 'محاولة إضافة سند قبض دون صلاحية', severity: 'warning');
+      _error('لا تملك صلاحية إضافة سند قبض');
+      return;
+    }
     final agreementId = _agreementId;
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     if (agreementId == null || amount <= 0) {
@@ -1272,9 +1304,10 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
     }
     final now = DateTime.now();
     final seq = (ref.read(financeProvider).payments.length + 1).toString().padLeft(4, '0');
+    final paymentId = 'payment_${now.microsecondsSinceEpoch}';
     ref.read(financeProvider.notifier).addPayment(
           FinancePayment(
-            id: 'payment_${now.microsecondsSinceEpoch}',
+            id: paymentId,
             agreementId: agreementId,
             amount: amount,
             paymentDate: now,
@@ -1284,6 +1317,16 @@ class _AddPaymentDialogState extends ConsumerState<AddPaymentDialog> {
             receiptNumber: 'R-${now.year}-$seq',
           ),
         );
+    await ref.read(auditServiceProvider).log(
+      action: 'create',
+      category: 'finance',
+      entityType: 'fee_payment',
+      entityId: paymentId,
+      entityTitle: agreementId,
+      description: 'إضافة سند قبض',
+      after: {'agreementId': agreementId, 'amount': amount, 'method': _method.displayName},
+      severity: 'warning',
+    );
     Navigator.of(context).pop();
   }
 
@@ -1373,7 +1416,13 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.financeExpensesCreate)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'finance', entityType: 'expense', description: 'محاولة إضافة مصروف دون صلاحية', severity: 'warning');
+      _error('لا تملك صلاحية إضافة مصروف');
+      return;
+    }
     final amount = double.tryParse(_amountController.text.trim()) ?? 0;
     if (_entityTitleController.text.trim().isEmpty ||
         _descriptionController.text.trim().isEmpty ||
@@ -1382,9 +1431,10 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
       return;
     }
     final now = DateTime.now();
+    final expenseId = 'expense_${now.microsecondsSinceEpoch}';
     ref.read(financeProvider.notifier).addExpense(
           FinanceExpense(
-            id: 'expense_${now.microsecondsSinceEpoch}',
+            id: expenseId,
             entityType: _entityType,
             entityId: 'manual_${now.microsecondsSinceEpoch}',
             entityTitle: _entityTitleController.text.trim(),
@@ -1398,6 +1448,16 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
             receiptDocumentId: _receiptController.text.trim(),
           ),
         );
+    await ref.read(auditServiceProvider).log(
+      action: 'create',
+      category: 'finance',
+      entityType: 'expense',
+      entityId: expenseId,
+      entityTitle: _entityTitleController.text.trim(),
+      description: 'إضافة مصروف',
+      after: {'entity': _entityTitleController.text.trim(), 'amount': amount, 'category': _category.displayName},
+      severity: 'warning',
+    );
     Navigator.of(context).pop();
   }
 
