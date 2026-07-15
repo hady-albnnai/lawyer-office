@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import 'create_company_wizard.dart';
 import 'company_detail_screen.dart';
 
@@ -23,21 +25,23 @@ class _CompaniesListScreenState extends ConsumerState<CompaniesListScreen> {
   @override
   Widget build(BuildContext context) {
     final companiesAsync = ref.watch(allCompaniesProvider);
+    final permissions = ref.watch(permissionServiceProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('أرشيف وملفات الشركات في مكتب المحاماة'),
         actions: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold, foregroundColor: AppConstants.primaryNavy),
-            icon: const Icon(Icons.add_business),
-            label: const Text('تأسيس أو أرشفة شركة'),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const CreateCompanyWizard()),
-              );
-            },
-          ),
+          if (permissions.can(PermissionKeys.companiesCreate))
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold, foregroundColor: AppConstants.primaryNavy),
+              icon: const Icon(Icons.add_business),
+              label: const Text('تأسيس أو أرشفة شركة'),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const CreateCompanyWizard()),
+                );
+              },
+            ),
           const SizedBox(width: 16),
         ],
       ),

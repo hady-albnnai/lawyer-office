@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import 'company_detail_screen.dart';
 
 /// معالج تأسيس شركة جديدة أو أرشفة شركة قائمة (CreateCompanyWizard V6.2)
@@ -422,6 +424,20 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
   }
 
   Future<void> _saveCompany() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.companiesCreate)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'companies',
+        entityType: 'company',
+        description: 'محاولة إنشاء شركة دون صلاحية',
+        severity: 'warning',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية تأسيس/أرشفة شركة'), backgroundColor: AppConstants.statusDanger));
+      }
+      return;
+    }
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -454,7 +470,17 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
         company: company,
         partners: _selectedPartners,
         directors: _selectedDirectors,
-        userRef: AppConstants.defaultLawyerName,
+        userRef: ref.read(authControllerProvider).user?.fullName ?? AppConstants.defaultLawyerName,
+      );
+      await ref.read(auditServiceProvider).log(
+        action: 'create',
+        category: 'companies',
+        entityType: 'company',
+        entityId: '$companyId',
+        entityTitle: _nameController.text.trim(),
+        description: _isNewEstablishment ? 'تأسيس شركة جديدة' : 'أرشفة شركة قائمة',
+        after: {'name': _nameController.text.trim(), 'type': _companyType, 'status': _isNewEstablishment ? 'new' : 'archive'},
+        severity: 'info',
       );
 
       if (mounted) {

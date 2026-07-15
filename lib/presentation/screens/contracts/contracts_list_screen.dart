@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import 'create_contract_screen.dart';
 import 'contract_detail_screen.dart';
 import 'templates_management_screen.dart';
@@ -33,6 +35,7 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> with 
 
   @override
   Widget build(BuildContext context) {
+    final permissions = ref.watch(permissionServiceProvider);
     return Column(
       children: [
         Container(
@@ -60,16 +63,17 @@ class _ContractsListScreenState extends ConsumerState<ContractsListScreen> with 
                 },
               ),
               const SizedBox(width: 12),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold, foregroundColor: AppConstants.primaryNavy),
-                icon: const Icon(Icons.add),
-                label: const Text('تنظيم عقد جديد'),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const CreateContractScreen()),
-                  );
-                },
-              ),
+              if (permissions.can(PermissionKeys.contractsCreate))
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold, foregroundColor: AppConstants.primaryNavy),
+                  icon: const Icon(Icons.add),
+                  label: const Text('تنظيم عقد جديد'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const CreateContractScreen()),
+                    );
+                  },
+                ),
             ],
           ),
         ),

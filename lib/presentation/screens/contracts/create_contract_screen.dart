@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import 'contract_detail_screen.dart';
 
 /// شاشة تنظيم وإبرام عقد جديد أو رفع عقد سابق للتحرير والربط (CreateContractScreen V6.2)
@@ -251,6 +253,20 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   }
 
   Future<void> _saveContract() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.contractsCreate)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'contracts',
+        entityType: 'contract',
+        description: 'محاولة إنشاء عقد دون صلاحية',
+        severity: 'warning',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية إنشاء عقد'), backgroundColor: AppConstants.statusDanger));
+      }
+      return;
+    }
     if (!_formKey.currentState!.validate() || _party1PersonId == null || _party2PersonId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى اختيار الأطراف المتعاقدة وتعبئة الحقول المطلوبة!'), backgroundColor: AppConstants.statusDanger));
       return;
@@ -297,7 +313,17 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
         parties: parties,
         reminders: reminders,
         wordFile: _wordFile,
-        userRef: AppConstants.defaultLawyerName,
+        userRef: ref.read(authControllerProvider).user?.fullName ?? AppConstants.defaultLawyerName,
+      );
+      await ref.read(auditServiceProvider).log(
+        action: 'create',
+        category: 'contracts',
+        entityType: 'contract',
+        entityId: '$contractId',
+        entityTitle: _titleController.text.trim(),
+        description: 'إنشاء عقد جديد',
+        after: {'title': _titleController.text.trim(), 'type': _contractType, 'value': _valueController.text.trim()},
+        severity: 'info',
       );
 
       if (mounted) {

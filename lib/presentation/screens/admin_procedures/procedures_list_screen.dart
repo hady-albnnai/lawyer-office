@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import 'create_procedure_screen.dart';
 import 'procedure_detail_screen.dart';
 
@@ -32,6 +34,7 @@ class _ProceduresListScreenState extends ConsumerState<ProceduresListScreen> wit
 
   @override
   Widget build(BuildContext context) {
+    final permissions = ref.watch(permissionServiceProvider);
     return Column(
       children: [
         Container(
@@ -49,16 +52,17 @@ class _ProceduresListScreenState extends ConsumerState<ProceduresListScreen> wit
                 ),
               ),
               const SizedBox(width: 16),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold, foregroundColor: AppConstants.primaryNavy),
-                icon: const Icon(Icons.add_task),
-                label: const Text('تسجيل معاملة إدارية جديدة'),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const CreateProcedureScreen()),
-                  );
-                },
-              ),
+              if (permissions.can(PermissionKeys.proceduresCreate))
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppConstants.accentGold, foregroundColor: AppConstants.primaryNavy),
+                  icon: const Icon(Icons.add_task),
+                  label: const Text('تسجيل معاملة إدارية جديدة'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => const CreateProcedureScreen()),
+                    );
+                  },
+                ),
             ],
           ),
         ),

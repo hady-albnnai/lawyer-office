@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import 'procedure_detail_screen.dart';
 
 /// شاشة تسجيل معاملة وإجراء إداري جديد مع توليد الـ Checklist التلقائي (CreateProcedureScreen V6.2)
@@ -179,6 +181,20 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
   }
 
   Future<void> _saveProcedure() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.proceduresCreate)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'procedures',
+        entityType: 'procedure',
+        description: 'محاولة إنشاء إجراء إداري دون صلاحية',
+        severity: 'warning',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية إنشاء إجراء إداري'), backgroundColor: AppConstants.statusDanger));
+      }
+      return;
+    }
     if (!_formKey.currentState!.validate() || _selectedClientId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يرجى اختيار الموكل وتعبئة الحقول المطلوبة!'), backgroundColor: AppConstants.statusDanger));
       return;
@@ -209,7 +225,17 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
       final procId = await repo.createProcedure(
         procedure: companion,
         initialSteps: initialSteps,
-        userRef: AppConstants.defaultLawyerName,
+        userRef: ref.read(authControllerProvider).user?.fullName ?? AppConstants.defaultLawyerName,
+      );
+      await ref.read(auditServiceProvider).log(
+        action: 'create',
+        category: 'procedures',
+        entityType: 'procedure',
+        entityId: '$procId',
+        entityTitle: _titleController.text.trim(),
+        description: 'إنشاء إجراء إداري',
+        after: {'title': _titleController.text.trim(), 'category': _category, 'subType': _subType},
+        severity: 'info',
       );
 
       if (mounted) {
