@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/permission_catalog.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -20,6 +22,8 @@ class WorkOrdersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loading = ref.watch(uiWorkOrdersProvider).isLoading;
+    final permissions = ref.watch(permissionServiceProvider);
+    final canCreate = permissions.can(PermissionKeys.workOrdersCreate);
     return DefaultTabController(
       length: 5,
       child: Scaffold(
@@ -59,17 +63,18 @@ class WorkOrdersScreen extends ConsumerWidget {
               onPressed: () => ref.invalidate(uiWorkOrdersProvider),
               tooltip: 'تحديث',
             ),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () async {
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (c) => const CreateWorkOrderDialog(),
-                );
-                if (ok == true) ref.invalidate(uiWorkOrdersProvider);
-              },
-              tooltip: 'جديد',
-            ),
+            if (canCreate)
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => const CreateWorkOrderDialog(),
+                  );
+                  if (ok == true) ref.invalidate(uiWorkOrdersProvider);
+                },
+                tooltip: 'جديد',
+              ),
           ],
         ),
         body: const TabBarView(
@@ -81,17 +86,19 @@ class WorkOrdersScreen extends ConsumerWidget {
             _WoTab(filter: WorkOrderStatus.approved),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () async {
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (c) => const CreateWorkOrderDialog(),
-            );
-            if (ok == true) ref.invalidate(uiWorkOrdersProvider);
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('أمر عمل جديد'),
-        ),
+        floatingActionButton: canCreate
+            ? FloatingActionButton.extended(
+                onPressed: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => const CreateWorkOrderDialog(),
+                  );
+                  if (ok == true) ref.invalidate(uiWorkOrdersProvider);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('أمر عمل جديد'),
+              )
+            : null,
       ),
     );
   }
@@ -129,6 +136,7 @@ class WOCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final permissions = ref.watch(permissionServiceProvider);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -180,7 +188,7 @@ class WOCard extends ConsumerWidget {
               runSpacing: 8,
               alignment: WrapAlignment.end,
               children: [
-                if (wo.status == WorkOrderStatus.draft)
+                if (wo.status == WorkOrderStatus.draft && permissions.can(PermissionKeys.workOrdersPrint))
                   TextButton.icon(
                     onPressed: () => showDialog(
                       context: context,
@@ -189,7 +197,7 @@ class WOCard extends ConsumerWidget {
                     icon: const Icon(Icons.print, size: 16),
                     label: const Text('طباعة PDF'),
                   ),
-                if (wo.status == WorkOrderStatus.printed || wo.status == WorkOrderStatus.draft)
+                if ((wo.status == WorkOrderStatus.printed || wo.status == WorkOrderStatus.draft) && permissions.can(PermissionKeys.workOrdersSend))
                   TextButton.icon(
                     onPressed: () => showDialog(
                       context: context,
@@ -198,9 +206,10 @@ class WOCard extends ConsumerWidget {
                     icon: const Icon(Icons.message, size: 16),
                     label: const Text('واتساب'),
                   ),
-                if (wo.status == WorkOrderStatus.whatsappSent ||
+                if ((wo.status == WorkOrderStatus.whatsappSent ||
                     wo.status == WorkOrderStatus.printed ||
-                    wo.status == WorkOrderStatus.waitingForResult)
+                    wo.status == WorkOrderStatus.waitingForResult) &&
+                    permissions.can(PermissionKeys.workOrdersResultEnter))
                   TextButton.icon(
                     onPressed: () => showDialog(
                       context: context,
@@ -209,8 +218,9 @@ class WOCard extends ConsumerWidget {
                     icon: const Icon(Icons.input, size: 16),
                     label: const Text('نتيجة'),
                   ),
-                if (wo.status == WorkOrderStatus.resultEntered ||
-                    wo.status == WorkOrderStatus.waitingForApproval)
+                if ((wo.status == WorkOrderStatus.resultEntered ||
+                    wo.status == WorkOrderStatus.waitingForApproval) &&
+                    permissions.can(PermissionKeys.workOrdersApprove))
                   ElevatedButton.icon(
                     onPressed: () => showDialog(
                       context: context,

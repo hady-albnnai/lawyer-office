@@ -152,6 +152,7 @@ class _TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final permissions = ref.watch(permissionServiceProvider);
     return Material(
       color: AppConstants.primaryNavy,
       elevation: 1,
@@ -253,57 +254,64 @@ class _TopBar extends ConsumerWidget {
                 ),
                 onSelected: (action) => _handleQuickAction(context, action),
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
-                    value: "case",
-                    child: ListTile(
-                      leading: Icon(Icons.gavel, color: AppColors.primaryNavy),
-                      title: Text("دعوى قضائية جديدة"),
-                      contentPadding: EdgeInsets.zero,
+                  if (permissions.can(PermissionKeys.casesCreateNew))
+                    const PopupMenuItem<String>(
+                      value: "case",
+                      child: ListTile(
+                        leading: Icon(Icons.gavel, color: AppColors.primaryNavy),
+                        title: Text("دعوى قضائية جديدة"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: "work_order",
-                    child: ListTile(
-                      leading: Icon(Icons.assignment_ind, color: AppColors.success),
-                      title: Text("أمر عمل لمعقب"),
-                      contentPadding: EdgeInsets.zero,
+                  if (permissions.can(PermissionKeys.workOrdersCreate))
+                    const PopupMenuItem<String>(
+                      value: "work_order",
+                      child: ListTile(
+                        leading: Icon(Icons.assignment_ind, color: AppColors.success),
+                        title: Text("أمر عمل لمعقب"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem<String>(
-                    value: "company",
-                    child: ListTile(
-                      leading: Icon(Icons.business, color: AppColors.secondaryGold),
-                      title: Text("تأسيس شركة"),
-                      contentPadding: EdgeInsets.zero,
+                  if (permissions.canAny(const [PermissionKeys.companiesCreate, PermissionKeys.contractsCreate, PermissionKeys.proceduresCreate]))
+                    const PopupMenuDivider(),
+                  if (permissions.can(PermissionKeys.companiesCreate))
+                    const PopupMenuItem<String>(
+                      value: "company",
+                      child: ListTile(
+                        leading: Icon(Icons.business, color: AppColors.secondaryGold),
+                        title: Text("تأسيس شركة"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: "contract",
-                    child: ListTile(
-                      leading: Icon(Icons.description, color: AppColors.info),
-                      title: Text("تنظيم عقد"),
-                      contentPadding: EdgeInsets.zero,
+                  if (permissions.can(PermissionKeys.contractsCreate))
+                    const PopupMenuItem<String>(
+                      value: "contract",
+                      child: ListTile(
+                        leading: Icon(Icons.description, color: AppColors.info),
+                        title: Text("تنظيم عقد"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: "procedure",
-                    child: ListTile(
-                      leading: Icon(Icons.assignment, color: AppColors.warning),
-                      title: Text("إجراء إداري"),
-                      contentPadding: EdgeInsets.zero,
+                  if (permissions.can(PermissionKeys.proceduresCreate))
+                    const PopupMenuItem<String>(
+                      value: "procedure",
+                      child: ListTile(
+                        leading: Icon(Icons.assignment, color: AppColors.warning),
+                        title: Text("إجراء إداري"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                  ),
                 ],
               ),
               
               const SizedBox(width: 16),
               
-              IconButton(
-                tooltip: "الإعدادات",
-                onPressed: () => context.go("/settings"),
-                icon: const Icon(Icons.settings_outlined, color: AppConstants.accentGold),
-              ),
+              if (permissions.can(PermissionKeys.settingsView))
+                IconButton(
+                  tooltip: "الإعدادات",
+                  onPressed: () => context.go("/settings"),
+                  icon: const Icon(Icons.settings_outlined, color: AppConstants.accentGold),
+                ),
               IconButton(
                 tooltip: "تسجيل الخروج",
                 onPressed: () async {

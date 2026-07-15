@@ -808,7 +808,7 @@ class _UsersRolesTab extends ConsumerWidget {
     final repo = ref.watch(authRepositoryProvider);
     final current = ref.watch(authControllerProvider).user;
     return FutureBuilder<List<Object>>(
-      future: Future.wait([repo.getUsers(), repo.getRoles()]),
+      future: Future.wait<Object>([repo.getUsers(), repo.getRoles()]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final users = snapshot.data![0] as List;
@@ -927,7 +927,7 @@ class _AuditTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(authRepositoryProvider);
     return FutureBuilder<List<Object>>(
-      future: Future.wait([repo.getSessions(), repo.getAuditEvents()]),
+      future: Future.wait<Object>([repo.getSessions(), repo.getAuditEvents()]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final sessions = snapshot.data![0] as List;

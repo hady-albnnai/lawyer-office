@@ -9,8 +9,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/office_settings_provider.dart';
 import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
@@ -154,6 +156,22 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
   }
 
   Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.workOrdersCreate)) {
+      await ref.read(auditServiceProvider).log(
+            action: 'access_denied',
+            category: 'work_orders',
+            entityType: 'work_order',
+            description: 'محاولة إنشاء أمر عمل دون صلاحية',
+            severity: 'warning',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('لا تملك صلاحية إنشاء أمر عمل'), backgroundColor: AppColors.error),
+        );
+      }
+      return;
+    }
     if (_name.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('اسم المكلف إلزامي'), backgroundColor: AppColors.error),
@@ -163,7 +181,8 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(workOrderRepositoryProvider);
-      await repo.create(
+      final currentUser = ref.read(authControllerProvider).user;
+      final orderId = await repo.create(
         assignedToName: _name.text.trim(),
         assignedToPhone: _phone.text.trim(),
         orderType: workOrderTypeToDb(_type),
@@ -171,9 +190,18 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
         status: 'draft',
         dueDate: _due,
         instructions: _instructions.text.trim(),
-        createdBy: 'المحامي',
+        createdBy: currentUser?.fullName ?? 'المحامي',
         linkedEntityType: 0,
         linkedEntityId: int.tryParse(_entityId.text.trim()) ?? 0,
+      );
+      await ref.read(auditServiceProvider).log(
+        action: 'create',
+        category: 'work_orders',
+        entityType: 'work_order',
+        entityId: '$orderId',
+        entityTitle: _name.text.trim(),
+        description: 'إنشاء أمر عمل للمعقب',
+        severity: 'info',
       );
       ref.invalidate(uiWorkOrdersProvider);
       if (mounted) {
@@ -258,6 +286,24 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
   }
 
   Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.workOrdersResultEnter)) {
+      await ref.read(auditServiceProvider).log(
+            action: 'access_denied',
+            category: 'work_orders',
+            entityType: 'work_order',
+            entityId: widget.workOrder.id,
+            entityTitle: widget.workOrder.internalNumber,
+            description: 'محاولة إدخال نتيجة أمر عمل دون صلاحية',
+            severity: 'warning',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('لا تملك صلاحية إدخال نتيجة أمر عمل'), backgroundColor: AppColors.error),
+        );
+      }
+      return;
+    }
     if (_status == null) return;
     setState(() => _saving = true);
     try {
@@ -268,10 +314,19 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
             resultStatus: _status!.toString().split('.').last,
             resultText: _result.text.trim().isEmpty ? _status!.displayName : _result.text.trim(),
             nextDate: _nextDate,
-            userRef: 'المكتب',
+            userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
           );
       // بعد إدخال النتيجة تصبح بانتظار الاعتماد
-      await ref.read(workOrderRepositoryProvider).setStatus(id, 'waiting_for_approval', userRef: 'المكتب');
+      await ref.read(workOrderRepositoryProvider).setStatus(id, 'waiting_for_approval', userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب');
+      await ref.read(auditServiceProvider).log(
+        action: 'result_enter',
+        category: 'work_orders',
+        entityType: 'work_order',
+        entityId: widget.workOrder.id,
+        entityTitle: widget.workOrder.internalNumber,
+        description: 'إدخال نتيجة أمر عمل',
+        severity: 'info',
+      );
       ref.invalidate(uiWorkOrdersProvider);
       if (mounted) {
         Navigator.pop(context, true);
@@ -305,9 +360,31 @@ class ApproveWorkOrderDialog extends ConsumerWidget {
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: AppColors.textOnLight),
           onPressed: () async {
+            final permissions = ref.read(permissionServiceProvider);
+            if (!permissions.can(PermissionKeys.workOrdersApprove)) {
+              await ref.read(auditServiceProvider).log(
+                action: 'access_denied',
+                category: 'work_orders',
+                entityType: 'work_order',
+                entityId: workOrder.id,
+                entityTitle: workOrder.internalNumber,
+                description: 'محاولة اعتماد أمر عمل دون صلاحية',
+                severity: 'warning',
+              );
+              return;
+            }
             final id = int.tryParse(workOrder.id);
             if (id == null) return;
-            await ref.read(workOrderRepositoryProvider).approve(id, userRef: 'الأستاذ');
+            await ref.read(workOrderRepositoryProvider).approve(id, userRef: ref.read(authControllerProvider).user?.fullName ?? 'الأستاذ');
+            await ref.read(auditServiceProvider).log(
+              action: 'approve',
+              category: 'work_orders',
+              entityType: 'work_order',
+              entityId: workOrder.id,
+              entityTitle: workOrder.internalNumber,
+              description: 'اعتماد نتيجة أمر عمل',
+              severity: 'warning',
+            );
             ref.invalidate(uiWorkOrdersProvider);
             if (context.mounted) {
               Navigator.pop(context, true);
@@ -338,6 +415,19 @@ class PrintWorkOrderDialog extends ConsumerWidget {
           icon: const Icon(Icons.picture_as_pdf),
           label: const Text('توليد PDF وحفظ الحالة'),
           onPressed: () async {
+            final permissions = ref.read(permissionServiceProvider);
+            if (!permissions.can(PermissionKeys.workOrdersPrint)) {
+              await ref.read(auditServiceProvider).log(
+                action: 'access_denied',
+                category: 'work_orders',
+                entityType: 'work_order',
+                entityId: workOrder.id,
+                entityTitle: workOrder.internalNumber,
+                description: 'محاولة طباعة أمر عمل دون صلاحية',
+                severity: 'warning',
+              );
+              return;
+            }
             final settings = ref.read(officeSettingsProvider).maybeWhen(
                   data: (s) => s,
                   orElse: () => const OfficeSettingsModel(
@@ -350,7 +440,7 @@ class PrintWorkOrderDialog extends ConsumerWidget {
             final bytes = await WorkOrderPdfBuilder.build(settings: settings, order: workOrder);
             final id = int.tryParse(workOrder.id);
             if (id != null) {
-              await ref.read(workOrderRepositoryProvider).markPrinted(id, userRef: 'المكتب');
+              await ref.read(workOrderRepositoryProvider).markPrinted(id, userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب');
               ref.invalidate(uiWorkOrdersProvider);
             }
             await Printing.layoutPdf(onLayout: (_) async => bytes, name: '${workOrder.internalNumber}.pdf');
@@ -422,6 +512,19 @@ class WhatsAppDialog extends ConsumerWidget {
           icon: const Icon(Icons.message),
           label: const Text('فتح واتساب وتحديث الحالة'),
           onPressed: () async {
+            final permissions = ref.read(permissionServiceProvider);
+            if (!permissions.can(PermissionKeys.workOrdersSend)) {
+              await ref.read(auditServiceProvider).log(
+                action: 'access_denied',
+                category: 'work_orders',
+                entityType: 'work_order',
+                entityId: workOrder.id,
+                entityTitle: workOrder.internalNumber,
+                description: 'محاولة إرسال أمر عمل دون صلاحية',
+                severity: 'warning',
+              );
+              return;
+            }
             final phone = workOrder.assignedToPhone.replaceAll(RegExp(r'[^0-9]'), '');
             final uri = Uri.parse(
               phone.isEmpty
@@ -431,7 +534,7 @@ class WhatsAppDialog extends ConsumerWidget {
             final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
             final id = int.tryParse(workOrder.id);
             if (id != null) {
-              await ref.read(workOrderRepositoryProvider).markWhatsAppSent(id, userRef: 'المكتب');
+              await ref.read(workOrderRepositoryProvider).markWhatsAppSent(id, userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب');
               ref.invalidate(uiWorkOrdersProvider);
             }
             if (context.mounted) {
