@@ -2,7 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../providers/app_providers.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -432,6 +435,45 @@ class _BackupTab extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Card(
+              color: AppColors.error.withOpacity(0.04),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.cleaning_services, color: AppColors.error),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'بدء مكتب حقيقي بقاعدة نظيفة',
+                            style: AppTextStyles.headline6.copyWith(color: AppColors.error, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'يمسح الدعاوى والأشخاص والعقود والشركات والمستندات والمالية وأوامر العمل والبيانات التجريبية، مع الإبقاء على بيانات المكتب وكلمة المرور والقوائم المرجعية السورية.',
+                      style: AppTextStyles.bodySmallSecondary,
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text('مسح البيانات التجريبية وبدء مكتب نظيف'),
+                        style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
+                        onPressed: state.isBusy ? null : () => _confirmCleanStart(context, ref),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -528,6 +570,61 @@ class _BackupTab extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmCleanStart(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('تأكيد مسح البيانات التجريبية'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('سيتم مسح كل بيانات التشغيل الحالية وفتح المكتب كأنه جديد. لا يؤثر ذلك على بيانات المكتب وكلمة المرور والقوائم المرجعية.'),
+                const SizedBox(height: 12),
+                const Text('للتأكيد اكتب: مسح'),
+                const SizedBox(height: 8),
+                TextField(controller: controller, autofocus: true),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+                onPressed: () => Navigator.pop(ctx, controller.text.trim() == 'مسح'),
+                child: const Text('مسح وبدء مكتب نظيف'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('demo_seed_enabled', false);
+    ref.read(allowDemoSeedProvider.notifier).state = false;
+    await ref.read(databaseProvider).clearOperationalData();
+
+    ref.invalidate(coreDataBootstrapProvider);
+    ref.invalidate(allCasesProvider);
+    ref.invalidate(allPersonsProvider);
+    ref.invalidate(allCompaniesProvider);
+    ref.invalidate(allContractsProvider);
+    ref.invalidate(allProceduresProvider);
+    ref.invalidate(tasksByDateProvider);
+    ref.invalidate(openDeficienciesProvider);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('تم مسح البيانات التجريبية. أصبح المكتب جاهزاً لإدخال الملفات الحقيقية.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
   }
 }
 

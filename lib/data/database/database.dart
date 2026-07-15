@@ -98,6 +98,61 @@ class AppDatabase extends _$AppDatabase {
     },
   );
 
+  /// مسح كل بيانات التشغيل/البيانات التجريبية مع الإبقاء على الإعدادات والقوائم المرجعية.
+  /// يستخدم عند تسليم التطبيق لمكتب حقيقي يريد البدء من قاعدة نظيفة.
+  Future<void> clearOperationalData() async {
+    await transaction(() async {
+      final tables = <String>[
+        'document_links',
+        'documents',
+        'fee_payments',
+        'fee_agreements',
+        'expenses',
+        'work_orders',
+        'legal_library_links',
+        'legal_library_items',
+        'daily_tasks',
+        'task_history',
+        'deficiencies',
+        'timeline_events',
+        'case_poa_links',
+        'case_actions',
+        'case_sessions',
+        'case_phases',
+        'case_parties',
+        'cases',
+        'company_directors',
+        'company_partners',
+        'company_management',
+        'company_phases',
+        'companies',
+        'contract_versions',
+        'contract_reminders',
+        'contract_parties',
+        'contracts',
+        'contract_templates',
+        'admin_steps',
+        'admin_procedures',
+        'poa_parties',
+        'powers_of_attorney',
+        'person_roles',
+        'team_members',
+        'legal_entities',
+        'opponent_lawyers',
+        'persons',
+        'yearly_sequences',
+        'activity_log',
+      ];
+
+      for (final table in tables) {
+        await customStatement('DELETE FROM $table;');
+      }
+
+      final tableNames = tables.map((t) => "'" + t + "'").join(',');
+      await customStatement('DELETE FROM sqlite_sequence WHERE name IN ($tableNames);');
+    });
+  }
+
   /// إنشاء الفهارس السريعة للحقول الأكثر استخداماً في البحث والمتابعة اليومية
   Future<void> _createCustomIndexes() async {
     await customStatement('CREATE INDEX IF NOT EXISTS idx_persons_name ON persons(full_name);');
