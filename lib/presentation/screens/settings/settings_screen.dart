@@ -1044,6 +1044,8 @@ class _AuditTabState extends ConsumerState<_AuditTab> {
   String _severity = 'all';
   String _category = 'all';
   String _action = 'all';
+  String _user = 'all';
+  String _dateRange = 'all';
 
   @override
   Widget build(BuildContext context) {
@@ -1053,18 +1055,30 @@ class _AuditTabState extends ConsumerState<_AuditTab> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final sessions = snapshot.data![0] as List;
-        var events = snapshot.data![1] as List;
+        final allEvents = snapshot.data![1] as List;
+        var events = allEvents;
         final q = _query.text.trim().toLowerCase();
+        final now = DateTime.now();
         events = events.where((dynamic e) {
           final okSeverity = _severity == 'all' || e.severity == _severity;
           final okCategory = _category == 'all' || e.category == _category;
           final okAction = _action == 'all' || e.action == _action;
+          final okUser = _user == 'all' || e.username == _user;
+          bool okDate = true;
+          if (_dateRange == 'today') {
+            okDate = e.createdAt.year == now.year && e.createdAt.month == now.month && e.createdAt.day == now.day;
+          } else if (_dateRange == '7d') {
+            okDate = e.createdAt.isAfter(now.subtract(const Duration(days: 7)));
+          } else if (_dateRange == '30d') {
+            okDate = e.createdAt.isAfter(now.subtract(const Duration(days: 30)));
+          }
           final haystack = '${e.fullName} ${e.username} ${e.roleName} ${e.action} ${e.category} ${e.entityTitle} ${e.description}'.toLowerCase();
           final okQuery = q.isEmpty || haystack.contains(q);
-          return okSeverity && okCategory && okAction && okQuery;
+          return okSeverity && okCategory && okAction && okUser && okDate && okQuery;
         }).toList();
-        final categories = <String>{'all', ...events.map((dynamic e) => e.category as String)}.toList();
-        final actions = <String>{'all', ...events.map((dynamic e) => e.action as String)}.toList();
+        final categories = <String>{'all', ...allEvents.map((dynamic e) => e.category as String)}.toList();
+        final actions = <String>{'all', ...allEvents.map((dynamic e) => e.action as String)}.toList();
+        final users = <String>{'all', ...allEvents.map((dynamic e) => e.username as String)}.toList();
         return DefaultTabController(
           length: 2,
           child: Column(
@@ -1096,6 +1110,15 @@ class _AuditTabState extends ConsumerState<_AuditTab> {
                           Expanded(child: DropdownButtonFormField<String>(value: categories.contains(_category) ? _category : 'all', decoration: const InputDecoration(labelText: 'القسم'), items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c == 'all' ? 'الكل' : c))).toList(), onChanged: (v) => setState(() => _category = v ?? 'all'))),
                           const SizedBox(width: 8),
                           Expanded(child: DropdownButtonFormField<String>(value: actions.contains(_action) ? _action : 'all', decoration: const InputDecoration(labelText: 'العملية'), items: actions.map((a) => DropdownMenuItem(value: a, child: Text(a == 'all' ? 'الكل' : a))).toList(), onChanged: (v) => setState(() => _action = v ?? 'all'))),
+                          const SizedBox(width: 8),
+                          Expanded(child: DropdownButtonFormField<String>(value: users.contains(_user) ? _user : 'all', decoration: const InputDecoration(labelText: 'المستخدم'), items: users.map((u) => DropdownMenuItem(value: u, child: Text(u == 'all' ? 'الكل' : u))).toList(), onChanged: (v) => setState(() => _user = v ?? 'all'))),
+                          const SizedBox(width: 8),
+                          Expanded(child: DropdownButtonFormField<String>(value: _dateRange, decoration: const InputDecoration(labelText: 'الفترة'), items: const [
+                            DropdownMenuItem(value: 'all', child: Text('كل الفترات')),
+                            DropdownMenuItem(value: 'today', child: Text('اليوم')),
+                            DropdownMenuItem(value: '7d', child: Text('آخر 7 أيام')),
+                            DropdownMenuItem(value: '30d', child: Text('آخر 30 يوم')),
+                          ], onChanged: (v) => setState(() => _dateRange = v ?? 'all'))),
                         ],
                       ),
                     ),

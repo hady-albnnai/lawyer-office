@@ -92,6 +92,7 @@ class MainShellScreen extends ConsumerWidget {
             ),
             // Force selected route highlight via provider sync
             _SidebarRouteSync(selectedRoute: selectedRoute),
+            const _SessionHeartbeat(),
             const VerticalDivider(width: 1, thickness: 1, color: AppColors.cardBorder),
             Expanded(
               child: Column(
@@ -106,6 +107,38 @@ class MainShellScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+
+class _SessionHeartbeat extends ConsumerStatefulWidget {
+  const _SessionHeartbeat();
+
+  @override
+  ConsumerState<_SessionHeartbeat> createState() => _SessionHeartbeatState();
+}
+
+class _SessionHeartbeatState extends ConsumerState<_SessionHeartbeat> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authControllerProvider.notifier).touchActivity();
+    });
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      ref.read(authControllerProvider.notifier).touchActivity();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _SidebarRouteSync extends ConsumerWidget {

@@ -135,6 +135,7 @@ class AuthRepository {
 
   Future<bool> ownerExists() async {
     await ensureReady();
+    await expireOpenSessions();
     await _ensureOwnerPermissions();
     final rows = await _db.customSelect('SELECT COUNT(*) AS c FROM app_users WHERE is_owner = 1').get();
     return (rows.first.data['c'] as int) > 0;
@@ -224,6 +225,22 @@ class AuthRepository {
       severity: 'info',
     );
     return logged;
+  }
+
+
+  Future<void> expireOpenSessions() async {
+    await ensureReady();
+    await _db.customStatement(
+      "UPDATE user_sessions SET status = 'expired', logout_at = COALESCE(logout_at, CURRENT_TIMESTAMP), last_active_at = COALESCE(last_active_at, CURRENT_TIMESTAMP) WHERE status = 'active' AND logout_at IS NULL",
+    );
+  }
+
+  Future<void> touchSession(int sessionId) async {
+    await ensureReady();
+    await _db.customStatement(
+      "UPDATE user_sessions SET last_active_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'active'",
+      [sessionId],
+    );
   }
 
   Future<void> logout(AuthUser user) async {

@@ -76,6 +76,14 @@ class AuthController extends StateNotifier<AuthState> {
     return true;
   }
 
+
+  Future<void> touchActivity() async {
+    final sessionId = state.user?.sessionId;
+    if (sessionId != null) {
+      await _repo.touchSession(sessionId);
+    }
+  }
+
   Future<void> logout() async {
     final current = state.user;
     if (current != null) {
