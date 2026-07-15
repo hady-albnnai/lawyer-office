@@ -337,6 +337,70 @@ class AuthRepository {
     return id;
   }
 
+
+  Future<void> updateUser({
+    required int id,
+    required String fullName,
+    required String username,
+    required int roleId,
+    String? phone,
+    String? email,
+    AuthUser? actor,
+  }) async {
+    await ensureReady();
+    final rows = await _db.customSelect('SELECT full_name, username, role_id, is_owner FROM app_users WHERE id = ?', variables: [Variable.withInt(id)]).get();
+    if (rows.isEmpty) return;
+    final before = rows.first.data;
+    await _db.customStatement('''
+      UPDATE app_users
+      SET full_name = ?, username = ?, role_id = ?, phone = ?, email = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    ''', [fullName, username.trim(), roleId, phone, email, id]);
+    await logAudit(
+      user: actor,
+      action: 'update',
+      category: 'users',
+      entityType: 'user',
+      entityId: '$id',
+      entityTitle: fullName,
+      description: 'تعديل مستخدم: $fullName',
+      before: {'fullName': before['full_name'], 'username': before['username'], 'roleId': before['role_id']},
+      after: {'fullName': fullName, 'username': username.trim(), 'roleId': roleId},
+      severity: 'critical',
+    );
+  }
+
+  Future<void> changeUserPassword({required int id, required String newPassword, AuthUser? actor}) async {
+    await ensureReady();
+    final rows = await _db.customSelect('SELECT full_name FROM app_users WHERE id = ?', variables: [Variable.withInt(id)]).get();
+    if (rows.isEmpty) return;
+    await _db.customStatement('UPDATE app_users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [CryptoUtils.hashPassword(newPassword), id]);
+    await logAudit(user: actor, action: 'password_change', category: 'users', entityType: 'user', entityId: '$id', entityTitle: rows.first.data['full_name'] as String, description: 'تغيير كلمة مرور مستخدم', severity: 'critical');
+  }
+
+  Future<void> setRoleActive(int id, bool active, {AuthUser? actor}) async {
+    await ensureReady();
+    final rows = await _db.customSelect('SELECT name, is_system_role FROM app_roles WHERE id = ?', variables: [Variable.withInt(id)]).get();
+    if (rows.isEmpty) return;
+    if ((rows.first.data['is_system_role'] as int) == 1 && !active) throw StateError('لا يمكن تعطيل دور نظامي');
+    if (!active) {
+      final users = await _db.customSelect('SELECT COUNT(*) AS c FROM app_users WHERE role_id = ? AND is_active = 1', variables: [Variable.withInt(id)]).get();
+      if ((users.first.data['c'] as int) > 0) throw StateError('لا يمكن تعطيل دور مرتبط بمستخدمين فعالين');
+    }
+    await _db.customStatement('UPDATE app_roles SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [active ? 1 : 0, id]);
+    await logAudit(user: actor, action: active ? 'enable' : 'disable', category: 'roles', entityType: 'role', entityId: '$id', entityTitle: rows.first.data['name'] as String, description: active ? 'تفعيل دور' : 'تعطيل دور', severity: 'critical');
+  }
+
+  Future<int> duplicateRole(int id, {required String newName, AuthUser? actor}) async {
+    await ensureReady();
+    final rows = await _db.customSelect('SELECT description FROM app_roles WHERE id = ?', variables: [Variable.withInt(id)]).get();
+    if (rows.isEmpty) throw StateError('الدور غير موجود');
+    final permissions = await permissionsForRole(id);
+    final newId = await createRole(name: newName, description: rows.first.data['description'] as String? ?? '', permissions: permissions, actor: actor);
+    await logAudit(user: actor, action: 'duplicate', category: 'roles', entityType: 'role', entityId: '$newId', entityTitle: newName, description: 'نسخ دور من الدور رقم $id', severity: 'critical');
+    return newId;
+  }
+
   Future<void> setUserActive(int id, bool active, {AuthUser? actor}) async {
     final rows = await _db.customSelect('SELECT full_name, is_owner FROM app_users WHERE id = ?', variables: [Variable.withInt(id)]).get();
     if (rows.isEmpty) return;

@@ -835,9 +835,24 @@ class _UsersRolesTab extends ConsumerWidget {
                           leading: Icon(u.isOwner ? Icons.workspace_premium : Icons.person, color: u.isActive ? AppColors.primaryNavy : AppColors.textSecondary),
                           title: Text(u.fullName),
                           subtitle: Text('${u.username} • ${u.roleName} • ${u.isActive ? 'فعال' : 'معطل'}'),
-                          trailing: u.isOwner
-                              ? const Text('Owner')
-                              : Switch(value: u.isActive, onChanged: (v) async { await repo.setUserActive(u.id, v, actor: current); }),
+                          trailing: Wrap(
+                            spacing: 6,
+                            children: [
+                              if (u.isOwner) const Chip(label: Text('Owner')),
+                              IconButton(
+                                tooltip: 'تعديل المستخدم',
+                                icon: const Icon(Icons.edit),
+                                onPressed: () => _showUserDialog(context, ref, roles, user: u),
+                              ),
+                              IconButton(
+                                tooltip: 'تغيير كلمة المرور',
+                                icon: const Icon(Icons.password),
+                                onPressed: () => _showPasswordDialog(context, ref, user: u),
+                              ),
+                              if (!u.isOwner)
+                                Switch(value: u.isActive, onChanged: (v) async { await repo.setUserActive(u.id, v, actor: current); }),
+                            ],
+                          ),
                         )),
                   ],
                 ),
@@ -851,7 +866,18 @@ class _UsersRolesTab extends ConsumerWidget {
                           leading: Icon(r.isSystemRole ? Icons.admin_panel_settings : Icons.badge, color: AppConstants.accentGold),
                           title: Text(r.name),
                           subtitle: Text('مستخدمون: ${r.userCount} • صلاحيات: ${r.permissionCount}${r.description.isNotEmpty ? ' • ${r.description}' : ''}'),
-                          trailing: TextButton.icon(onPressed: () => _showRoleDialog(context, ref, role: r), icon: const Icon(Icons.edit), label: const Text('تعديل')),
+                          trailing: Wrap(
+                            spacing: 6,
+                            children: [
+                              TextButton.icon(onPressed: () => _showRoleDialog(context, ref, role: r), icon: const Icon(Icons.edit), label: const Text('تعديل')),
+                              TextButton.icon(onPressed: () => _showCopyRoleDialog(context, ref, role: r), icon: const Icon(Icons.copy), label: const Text('نسخ')),
+                              if (!r.isSystemRole)
+                                Switch(value: r.isActive, onChanged: (v) async {
+                                  try { await ref.read(authRepositoryProvider).setRoleActive(r.id, v, actor: ref.read(authControllerProvider).user); }
+                                  catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: AppColors.error)); }
+                                }),
+                            ],
+                          ),
                         )),
                   ],
                 ),
@@ -863,28 +889,81 @@ class _UsersRolesTab extends ConsumerWidget {
     );
   }
 
-  void _showUserDialog(BuildContext context, WidgetRef ref, List roles) {
-    final name = TextEditingController();
-    final username = TextEditingController();
+  void _showUserDialog(BuildContext context, WidgetRef ref, List roles, {dynamic user}) {
+    final name = TextEditingController(text: user?.fullName ?? '');
+    final username = TextEditingController(text: user?.username ?? '');
+    final phone = TextEditingController();
+    final email = TextEditingController();
     final password = TextEditingController();
-    int? roleId = roles.isNotEmpty ? roles.first.id as int : null;
+    int? roleId = user?.roleId ?? (roles.isNotEmpty ? roles.first.id as int : null);
+    final isEdit = user != null;
     showDialog<void>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
-      title: const Text('إضافة مستخدم'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
+      title: Text(isEdit ? 'تعديل مستخدم' : 'إضافة مستخدم'),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم الكامل *')),
         const SizedBox(height: 8),
         TextField(controller: username, decoration: const InputDecoration(labelText: 'اسم الدخول *')),
+        if (!isEdit) ...[
+          const SizedBox(height: 8),
+          TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور المؤقتة *')),
+        ],
         const SizedBox(height: 8),
-        TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور المؤقتة *')),
+        TextField(controller: phone, decoration: const InputDecoration(labelText: 'الهاتف')),
+        const SizedBox(height: 8),
+        TextField(controller: email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني')),
         const SizedBox(height: 8),
         DropdownButtonFormField<int>(value: roleId, decoration: const InputDecoration(labelText: 'الدور'), items: roles.map<DropdownMenuItem<int>>((dynamic r) => DropdownMenuItem<int>(value: r.id as int, child: Text(r.name))).toList(), onChanged: (v) => setDialog(() => roleId = v)),
-      ]),
+      ])),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')), ElevatedButton(onPressed: () async {
-        if (name.text.trim().isEmpty || username.text.trim().isEmpty || password.text.length < 6 || roleId == null) return;
-        await ref.read(authRepositoryProvider).createUser(fullName: name.text.trim(), username: username.text.trim(), password: password.text, roleId: roleId!, actor: ref.read(authControllerProvider).user);
+        if (name.text.trim().isEmpty || username.text.trim().isEmpty || roleId == null) return;
+        final repo = ref.read(authRepositoryProvider);
+        final actor = ref.read(authControllerProvider).user;
+        if (isEdit) {
+          await repo.updateUser(id: user.id, fullName: name.text.trim(), username: username.text.trim(), roleId: roleId!, phone: phone.text.trim(), email: email.text.trim(), actor: actor);
+        } else {
+          if (password.text.length < 6) return;
+          await repo.createUser(fullName: name.text.trim(), username: username.text.trim(), password: password.text, roleId: roleId!, phone: phone.text.trim(), email: email.text.trim(), actor: actor);
+        }
         if (ctx.mounted) Navigator.pop(ctx);
       }, child: const Text('حفظ'))],
     )));
+  }
+
+  void _showPasswordDialog(BuildContext context, WidgetRef ref, {required dynamic user}) {
+    final password = TextEditingController();
+    final confirm = TextEditingController();
+    showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+      title: Text('تغيير كلمة مرور ${user.fullName}'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور الجديدة *')),
+        const SizedBox(height: 8),
+        TextField(controller: confirm, obscureText: true, decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور *')),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+        ElevatedButton(onPressed: () async {
+          if (password.text.length < 6 || password.text != confirm.text) return;
+          await ref.read(authRepositoryProvider).changeUserPassword(id: user.id, newPassword: password.text, actor: ref.read(authControllerProvider).user);
+          if (ctx.mounted) Navigator.pop(ctx);
+        }, child: const Text('حفظ')),
+      ],
+    ));
+  }
+
+  void _showCopyRoleDialog(BuildContext context, WidgetRef ref, {required dynamic role}) {
+    final name = TextEditingController(text: '${role.name} - نسخة');
+    showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('نسخ دور'),
+      content: TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الدور الجديد *')),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+        ElevatedButton(onPressed: () async {
+          if (name.text.trim().isEmpty) return;
+          await ref.read(authRepositoryProvider).duplicateRole(role.id, newName: name.text.trim(), actor: ref.read(authControllerProvider).user);
+          if (ctx.mounted) Navigator.pop(ctx);
+        }, child: const Text('نسخ')),
+      ],
+    ));
   }
 
   void _showRoleDialog(BuildContext context, WidgetRef ref, {dynamic role}) {
@@ -898,6 +977,13 @@ class _UsersRolesTab extends ConsumerWidget {
         TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الدور *')),
         const SizedBox(height: 8),
         TextField(controller: description, decoration: const InputDecoration(labelText: 'وصف اختياري')),
+        if (role != null && role.userCount > 0) ...[
+          const SizedBox(height: 8),
+          MaterialBanner(
+            content: Text('هذا الدور مستخدم من ${role.userCount} مستخدم/مستخدمين. أي تعديل سيطبق عليهم جميعاً.'),
+            actions: const [SizedBox.shrink()],
+          ),
+        ],
         const SizedBox(height: 12),
         Expanded(child: ListView(children: PermissionCatalog.groups.map((g) => ExpansionTile(
           title: Text(g.label, style: AppTextStyles.labelLarge),
@@ -922,34 +1008,88 @@ class _UsersRolesTab extends ConsumerWidget {
   }
 }
 
-class _AuditTab extends ConsumerWidget {
+class _AuditTab extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AuditTab> createState() => _AuditTabState();
+}
+
+class _AuditTabState extends ConsumerState<_AuditTab> {
+  final _query = TextEditingController();
+  String _severity = 'all';
+  String _category = 'all';
+  String _action = 'all';
+
+  @override
+  Widget build(BuildContext context) {
     final repo = ref.watch(authRepositoryProvider);
     return FutureBuilder<List<Object>>(
       future: Future.wait<Object>([repo.getSessions(), repo.getAuditEvents()]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final sessions = snapshot.data![0] as List;
-        final events = snapshot.data![1] as List;
+        var events = snapshot.data![1] as List;
+        final q = _query.text.trim().toLowerCase();
+        events = events.where((dynamic e) {
+          final okSeverity = _severity == 'all' || e.severity == _severity;
+          final okCategory = _category == 'all' || e.category == _category;
+          final okAction = _action == 'all' || e.action == _action;
+          final haystack = '${e.fullName} ${e.username} ${e.roleName} ${e.action} ${e.category} ${e.entityTitle} ${e.description}'.toLowerCase();
+          final okQuery = q.isEmpty || haystack.contains(q);
+          return okSeverity && okCategory && okAction && okQuery;
+        }).toList();
+        final categories = <String>{'all', ...events.map((dynamic e) => e.category as String)}.toList();
+        final actions = <String>{'all', ...events.map((dynamic e) => e.action as String)}.toList();
         return DefaultTabController(
           length: 2,
           child: Column(
             children: [
               const TabBar(tabs: [Tab(text: 'سجل المسؤولية'), Tab(text: 'جلسات الدخول')]),
               Expanded(child: TabBarView(children: [
-                ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: events.length,
-                  itemBuilder: (_, i) {
-                    final dynamic e = events[i];
-                    return Card(child: ListTile(
-                      leading: Icon(e.severity == 'critical' ? Icons.error : e.severity == 'warning' ? Icons.warning : Icons.info_outline, color: e.severity == 'critical' ? AppColors.error : e.severity == 'warning' ? AppColors.warning : AppColors.info),
-                      title: Text('${e.fullName} • ${e.action} • ${e.category}'),
-                      subtitle: Text('${e.description}\n${e.entityTitle} • ${e.createdAt.toString().substring(0, 16)}'),
-                      isThreeLine: true,
-                    ));
-                  },
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: _query,
+                              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'بحث في سجل المسؤولية'),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: DropdownButtonFormField<String>(value: _severity, decoration: const InputDecoration(labelText: 'الأهمية'), items: const [
+                            DropdownMenuItem(value: 'all', child: Text('الكل')),
+                            DropdownMenuItem(value: 'info', child: Text('معلومة')),
+                            DropdownMenuItem(value: 'warning', child: Text('تحذير')),
+                            DropdownMenuItem(value: 'critical', child: Text('حرج')),
+                          ], onChanged: (v) => setState(() => _severity = v ?? 'all'))),
+                          const SizedBox(width: 8),
+                          Expanded(child: DropdownButtonFormField<String>(value: categories.contains(_category) ? _category : 'all', decoration: const InputDecoration(labelText: 'القسم'), items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c == 'all' ? 'الكل' : c))).toList(), onChanged: (v) => setState(() => _category = v ?? 'all'))),
+                          const SizedBox(width: 8),
+                          Expanded(child: DropdownButtonFormField<String>(value: actions.contains(_action) ? _action : 'all', decoration: const InputDecoration(labelText: 'العملية'), items: actions.map((a) => DropdownMenuItem(value: a, child: Text(a == 'all' ? 'الكل' : a))).toList(), onChanged: (v) => setState(() => _action = v ?? 'all'))),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: events.length,
+                        itemBuilder: (_, i) {
+                          final dynamic e = events[i];
+                          return Card(child: ListTile(
+                            leading: Icon(e.severity == 'critical' ? Icons.error : e.severity == 'warning' ? Icons.warning : Icons.info_outline, color: e.severity == 'critical' ? AppColors.error : e.severity == 'warning' ? AppColors.warning : AppColors.info),
+                            title: Text('${e.fullName} • ${e.action} • ${e.category}'),
+                            subtitle: Text('${e.description}\n${e.entityTitle} • ${e.createdAt.toString().substring(0, 16)}'),
+                            isThreeLine: true,
+                            onTap: () => _showAuditDetails(context, e),
+                          ));
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -969,6 +1109,45 @@ class _AuditTab extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showAuditDetails(BuildContext context, dynamic e) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تفاصيل العملية'),
+        content: SizedBox(
+          width: 640,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('المستخدم: ${e.fullName} (${e.username})'),
+                Text('الدور: ${e.roleName}'),
+                Text('الوقت: ${e.createdAt}'),
+                Text('القسم: ${e.category}'),
+                Text('العملية: ${e.action}'),
+                Text('السجل: ${e.entityTitle}'),
+                const Divider(),
+                Text(e.description),
+                if (e.beforeJson != null) ...[
+                  const SizedBox(height: 12),
+                  Text('قبل التعديل', style: AppTextStyles.labelLarge),
+                  SelectableText(e.beforeJson!),
+                ],
+                if (e.afterJson != null) ...[
+                  const SizedBox(height: 12),
+                  Text('بعد التعديل', style: AppTextStyles.labelLarge),
+                  SelectableText(e.afterJson!),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      ),
     );
   }
 }
