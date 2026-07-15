@@ -475,3 +475,45 @@ class MainLayoutScreen extends StatelessWidget {
     return const MainShellScreen(child: SizedBox.shrink());
   }
 }
+
+List<SidebarItemModel> _filterSidebarItems(List<SidebarItemModel> items, WidgetRef ref) {
+  final perms = ref.watch(permissionServiceProvider);
+  bool allowed(String route) {
+    if (route.startsWith('/today')) return true;
+    if (route.startsWith('/agenda') || route.startsWith('/tasks')) return perms.can(PermissionKeys.casesView);
+    if (route.startsWith('/work-orders')) return perms.can(PermissionKeys.workOrdersView);
+    if (route.startsWith('/finance')) return perms.can(PermissionKeys.financeView);
+    if (route.startsWith('/documents')) return perms.can(PermissionKeys.documentsView);
+    if (route.startsWith('/legal-library')) return perms.can(PermissionKeys.libraryView);
+    if (route.startsWith('/search-reports')) return perms.can(PermissionKeys.searchView);
+    if (route.startsWith('/settings')) return perms.can(PermissionKeys.settingsView);
+    if (route.startsWith('/cases')) return perms.can(PermissionKeys.casesView);
+    if (route.startsWith('/companies')) return perms.can(PermissionKeys.companiesView);
+    if (route.startsWith('/contracts')) return perms.can(PermissionKeys.contractsView);
+    if (route.startsWith('/procedures')) return perms.can(PermissionKeys.proceduresView);
+    if (route.startsWith('/persons') || route.startsWith('/poa') || route.startsWith('/archive')) return perms.can(PermissionKeys.personsView);
+    if (route.startsWith('/printing')) return perms.can(PermissionKeys.reportsView);
+    return true;
+  }
+
+  SidebarItemModel? filterOne(SidebarItemModel item) {
+    final children = item.children?.map(filterOne).whereType<SidebarItemModel>().toList();
+    if ((children != null && children.isNotEmpty) || allowed(item.route)) {
+      return SidebarItemModel(
+        id: item.id,
+        label: item.label,
+        icon: item.icon,
+        route: item.route,
+        badgeCount: item.badgeCount,
+        badgeType: item.badgeType,
+        isHidden: item.isHidden,
+        isDisabled: item.isDisabled,
+        tooltip: item.tooltip,
+        children: children,
+      );
+    }
+    return null;
+  }
+
+  return items.map(filterOne).whereType<SidebarItemModel>().toList();
+}

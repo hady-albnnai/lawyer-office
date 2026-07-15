@@ -114,3 +114,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+String? _requiredPermissionForLocation(String loc) {
+  if (loc.startsWith('/settings')) return PermissionKeys.settingsView;
+  if (loc.startsWith('/finance')) return PermissionKeys.financeView;
+  if (loc.startsWith('/work-orders')) return PermissionKeys.workOrdersView;
+  if (loc.startsWith('/documents')) return PermissionKeys.documentsView;
+  if (loc.startsWith('/legal-library')) return PermissionKeys.libraryView;
+  if (loc.startsWith('/search-reports')) return PermissionKeys.searchView;
+  if (loc.startsWith('/persons') || loc.startsWith('/poa')) return PermissionKeys.personsView;
+  if (loc.startsWith('/cases/create')) return PermissionKeys.casesCreateNew;
+  if (loc.startsWith('/cases')) return PermissionKeys.casesView;
+  if (loc.startsWith('/companies/create')) return PermissionKeys.companiesCreate;
+  if (loc.startsWith('/companies')) return PermissionKeys.companiesView;
+  if (loc.startsWith('/contracts/create')) return PermissionKeys.contractsCreate;
+  if (loc.startsWith('/contracts')) return PermissionKeys.contractsView;
+  if (loc.startsWith('/procedures/create')) return PermissionKeys.proceduresCreate;
+  if (loc.startsWith('/procedures')) return PermissionKeys.proceduresView;
+  if (loc.startsWith('/printing')) return PermissionKeys.reportsView;
+  return null;
+}
+
+class _NoAccessScreen extends StatelessWidget {
+  const _NoAccessScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text('ليس لديك صلاحية الوصول إلى هذه الصفحة'),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: () => context.go('/today'), child: const Text('العودة للوحة اليوم')),
+          ],
+        ),
+      ),
+    );
+  }
+}
