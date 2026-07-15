@@ -1,6 +1,8 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart' hide FileType;
+import 'package:file_picker/file_picker.dart' as fp;
+import '../../../core/auth/permission_catalog.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 /// شاشة المستندات (Smart File Explorer)
 /// بناءً على الخطة الماسية لإعادة الهيكلة 2026 (المرحلة 4)
 
@@ -11,7 +13,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import 'document_models.dart' as doc_models;
-import 'document_models.dart' show DocumentItem, DocumentType, documentsProvider, inferFileType;
+import 'document_models.dart' show DocumentItem, DocumentType, documentsProvider, documentsFutureProvider, inferFileType;
 import 'document_viewer.dart';
 
 class DocumentsScreen extends ConsumerWidget {
@@ -19,6 +21,7 @@ class DocumentsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final permissions = ref.watch(permissionServiceProvider);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -31,14 +34,15 @@ class DocumentsScreen extends ConsumerWidget {
               onPressed: () => context.go('/search-reports'),
               tooltip: 'بحث متقدم',
             ),
-            IconButton(
-              icon: const Icon(Icons.upload_file),
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (context) => const UploadDocDialog(),
+            if (permissions.can(PermissionKeys.documentsUpload))
+              IconButton(
+                icon: const Icon(Icons.upload_file),
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => const UploadDocDialog(),
+                ),
+                tooltip: 'رفع مستند',
               ),
-              tooltip: 'رفع مستند',
-            ),
             const SizedBox(width: 8),
           ],
         ),
@@ -233,7 +237,7 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
   // بطاقة عرض شبكي للملف (تُشبه Windows Explorer Icon)
     Widget _buildGridFileCard(DocumentItem doc) {
     return InkWell(
-      onDoubleTap: () => openDocument(context, doc.id),
+      onDoubleTap: () => _openDocumentWithPermission(context, ref, doc),
       onTap: () {},
       borderRadius: BorderRadius.circular(8),
       child: Container(
@@ -288,13 +292,44 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.visibility, color: AppColors.primaryNavy),
-            onPressed: () => openDocument(context, doc.id),
+            onPressed: () => _openDocumentWithPermission(context, ref, doc),
             tooltip: 'عرض الملف',
           ),
         ],
       ),
-      onTap: () => openDocument(context, doc.id),
+      onTap: () => _openDocumentWithPermission(context, ref, doc),
     );
+  }
+
+  Future<void> _openDocumentWithPermission(BuildContext context, WidgetRef ref, DocumentItem doc) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.documentsOpen)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'documents',
+        entityType: 'document',
+        entityId: doc.id,
+        entityTitle: doc.title,
+        description: 'محاولة فتح مستند دون صلاحية',
+        severity: 'warning',
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('لا تملك صلاحية فتح المستندات'), backgroundColor: AppColors.error),
+        );
+      }
+      return;
+    }
+    await ref.read(auditServiceProvider).log(
+      action: 'open',
+      category: 'documents',
+      entityType: 'document',
+      entityId: doc.id,
+      entityTitle: doc.title,
+      description: 'فتح مستند',
+      severity: 'info',
+    );
+    if (context.mounted) openDocument(context, doc.id);
   }
 
   Color _getFileColor(doc_models.FileType type) {
@@ -333,21 +368,105 @@ class _FolderModel {
 
 
 
-class UploadDocDialog extends StatefulWidget {
+class UploadDocDialog extends ConsumerStatefulWidget {
   const UploadDocDialog({super.key});
   @override
-  State<UploadDocDialog> createState() => _UploadDocDialogState();
+  ConsumerState<UploadDocDialog> createState() => _UploadDocDialogState();
 }
-class _UploadDocDialogState extends State<UploadDocDialog> {
+
+class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
+  final _title = TextEditingController();
+  DocumentType _type = DocumentType.caseDocument;
+  fp.PlatformFile? _file;
+  bool _saving = false;
+
+  Future<void> _pickFile() async {
+    final res = await fp.FilePicker.platform.pickFiles();
+    if (res != null && res.files.single.path != null) {
+      setState(() {
+        _file = res.files.single;
+        if (_title.text.trim().isEmpty) _title.text = res.files.single.name;
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.documentsUpload)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'documents',
+        entityType: 'document',
+        description: 'محاولة رفع مستند دون صلاحية',
+        severity: 'warning',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية رفع المستندات'), backgroundColor: AppColors.error));
+      }
+      return;
+    }
+    if (_file?.path == null || _title.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('اختر ملفاً وأدخل عنوان المستند'), backgroundColor: AppColors.error));
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final docId = await ref.read(documentRepositoryProvider).addDocument(
+            docName: _title.text.trim(),
+            docType: _type.name,
+            fileType: _file!.extension,
+            sourceFile: File(_file!.path!),
+            entityType: 99,
+            entityId: 0,
+            userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
+          );
+      await ref.read(auditServiceProvider).log(
+        action: 'upload',
+        category: 'documents',
+        entityType: 'document',
+        entityId: '$docId',
+        entityTitle: _title.text.trim(),
+        description: 'رفع مستند إلى الأرشيف العام',
+        severity: 'info',
+      );
+      ref.invalidate(documentsFutureProvider);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل رفع المستند: $e'), backgroundColor: AppColors.error));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('رفع مستند'),
-      content: const Text('سيتم تفعيل الرفع الآمن لاحقاً.'),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: _title, decoration: const InputDecoration(labelText: 'عنوان المستند *')),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<DocumentType>(
+              value: _type,
+              decoration: const InputDecoration(labelText: 'نوع المستند'),
+              items: DocumentType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(),
+              onChanged: (v) => setState(() => _type = v ?? _type),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(onPressed: _pickFile, icon: const Icon(Icons.attach_file), label: const Text('اختيار ملف')),
+            if (_file != null) Text(_file!.name, style: AppTextStyles.bodySmallSecondary),
+          ],
+        ),
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))
-      ]
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'جارٍ الرفع...' : 'حفظ')),
+      ],
     );
   }
 }
-

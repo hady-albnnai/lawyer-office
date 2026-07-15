@@ -11,6 +11,7 @@ import '../screens/cases/cases_screen.dart';
 import '../screens/cases/create_case_wizard.dart';
 import '../screens/dashboard/today_dashboard_screen.dart';
 import '../screens/documents/documents_screen.dart';
+import '../screens/documents/document_viewer.dart';
 import '../screens/files/files_screen.dart';
 import '../screens/finance/finance_screen.dart';
 import '../screens/legal_library/legal_library_screen.dart';
@@ -78,6 +79,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/work-orders', name: 'work-orders', builder: (_, __) => const WorkOrdersScreen()),
           GoRoute(path: '/finance', name: 'finance', builder: (_, __) => const FinanceScreen()),
           GoRoute(path: '/documents', name: 'documents', builder: (_, __) => const DocumentsScreen()),
+          GoRoute(path: '/documents/:documentId', name: 'document-viewer', builder: (_, state) => DocumentViewerScreen(documentId: state.pathParameters['documentId'] ?? '')),
           GoRoute(path: '/legal-library', name: 'legal-library', builder: (_, __) => const LegalLibraryScreen()),
           GoRoute(path: '/search-reports', name: 'search-reports', builder: (_, __) => const SearchReportsScreen()),
           GoRoute(path: '/settings', name: 'settings', builder: (_, __) => const SettingsScreen()),
@@ -119,6 +121,7 @@ String? _requiredPermissionForLocation(String loc) {
   if (loc.startsWith('/settings')) return PermissionKeys.settingsView;
   if (loc.startsWith('/finance')) return PermissionKeys.financeView;
   if (loc.startsWith('/work-orders')) return PermissionKeys.workOrdersView;
+  if (loc.startsWith('/documents/') && loc != '/documents') return PermissionKeys.documentsOpen;
   if (loc.startsWith('/documents')) return PermissionKeys.documentsView;
   if (loc.startsWith('/legal-library')) return PermissionKeys.libraryView;
   if (loc.startsWith('/search-reports')) return PermissionKeys.searchView;
