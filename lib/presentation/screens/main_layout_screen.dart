@@ -76,6 +76,15 @@ class MainShellScreen extends ConsumerWidget {
               items: getDefaultSidebarItems(),
               officeName: officeName,
               lawyerName: lawyerName,
+              logo: SizedBox(
+                width: 52,
+                height: 52,
+                child: Image.asset(
+                  AppConstants.appIconAsset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.verified_user, color: AppConstants.accentGold),
+                ),
+              ),
               version: '6.2.0',
             ),
             // Force selected route highlight via provider sync
@@ -149,17 +158,41 @@ class _TopBar extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Text(
-                officeName,
-                style: AppTextStyles.headline6.copyWith(color: Colors.white),
+              SizedBox(
+                width: 34,
+                height: 34,
+                child: Image.asset(
+                  AppConstants.appIconAsset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.verified_user, color: AppConstants.accentGold),
+                ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppConstants.appDisplayName,
+                    style: AppTextStyles.headline6.copyWith(
+                      color: Colors.white,
+                      fontFamily: 'Amiri',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    AppConstants.appTagline,
+                    style: AppTextStyles.bodySmall.copyWith(color: AppConstants.accentGold, fontSize: 11),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 20),
               Text(
-                lawyerName,
-                style: AppTextStyles.bodySmall.copyWith(color: AppConstants.accentGold),
+                '$officeName • $lawyerName',
+                style: AppTextStyles.bodySmall.copyWith(color: Colors.white.withOpacity(0.76)),
               ),
               
-              const SizedBox(width: 48),
+              const SizedBox(width: 32),
               
               // محرك البحث الشامل والذكاء (The Command Palette / Omnibar)
               Expanded(

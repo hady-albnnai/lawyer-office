@@ -220,7 +220,7 @@ lib/
 ### 🪟 المرحلة 9: دعم سطح المكتب Windows وتشغيل المشروع عند المستخدم (`Windows Desktop Support`)
 - [x] **9.1 إضافة مشروع Windows Desktop الرسمي:**
   - إنشاء مجلد `windows/` الكامل وفق بنية Flutter القياسية (`CMakeLists.txt`, `runner/`, `flutter/`) كي يتعرف Flutter على منصة Windows ولا يظهر خطأ `No Windows desktop project configured`.
-  - ضبط اسم الملف التنفيذي `lawyer_office.exe` وعنوان النافذة: **"ميزان - المنصة الرقمية للمحامي"**، واعتماد أيقونة Windows النهائية وهوية شاشة البداية باسم **ميزان**.
+  - ضبط اسم الملف التنفيذي `lawyer_office.exe` وعنوان النافذة: **"ميزان - المنصة الرقمية للمحامي"**، واعتماد أيقونة Windows النهائية وهوية شاشة البداية باسم **ميزان** وإظهار الشعار داخل الشريط الجانبي والشريط العلوي للتطبيق.
 - [x] **9.2 تجهيز ملفات التسجيل والإضافات:**
   - إضافة ملفات `generated_plugin_registrant` و `generated_plugins.cmake` الابتدائية مع ترك Flutter يعيد توليدها تلقائياً أثناء `flutter pub get` و `flutter run` حسب الإضافات الفعلية.
   - استثناء ملفات Windows المؤقتة (`windows/flutter/ephemeral/` و `.plugin_symlinks/`) من Git لأنها تُولّد محلياً على جهاز التشغيل.

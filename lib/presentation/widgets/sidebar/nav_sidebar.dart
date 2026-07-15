@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/custom_icons.dart';
@@ -102,8 +103,8 @@ class NavSidebar extends ConsumerWidget {
           // Header (العنوان)
           if (header != null) ...[
             Container(
-              height: 64,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              height: isExpanded ? 104 : 72,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               alignment: Alignment.center,
               child: header,
             ),
@@ -216,38 +217,64 @@ class AppSidebar extends NavSidebar {
   Widget _buildHeader(BuildContext context, WidgetRef ref) {
     final isExpanded = ref.watch(sidebarStateProvider).isExpanded;
     
-    if (!isExpanded) {
-      return logo ?? Icon(
+    final logoWidget = logo ?? Image.asset(
+      AppConstants.appIconAsset,
+      width: isExpanded ? 52 : 42,
+      height: isExpanded ? 52 : 42,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => Icon(
         Icons.verified_user,
         color: AppColors.primaryNavy,
-        size: 32,
-      );
+        size: isExpanded ? 42 : 34,
+      ),
+    );
+
+    if (!isExpanded) {
+      return logoWidget;
     }
     
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Row(
+      textDirection: TextDirection.rtl,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (logo != null) ...[
-          logo!,
-          const SizedBox(height: 4),
-        ],
-        Text(
-          officeName,
-          style: AppTextStyles.headline6.copyWith(
-            color: AppColors.primaryNavy,
-            fontWeight: FontWeight.bold,
+        logoWidget,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppConstants.appDisplayName,
+                style: AppTextStyles.headline6.copyWith(
+                  color: AppColors.primaryNavy,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Amiri',
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                AppConstants.appTagline,
+                style: AppTextStyles.bodySmallSecondary.copyWith(
+                  color: AppConstants.accentGoldDark,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                officeName,
+                style: AppTextStyles.bodySmallSecondary.copyWith(
+                  color: AppColors.textSecondary,
+                  fontSize: 10,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        Text(
-          lawyerName,
-          style: AppTextStyles.bodySmallSecondary.copyWith(
-            color: AppColors.textSecondary,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

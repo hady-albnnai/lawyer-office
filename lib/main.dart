@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'app.dart';
+import 'core/constants/app_constants.dart';
 
 /// نقطة انطلاق تطبيق إدارة وأرشفة مكتب المحاماة السوري (V6.2 Offline-First)
 /// التحديث الماسي: Native Desktop Integration (Windows/Mac)
@@ -13,7 +14,7 @@ void main() async {
   // تهيئة الإضافات الخاصة بسطح المكتب فقط إذا كان التطبيق يعمل على الكمبيوتر
   if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
     // 1. تهيئة الإشعارات الأصلية
-    await localNotifier.setup(appName: 'Lawyer Office ERP', shortcutPolicy: ShortcutPolicy.requireCreate);
+    await localNotifier.setup(appName: AppConstants.appDisplayName, shortcutPolicy: ShortcutPolicy.requireCreate);
     
     // 2. تهيئة نافذة التطبيق الأساسية
     await windowManager.ensureInitialized();
@@ -25,7 +26,7 @@ void main() async {
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
-      title: 'نظام إدارة مكتب المحاماة - ERP',
+      title: AppConstants.appWindowTitle,
     );
     
     windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -34,8 +35,8 @@ void main() async {
       
       // إرسال إشعار ترحيبي عبر النظام الأصلي
       LocalNotification notification = LocalNotification(
-        title: 'Lawyer Office ERP',
-        body: 'أهلاً بك أستاذ، النظام جاهز ومتصل بقاعدة البيانات المحلية.',
+        title: AppConstants.appDisplayName,
+        body: 'أهلاً بك، المنصة الرقمية للمحامي جاهزة للعمل.',
       );
       notification.show();
     });
