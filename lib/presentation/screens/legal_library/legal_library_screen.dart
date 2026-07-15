@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/permission_catalog.dart';
+import '../../providers/auth_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -52,6 +54,7 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(legalLibraryProvider);
     final items = state.filteredItems;
+    final permissions = ref.watch(permissionServiceProvider);
 
     return Theme(
       data: AppTheme.lightTheme,
@@ -61,14 +64,15 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
           appBar: AppBar(
             title: const Text('المكتبة القانونية السورية'),
             actions: [
-              IconButton(
-                tooltip: 'إضافة إلى المكتبة',
-                icon: const Icon(Icons.add_box),
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const AddLegalItemDialog(),
+              if (permissions.can(PermissionKeys.libraryAdd))
+                IconButton(
+                  tooltip: 'إضافة إلى المكتبة',
+                  icon: const Icon(Icons.add_box),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const AddLegalItemDialog(),
+                  ),
                 ),
-              ),
             ],
             bottom: TabBar(
               controller: _tabController,
@@ -95,14 +99,16 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
               ),
             ],
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (_) => const AddLegalItemDialog(),
-            ),
-            icon: const Icon(Icons.add),
-            label: const Text('إضافة إلى المكتبة'),
-          ),
+          floatingActionButton: permissions.can(PermissionKeys.libraryAdd)
+              ? FloatingActionButton.extended(
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const AddLegalItemDialog(),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('إضافة إلى المكتبة'),
+                )
+              : null,
         ),
       ),
     );
@@ -193,6 +199,7 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
 
   Widget _itemCard(LegalLibraryState state, LegalLibraryItem item) {
     final links = state.linksForItem(item.id);
+    final permissions = ref.watch(permissionServiceProvider);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -213,15 +220,18 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
                     style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy),
                   ),
                 ),
-                IconButton(
-                  tooltip: item.isFavorite ? 'إزالة من المفضلة' : 'إضافة للمفضلة',
-                  icon: Icon(
-                    item.isFavorite ? Icons.star : Icons.star_border,
-                    color: AppColors.secondaryGold,
+                if (permissions.can(PermissionKeys.libraryEdit))
+                  IconButton(
+                    tooltip: item.isFavorite ? 'إزالة من المفضلة' : 'إضافة للمفضلة',
+                    icon: Icon(
+                      item.isFavorite ? Icons.star : Icons.star_border,
+                      color: AppColors.secondaryGold,
+                    ),
+                    onPressed: () async {
+                      ref.read(legalLibraryProvider.notifier).toggleFavorite(item.id);
+                      await ref.read(auditServiceProvider).log(action: 'update', category: 'library', entityType: 'library_item', entityId: item.id, entityTitle: item.title, description: 'تعديل حالة المفضلة', severity: 'info');
+                    },
                   ),
-                  onPressed: () =>
-                      ref.read(legalLibraryProvider.notifier).toggleFavorite(item.id),
-                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -291,12 +301,15 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
                           style: AppTextStyles.bodySmall,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        tooltip: 'إزالة الربط',
-                        onPressed: () =>
-                            ref.read(legalLibraryProvider.notifier).removeLink(l.id),
-                      ),
+                      if (permissions.can(PermissionKeys.libraryLink))
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          tooltip: 'إزالة الربط',
+                          onPressed: () async {
+                            ref.read(legalLibraryProvider.notifier).removeLink(l.id);
+                            await ref.read(auditServiceProvider).log(action: 'unlink', category: 'library', entityType: 'library_link', entityId: l.id, entityTitle: item.title, description: 'إزالة ربط مادة قانونية بملف', severity: 'info');
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -307,27 +320,29 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (item.hasFile)
+                if (item.hasFile && ref.watch(permissionServiceProvider).can(PermissionKeys.documentsOpen))
                   OutlinedButton.icon(
                     icon: const Icon(Icons.open_in_new),
                     label: const Text('فتح المرفق'),
                     onPressed: () => openDocument(context, item.id),
                   ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.link),
-                  label: const Text('ربط بملف'),
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => LinkLegalItemDialog(itemId: item.id),
+                if (permissions.can(PermissionKeys.libraryLink))
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.link),
+                    label: const Text('ربط بملف'),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => LinkLegalItemDialog(itemId: item.id),
+                    ),
                   ),
-                ),
-                if (!item.isPrinciple && item.principle.isNotEmpty)
+                if (!item.isPrinciple && item.principle.isNotEmpty && permissions.can(PermissionKeys.libraryEdit))
                   TextButton.icon(
                     icon: const Icon(Icons.flag),
                     label: const Text('تعيين كمبدأ'),
-                    onPressed: () => ref
-                        .read(legalLibraryProvider.notifier)
-                        .markAsPrinciple(item.id, value: true),
+                    onPressed: () async {
+                      ref.read(legalLibraryProvider.notifier).markAsPrinciple(item.id, value: true);
+                      await ref.read(auditServiceProvider).log(action: 'update', category: 'library', entityType: 'library_item', entityId: item.id, entityTitle: item.title, description: 'تعيين مادة كمبدأ مختار', severity: 'info');
+                    },
                   ),
               ],
             ),
@@ -531,7 +546,13 @@ class _AddLegalItemDialogState extends ConsumerState<AddLegalItemDialog> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.libraryAdd)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'library', entityType: 'library_item', description: 'محاولة إضافة مادة قانونية دون صلاحية', severity: 'warning');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية إضافة مواد للمكتبة'), backgroundColor: AppColors.error));
+      return;
+    }
     final title = _title.text.trim();
     final year = int.tryParse(_year.text.trim()) ?? DateTime.now().year;
     if (title.isEmpty) {
@@ -547,9 +568,10 @@ class _AddLegalItemDialogState extends ConsumerState<AddLegalItemDialog> {
         .toList();
     final now = DateTime.now();
     final fileName = _fileName.text.trim();
+    final itemId = 'lib_${now.microsecondsSinceEpoch}';
     ref.read(legalLibraryProvider.notifier).addItem(
           LegalLibraryItem(
-            id: 'lib_${now.microsecondsSinceEpoch}',
+            id: itemId,
             type: _type,
             title: title,
             source: _source.text.trim(),
@@ -574,7 +596,8 @@ class _AddLegalItemDialogState extends ConsumerState<AddLegalItemDialog> {
             extractedText: _text.text.trim(),
           ),
         );
-    Navigator.pop(context);
+    await ref.read(auditServiceProvider).log(action: 'create', category: 'library', entityType: 'library_item', entityId: itemId, entityTitle: title, description: 'إضافة مادة إلى المكتبة القانونية', after: {'title': title, 'type': _type.displayName, 'year': year}, severity: 'info');
+    if (mounted) Navigator.pop(context);
   }
 }
 
@@ -634,7 +657,11 @@ class _LinkLegalItemDialogState extends ConsumerState<LinkLegalItemDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
         ElevatedButton(
-          onPressed: () {
+          onPressed: () async {
+            if (!ref.read(permissionServiceProvider).can(PermissionKeys.libraryLink)) {
+              await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'library', entityType: 'library_item', entityId: widget.itemId, description: 'محاولة ربط مادة قانونية دون صلاحية', severity: 'warning');
+              return;
+            }
             if (_entityTitle.text.trim().isEmpty) return;
             ref.read(legalLibraryProvider.notifier).linkToEntity(
                   libraryItemId: widget.itemId,
@@ -643,7 +670,8 @@ class _LinkLegalItemDialogState extends ConsumerState<LinkLegalItemDialog> {
                   entityTitle: _entityTitle.text.trim(),
                   note: _note.text.trim(),
                 );
-            Navigator.pop(context);
+            await ref.read(auditServiceProvider).log(action: 'link', category: 'library', entityType: 'library_item', entityId: widget.itemId, entityTitle: _entityTitle.text.trim(), description: 'ربط مادة قانونية بملف', after: {'entityType': _entityType, 'entityId': _entityId.text.trim(), 'note': _note.text.trim()}, severity: 'info');
+            if (context.mounted) Navigator.pop(context);
           },
           child: const Text('ربط'),
         ),

@@ -12,7 +12,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/office_settings_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -218,13 +220,13 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
                     OutlinedButton.icon(
                       icon: const Icon(Icons.preview),
                       label: const Text('معاينة PDF'),
-                      onPressed: () => _previewReportPdf(report),
+                      onPressed: ref.watch(permissionServiceProvider).can(PermissionKeys.reportsView) ? () => _previewReportPdf(report) : null,
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.picture_as_pdf),
                       label: const Text('تصدير PDF'),
-                      onPressed: () => _exportReportPdf(report),
+                      onPressed: ref.watch(permissionServiceProvider).can(PermissionKeys.reportsExport) ? () => _exportReportPdf(report) : null,
                     ),
                   ],
                 ),
@@ -406,15 +408,26 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
   }
 
   Future<void> _exportReportPdf(GeneratedReport report) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.reportsExport)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'reports', entityType: 'report', entityTitle: report.title, description: 'محاولة تصدير تقرير دون صلاحية', severity: 'warning');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية تصدير التقارير'), backgroundColor: AppColors.error));
+      return;
+    }
     final settings = await _settings();
     final bytes = await SearchReportsPdfBuilder.build(settings: settings, report: report);
     await Printing.sharePdf(
       bytes: bytes,
       filename: 'report_${report.kind.toString().split('.').last}_${DateTime.now().millisecondsSinceEpoch}.pdf',
     );
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'reports', entityType: 'report', entityTitle: report.title, description: 'تصدير تقرير PDF', severity: 'warning');
   }
 
   Future<void> _previewReportPdf(GeneratedReport report) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.reportsView)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'reports', entityType: 'report', entityTitle: report.title, description: 'محاولة معاينة تقرير دون صلاحية', severity: 'warning');
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية عرض التقارير'), backgroundColor: AppColors.error));
+      return;
+    }
     final settings = await _settings();
     final bytes = await SearchReportsPdfBuilder.build(settings: settings, report: report);
     if (!mounted) return;
