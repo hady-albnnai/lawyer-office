@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/constants/app_constants.dart';
 import 'core/services/desktop_integration_service.dart';
 import 'presentation/navigation/app_router.dart';
 import 'presentation/providers/ui_data_providers.dart';
@@ -30,7 +31,7 @@ class _LawyerOfficeAppState extends ConsumerState<LawyerOfficeApp> {
     final router = ref.watch(appRouterProvider);
     return DesktopIntegrationWrapper(
       child: MaterialApp.router(
-        title: 'مكتب المحامي • إدارة وأرشفة قانونية',
+        title: AppConstants.appWindowTitle,
         debugShowCheckedModeBanner: false,
         locale: const Locale('ar', 'SY'),
         supportedLocales: const [Locale('ar', 'SY'), Locale('ar')],

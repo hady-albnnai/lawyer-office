@@ -21,13 +21,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Lawyer Office\0"
-            VALUE "FileDescription", "Lawyer Office - Hadi Faisal Al-Bunni\0"
+            VALUE "CompanyName", "Mezan\0"
+            VALUE "FileDescription", "Mezan - Digital Platform for Lawyers\0"
             VALUE "FileVersion", "1.0.0\0"
-            VALUE "InternalName", "lawyer_office\0"
+            VALUE "InternalName", "mezan\0"
             VALUE "LegalCopyright", "Copyright (C) 2026\0"
             VALUE "OriginalFilename", "lawyer_office.exe\0"
-            VALUE "ProductName", "Lawyer Office\0"
+            VALUE "ProductName", "Mezan\0"
             VALUE "ProductVersion", "1.0.0\0"
         END
     END

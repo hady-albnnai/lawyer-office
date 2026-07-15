@@ -26,7 +26,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 800);
-  if (!window.Create(L"\u0645\u0643\u062a\u0628 \u0627\u0644\u0645\u062d\u0627\u0645\u064a - \u0647\u0627\u062f\u064a \u0641\u064a\u0635\u0644 \u0627\u0644\u0628\u0646\u064a", origin, size)) {
+  if (!window.Create(L"\u0645\u064a\u0632\u0627\u0646 - \u0627\u0644\u0645\u0646\u0635\u0629 \u0627\u0644\u0631\u0642\u0645\u064a\u0629 \u0644\u0644\u0645\u062d\u0627\u0645\u064a", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

@@ -5,6 +5,12 @@ class AppConstants {
   // ---------------------------------------------------------------------------
   // بيانات المكتب الأساسية (قابلة للتعديل ديناميكياً من شاشة الإعدادات)
   // ---------------------------------------------------------------------------
+  static const String appDisplayName = 'ميزان';
+  static const String appTagline = 'المنصة الرقمية للمحامي';
+  static const String appWindowTitle = 'ميزان - المنصة الرقمية للمحامي';
+  static const String appIconAsset = 'assets/icons/app_icon.png';
+  static const String appBrandLockupAsset = 'assets/icons/mezan_brand_lockup.png';
+
   static const String defaultOfficeTitle = 'مكتب المحامي';
   static const String defaultLawyerName = 'هادي فيصل البني';
   static const String defaultCountry = 'الجمهورية العربية السورية';
