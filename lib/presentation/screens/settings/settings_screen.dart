@@ -985,16 +985,42 @@ class _UsersRolesTab extends ConsumerWidget {
           ),
         ],
         const SizedBox(height: 12),
-        Expanded(child: ListView(children: PermissionCatalog.groups.map((g) => ExpansionTile(
-          title: Text(g.label, style: AppTextStyles.labelLarge),
-          children: PermissionCatalog.byGroup(g.key).map((p) => CheckboxListTile(
-            value: selected.contains(p.key),
-            title: Text(p.label),
-            subtitle: Text(p.description),
-            secondary: p.sensitive ? Icon(Icons.warning_amber, color: AppColors.warning) : null,
-            onChanged: (v) => setDialog(() { if (v == true) selected.add(p.key); else selected.remove(p.key); }),
-          )).toList(),
-        )).toList())),
+        Expanded(
+          child: ListView(
+            children: PermissionCatalog.groups.map((g) {
+              final groupPermissions = PermissionCatalog.byGroup(g.key);
+              final allSelected = groupPermissions.every((p) => selected.contains(p.key));
+              final anySelected = groupPermissions.any((p) => selected.contains(p.key));
+              return ExpansionTile(
+                title: Text(g.label, style: AppTextStyles.labelLarge),
+                children: [
+                  CheckboxListTile(
+                    value: allSelected ? true : (anySelected ? null : false),
+                    tristate: true,
+                    title: const Text('تحديد كل صلاحيات هذا القسم'),
+                    subtitle: Text('عدد الصلاحيات: ${groupPermissions.length}'),
+                    secondary: const Icon(Icons.select_all),
+                    onChanged: (v) => setDialog(() {
+                      if (v == true || !allSelected) {
+                        selected.addAll(groupPermissions.map((p) => p.key));
+                      } else {
+                        selected.removeAll(groupPermissions.map((p) => p.key));
+                      }
+                    }),
+                  ),
+                  const Divider(height: 1),
+                  ...groupPermissions.map((p) => CheckboxListTile(
+                    value: selected.contains(p.key),
+                    title: Text(p.label),
+                    subtitle: Text(p.description),
+                    secondary: p.sensitive ? Icon(Icons.warning_amber, color: AppColors.warning) : null,
+                    onChanged: (v) => setDialog(() { if (v == true) selected.add(p.key); else selected.remove(p.key); }),
+                  )),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
       ])),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')), ElevatedButton(onPressed: () async {
         if (name.text.trim().isEmpty) return;
