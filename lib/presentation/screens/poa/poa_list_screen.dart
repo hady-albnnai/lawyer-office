@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 
+import '../../../core/auth/permission_catalog.dart';
+import '../../../data/database/database.dart' as db;
+import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -23,6 +29,7 @@ class _PoaListScreenState extends ConsumerState<PoaListScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(personsDirectoryProvider);
+    final permissions = ref.watch(permissionServiceProvider);
     final agencies = state.agencies.where((agency) {
       final principal = state.personById(agency.principalPersonId);
       final q = _query.trim().toLowerCase();
@@ -43,14 +50,15 @@ class _PoaListScreenState extends ConsumerState<PoaListScreen> {
           appBar: AppBar(
             title: const Text('أرشيف الوكالات'),
             actions: [
-              IconButton(
-                tooltip: 'إضافة وكالة',
-                icon: const Icon(Icons.add),
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (context) => const AddAgencyDialog(),
+              if (permissions.can(PermissionKeys.poaCreate))
+                IconButton(
+                  tooltip: 'إضافة وكالة',
+                  icon: const Icon(Icons.add),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (context) => const AddAgencyDialog(),
+                  ),
                 ),
-              ),
             ],
           ),
           body: Column(
@@ -136,6 +144,7 @@ class _AgencyCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final permissions = ref.watch(permissionServiceProvider);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -174,16 +183,18 @@ class _AgencyCard extends ConsumerWidget {
               Wrap(
                 spacing: 8,
                 children: [
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.description),
-                    label: const Text('فتح السند'),
-                    onPressed: agency.hasDocument ? () => openDocument(context, agency.documentId) : null,
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.link),
-                    label: const Text('ربط بدعوى'),
-                    onPressed: () => _showLinkDialog(context, ref),
-                  ),
+                  if (permissions.can(PermissionKeys.poaFilesView))
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.description),
+                      label: const Text('فتح السند'),
+                      onPressed: agency.hasDocument ? () => openDocument(context, agency.documentId) : null,
+                    ),
+                  if (permissions.can(PermissionKeys.poaEdit))
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.link),
+                      label: const Text('ربط بدعوى'),
+                      onPressed: () => _showLinkDialog(context, ref),
+                    ),
                   TextButton.icon(
                     icon: const Icon(Icons.open_in_new),
                     label: const Text('تفاصيل'),
@@ -231,12 +242,28 @@ class _AgencyCard extends ConsumerWidget {
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')),
           ElevatedButton(
-            onPressed: () {
-              final caseId = controller.text.trim();
-              if (caseId.isNotEmpty) {
-                ref.read(personsDirectoryProvider.notifier).linkAgencyToCase(agency.id, caseId);
+            onPressed: () async {
+              final caseId = int.tryParse(controller.text.trim());
+              final poaId = int.tryParse(agency.id);
+              if (caseId == null || poaId == null) return;
+              try {
+                await ref.read(poaRepositoryProvider).linkPoaToCase(caseId, poaId);
+                await ref.read(auditServiceProvider).log(
+                  action: 'link',
+                  category: 'poa',
+                  entityType: 'poa',
+                  entityId: agency.id,
+                  entityTitle: agency.number,
+                  description: 'ربط وكالة بدعوى رقم $caseId',
+                  severity: 'info',
+                );
+                ref.invalidate(uiPersonsDirectoryProvider);
+                if (context.mounted) Navigator.of(context).pop();
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الربط: $e'), backgroundColor: AppColors.error));
+                }
               }
-              Navigator.of(context).pop();
             },
             child: const Text('ربط'),
           ),
@@ -353,29 +380,63 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
     );
   }
 
-  void _save() {
-    final principalId = _principalPersonId;
+  Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.poaCreate)) {
+      await ref.read(auditServiceProvider).log(
+            action: 'access_denied',
+            category: 'poa',
+            entityType: 'poa',
+            description: 'محاولة إضافة وكالة دون صلاحية',
+            severity: 'warning',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا تملك صلاحية إضافة وكالة'), backgroundColor: AppColors.error));
+      }
+      return;
+    }
+
+    final principalId = int.tryParse(_principalPersonId ?? '');
     if (principalId == null || _numberController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('رقم الوكالة والموكل إلزاميان'), backgroundColor: AppColors.error));
       return;
     }
 
-    final now = DateTime.now();
-    ref.read(personsDirectoryProvider.notifier).addAgency(
-          AgencyRecord(
-            id: 'agency_${now.microsecondsSinceEpoch}',
-            number: _numberController.text.trim(),
-            type: _type,
-            source: _source,
-            branch: _branchController.text.trim().isEmpty ? 'دمشق' : _branchController.text.trim(),
-            principalPersonId: principalId,
-            agentName: _agentController.text.trim().isEmpty ? 'الأستاذ هادي فيصل البني' : _agentController.text.trim(),
-            issuedAt: _issuedAt,
-            scope: _scopeController.text.trim(),
-            documentId: _documentController.text.trim(),
-          ),
-        );
-    Navigator.of(context).pop();
+    try {
+      final poaId = await ref.read(poaRepositoryProvider).createPoa(
+            poa: db.PowersOfAttorneyCompanion.insert(
+              sourceType: _source == AgencySource.notary ? 'notary' : 'delegate',
+              poaType: _type.index,
+              poaNumber: Value(_numberController.text.trim()),
+              poaDate: Value(_issuedAt),
+              delegateBranch: Value(_branchController.text.trim().isEmpty ? 'دمشق' : _branchController.text.trim()),
+              scopeText: Value(_scopeController.text.trim()),
+              status: const Value('active'),
+            ),
+            principalId: principalId,
+          );
+      await ref.read(auditServiceProvider).log(
+            action: 'create',
+            category: 'poa',
+            entityType: 'poa',
+            entityId: '$poaId',
+            entityTitle: _numberController.text.trim(),
+            description: 'إضافة وكالة جديدة',
+            after: {
+              'number': _numberController.text.trim(),
+              'principalId': principalId,
+              'type': _type.displayName,
+              'source': _source.displayName,
+            },
+            severity: 'info',
+          );
+      ref.invalidate(uiPersonsDirectoryProvider);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل حفظ الوكالة: $e'), backgroundColor: AppColors.error));
+      }
+    }
   }
 
   String _formatDate(DateTime date) {
