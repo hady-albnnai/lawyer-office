@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 
+import '../../../core/auth/permission_catalog.dart';
+import '../../../core/enums/app_enums.dart';
+import '../../../data/database/database.dart' as db;
+import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -74,6 +81,7 @@ class _PersonsListScreenState extends ConsumerState<PersonsListScreen> with Sing
   }
 
   Widget _buildToolbar(PersonsDirectoryState state) {
+    final permissions = ref.watch(permissionServiceProvider);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -96,11 +104,12 @@ class _PersonsListScreenState extends ConsumerState<PersonsListScreen> with Sing
           const SizedBox(width: 12),
           _counterCard('الوكالات', state.agencies.length, Icons.verified_user, AppColors.secondaryGold),
           const SizedBox(width: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.person_add),
-            label: const Text('إضافة سجل'),
-            onPressed: () => _openAddPersonDialog(context),
-          ),
+          if (permissions.can(PermissionKeys.personsCreate))
+            ElevatedButton.icon(
+              icon: const Icon(Icons.person_add),
+              label: const Text('إضافة سجل'),
+              onPressed: () => _openAddPersonDialog(context),
+            ),
         ],
       ),
     );
@@ -200,13 +209,15 @@ class _PersonsTab extends ConsumerWidget {
   }
 }
 
-class PersonDirectoryCard extends StatelessWidget {
+class PersonDirectoryCard extends ConsumerWidget {
   final PersonDirectoryRecord person;
 
   const PersonDirectoryCard({super.key, required this.person});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final permissions = ref.watch(permissionServiceProvider);
+    final canViewSensitive = permissions.can(PermissionKeys.personsSensitiveView);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -248,7 +259,7 @@ class PersonDirectoryCard extends StatelessWidget {
                       spacing: 16,
                       runSpacing: 6,
                       children: [
-                        _iconText(Icons.phone, person.phone.isEmpty ? 'لا يوجد هاتف' : person.phone),
+                        _iconText(Icons.phone, !canViewSensitive ? 'الهاتف مخفي حسب الصلاحيات' : (person.phone.isEmpty ? 'لا يوجد هاتف' : person.phone)),
                         _iconText(Icons.location_on, person.city.isEmpty ? 'غير محدد' : person.city),
                         _iconText(Icons.verified_user, 'وكالات: ${person.agencyIds.length}'),
                         _iconText(Icons.gavel, 'دعاوى: ${person.caseIds.length}'),
@@ -358,35 +369,84 @@ class _QuickAddPersonDialogState extends ConsumerState<QuickAddPersonDialog> {
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.personsCreate)) {
+      await ref.read(auditServiceProvider).log(
+            action: 'access_denied',
+            category: 'persons',
+            entityType: 'person',
+            description: 'محاولة إضافة شخص/جهة دون صلاحية',
+            severity: 'warning',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('لا تملك صلاحية إضافة الأشخاص والجهات'), backgroundColor: AppColors.error),
+        );
+      }
+      return;
+    }
+
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('الاسم إلزامي'), backgroundColor: AppColors.error));
       return;
     }
 
-    final now = DateTime.now();
-    ref.read(personsDirectoryProvider.notifier).addPerson(
-          PersonDirectoryRecord(
-            id: 'person_${now.microsecondsSinceEpoch}',
-            kind: _kind,
-            fullName: name,
-            phone: _phoneController.text.trim(),
-            city: _cityController.text.trim(),
-            roles: [_role],
-            createdAt: now,
-            updatedAt: now,
-            timeline: [
-              DirectoryTimelineEvent(
-                id: 'created_${now.microsecondsSinceEpoch}',
-                title: 'إضافة سجل',
-                description: 'تمت إضافة السجل من شاشة الأشخاص والجهات.',
-                type: 'created',
-                date: now,
-              ),
-            ],
-          ),
-        );
-    Navigator.of(context).pop();
+    try {
+      final role = _mapUiRoleToDb(_role);
+      final personId = await ref.read(personRepositoryProvider).createPerson(
+            person: db.PersonsCompanion.insert(
+              fullName: name,
+              type: Value(_kind == PersonDirectoryKind.legal ? PersonType.legal.index : PersonType.natural.index),
+              phone1: Value(_phoneController.text.trim().isEmpty ? null : _phoneController.text.trim()),
+              whatsapp: Value(_phoneController.text.trim().isEmpty ? null : _phoneController.text.trim()),
+              city: Value(_cityController.text.trim().isEmpty ? null : _cityController.text.trim()),
+            ),
+            initialRoles: role == null ? null : [role],
+          );
+      await ref.read(auditServiceProvider).log(
+            action: 'create',
+            category: 'persons',
+            entityType: 'person',
+            entityId: '$personId',
+            entityTitle: name,
+            description: 'إضافة سجل شخص/جهة',
+            after: {
+              'name': name,
+              'kind': _kind.displayName,
+              'role': _role.displayName,
+              'phone': _phoneController.text.trim(),
+              'city': _cityController.text.trim(),
+            },
+            severity: 'info',
+          );
+      ref.invalidate(allPersonsProvider(null));
+      ref.invalidate(uiPersonsDirectoryProvider);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل حفظ السجل: $e'), backgroundColor: AppColors.error));
+      }
+    }
+  }
+
+  PersonRoleType? _mapUiRoleToDb(PersonDirectoryRole role) {
+    switch (role) {
+      case PersonDirectoryRole.client:
+        return PersonRoleType.client;
+      case PersonDirectoryRole.opponent:
+        return PersonRoleType.opponent;
+      case PersonDirectoryRole.teamMember:
+        return PersonRoleType.teamMember;
+      case PersonDirectoryRole.contractParty:
+        return PersonRoleType.contractParty;
+      case PersonDirectoryRole.legalEntity:
+        return PersonRoleType.client;
+      case PersonDirectoryRole.opponentLawyer:
+      case PersonDirectoryRole.notary:
+      case PersonDirectoryRole.barDelegate:
+        return null;
+    }
   }
 }
