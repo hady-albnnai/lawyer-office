@@ -8,8 +8,10 @@ import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/permission_catalog.dart';
 import '../../../data/database/database.dart' as db;
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -1268,11 +1270,13 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
           title: 'المراحل القضائية',
           subtitle: 'تتبع تسلسل الدعوى من البداية حتى مراحل الطعن والتنفيذ.',
           icon: Icons.account_tree,
-          action: ElevatedButton.icon(
-            onPressed: () => _showAddPhaseDialog(context, state),
-            icon: const Icon(Icons.add),
-            label: const Text('نقل للمرحلة التالية'),
-          ),
+          action: ref.watch(permissionServiceProvider).can(PermissionKeys.casesEdit)
+              ? ElevatedButton.icon(
+                  onPressed: () => _showAddPhaseDialog(context, state),
+                  icon: const Icon(Icons.add),
+                  label: const Text('نقل للمرحلة التالية'),
+                )
+              : null,
         ),
         Expanded(
           child: state.phases.isEmpty
@@ -1307,11 +1311,13 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
           title: 'الجلسات والإجراءات',
           subtitle: 'سجل جلسات المحكمة والإجراءات الخارجية مع النتائج والملاحظات.',
           icon: Icons.event_note,
-          action: ElevatedButton.icon(
-            onPressed: () => _showAddSessionDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('إضافة جلسة جديدة'),
-          ),
+          action: ref.watch(permissionServiceProvider).can(PermissionKeys.casesSessionsManage)
+              ? ElevatedButton.icon(
+                  onPressed: () => _showAddSessionDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('إضافة جلسة جديدة'),
+                )
+              : null,
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -1371,16 +1377,18 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
           action: Wrap(
             spacing: 8,
             children: [
-              OutlinedButton.icon(
-                onPressed: () => _linkGlobalDocument(state),
-                icon: const Icon(Icons.link),
-                label: const Text('ربط عالمي'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () => _pickAndAddDocument(state),
-                icon: const Icon(Icons.upload_file),
-                label: const Text('رفع مستند'),
-              ),
+              if (ref.watch(permissionServiceProvider).can(PermissionKeys.documentsEdit))
+                OutlinedButton.icon(
+                  onPressed: () => _linkGlobalDocument(state),
+                  icon: const Icon(Icons.link),
+                  label: const Text('ربط عالمي'),
+                ),
+              if (ref.watch(permissionServiceProvider).can(PermissionKeys.documentsUpload))
+                ElevatedButton.icon(
+                  onPressed: () => _pickAndAddDocument(state),
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('رفع مستند'),
+                ),
             ],
           ),
         ),
@@ -1624,7 +1632,7 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _terminateCase(state),
+                  onPressed: ref.watch(permissionServiceProvider).can(PermissionKeys.casesClose) ? () => _terminateCase(state) : null,
                   icon: const Icon(Icons.lock),
                   label: const Text('اعتماد الإنهاء وإغلاق الدعوى'),
                   style: ElevatedButton.styleFrom(
@@ -2412,7 +2420,19 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
               actions: [
                 TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('إلغاء')),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    final permissions = ref.read(permissionServiceProvider);
+                    if (!permissions.can(PermissionKeys.casesSessionsManage)) {
+                      await ref.read(auditServiceProvider).log(
+                        action: 'access_denied',
+                        category: 'cases',
+                        entityType: 'case_session',
+                        entityId: '${widget.caseId}',
+                        description: 'محاولة إضافة جلسة دون صلاحية',
+                        severity: 'warning',
+                      );
+                      return;
+                    }
                     ref.read(caseDetailProvider(widget.caseId).notifier).addSession(
                           sessionDate: selectedDate,
                           sessionTime: selectedTime,
@@ -2420,6 +2440,20 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
                           decision: decisionController.text.trim(),
                           notes: notesController.text.trim(),
                         );
+                    await ref.read(auditServiceProvider).log(
+                      action: 'create',
+                      category: 'cases',
+                      entityType: 'case_session',
+                      entityId: '${widget.caseId}',
+                      entityTitle: 'جلسة دعوى ${widget.caseId}',
+                      description: 'إضافة جلسة جديدة',
+                      after: {
+                        'date': selectedDate.toIso8601String(),
+                        'type': selectedType.displayName,
+                        'decision': decisionController.text.trim(),
+                      },
+                      severity: 'info',
+                    );
                     Navigator.of(dialogContext).pop();
                     _showSnack('تمت إضافة الجلسة بنجاح.');
                   },
@@ -2663,7 +2697,21 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
     );
   }
 
-  void _terminateCase(CaseDetailState state) {
+  Future<void> _terminateCase(CaseDetailState state) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.casesClose)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'cases',
+        entityType: 'case',
+        entityId: '${widget.caseId}',
+        entityTitle: state.caseItem.title,
+        description: 'محاولة إنهاء دعوى دون صلاحية',
+        severity: 'warning',
+      );
+      _showSnack('لا تملك صلاحية إنهاء الدعوى.', isError: true);
+      return;
+    }
     if (!_terminationConfirmed) {
       _showSnack('يجب تأكيد مراجعة الملف قبل الإنهاء.', isError: true);
       return;
@@ -2680,6 +2728,20 @@ class _CaseDetailScreenState extends ConsumerState<CaseDetailScreen>
           summary: summary,
           closedAt: DateTime.now(),
         );
+    await ref.read(auditServiceProvider).log(
+      action: 'close',
+      category: 'cases',
+      entityType: 'case',
+      entityId: '${widget.caseId}',
+      entityTitle: state.caseItem.title,
+      description: 'إنهاء الدعوى',
+      after: {
+        'result': _selectedClosureResult.displayName,
+        'decisionNumber': _terminationNumberController.text.trim(),
+        'summary': summary,
+      },
+      severity: 'critical',
+    );
     setState(() => _terminationConfirmed = false);
     _showSnack('تم إنهاء الدعوى وإضافة الحدث إلى الخط الزمني.');
   }

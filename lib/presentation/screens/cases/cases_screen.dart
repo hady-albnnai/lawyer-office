@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/permission_catalog.dart';
+import '../../providers/auth_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../documents/document_models.dart';
@@ -16,6 +18,8 @@ class CasesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final permissions = ref.watch(permissionServiceProvider);
+    final canCreate = permissions.can(PermissionKeys.casesCreateNew);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -35,11 +39,12 @@ class CasesScreen extends ConsumerWidget {
               ),
               tooltip: 'فلترة',
             ),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => context.go('/cases/create'),
-              tooltip: 'دعوى جديدة',
-            ),
+            if (canCreate)
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => context.go('/cases/create'),
+                tooltip: 'دعوى جديدة',
+              ),
           ],
         ),
         body: Column(
@@ -48,11 +53,13 @@ class CasesScreen extends ConsumerWidget {
             Expanded(child: _buildCaseList(context, ref)),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => context.go('/cases/create'),
-          tooltip: 'دعوى جديدة',
-          child: const Icon(Icons.add),
-        ),
+        floatingActionButton: canCreate
+            ? FloatingActionButton(
+                onPressed: () => context.go('/cases/create'),
+                tooltip: 'دعوى جديدة',
+                child: const Icon(Icons.add),
+              )
+            : null,
       ),
     );
   }

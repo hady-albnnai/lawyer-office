@@ -10,11 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' show Value;
 
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/enums/app_enums.dart';
 
 import '../../../data/database/database.dart' as db;
 import '../../../data/repositories/case_repository.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -1374,6 +1376,22 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   // ===========================================================================
   
   Future<void> _submitCase() async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.casesCreateNew)) {
+      await ref.read(auditServiceProvider).log(
+            action: 'access_denied',
+            category: 'cases',
+            entityType: 'case',
+            description: 'محاولة إنشاء دعوى دون صلاحية',
+            severity: 'warning',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: const Text('لا تملك صلاحية إنشاء دعوى'), backgroundColor: AppColors.error),
+        );
+      }
+      return;
+    }
     if (!_validateCurrentStep()) {
       return;
     }
@@ -1404,7 +1422,22 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
         clientId: _selectedClientId!,
         opponentId: _selectedOpponentId,
         poaId: _selectedPoaId,
-        userRef: 'المستخدم',
+        userRef: ref.read(authControllerProvider).user?.fullName ?? 'المستخدم',
+      );
+      await ref.read(auditServiceProvider).log(
+        action: 'create',
+        category: 'cases',
+        entityType: 'case',
+        entityId: '$caseId',
+        entityTitle: _titleController.text.trim(),
+        description: 'إنشاء دعوى جديدة',
+        after: {
+          'title': _titleController.text.trim(),
+          'caseType': _caseType.displayName,
+          'clientId': _selectedClientId,
+          'opponentId': _selectedOpponentId,
+        },
+        severity: 'info',
       );
       
       setState(() => _isSaving = false);
