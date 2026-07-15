@@ -102,6 +102,9 @@ class AppDatabase extends _$AppDatabase {
   /// يستخدم عند تسليم التطبيق لمكتب حقيقي يريد البدء من قاعدة نظيفة.
   Future<void> clearOperationalData() async {
     await transaction(() async {
+      // حذف أوامر العمل عبر Drift أيضاً لضمان إشعار الشاشات المرتبطة بالـ Stream.
+      await delete(workOrders).go();
+
       final tables = <String>[
         'document_links',
         'documents',
