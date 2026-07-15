@@ -1,8 +1,13 @@
 /// شاشة الإعدادات والأمان والنسخ - المرحلة 10.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
@@ -807,6 +812,7 @@ class _UsersRolesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(authRepositoryProvider);
     final current = ref.watch(authControllerProvider).user;
+    final permissions = ref.watch(permissionServiceProvider);
     return FutureBuilder<List<Object>>(
       future: Future.wait<Object>([repo.getUsers(), repo.getRoles()]),
       builder: (context, snapshot) {
@@ -821,9 +827,11 @@ class _UsersRolesTab extends ConsumerWidget {
               Row(
                 children: [
                   Expanded(child: Text('المستخدمون والصلاحيات', style: AppTextStyles.headline5.copyWith(color: AppColors.primaryNavy))),
-                  ElevatedButton.icon(onPressed: () => _showRoleDialog(context, ref), icon: const Icon(Icons.security), label: const Text('دور جديد')),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(onPressed: () => _showUserDialog(context, ref, roles), icon: const Icon(Icons.person_add), label: const Text('مستخدم جديد')),
+                  if (permissions.can(PermissionKeys.settingsUsersManage)) ...[
+                    ElevatedButton.icon(onPressed: () => _showRoleDialog(context, ref), icon: const Icon(Icons.security), label: const Text('دور جديد')),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(onPressed: () => _showUserDialog(context, ref, roles), icon: const Icon(Icons.person_add), label: const Text('مستخدم جديد')),
+                  ],
                 ],
               ),
               const SizedBox(height: 16),
@@ -839,18 +847,20 @@ class _UsersRolesTab extends ConsumerWidget {
                             spacing: 6,
                             children: [
                               if (u.isOwner) const Chip(label: Text('Owner')),
-                              IconButton(
-                                tooltip: 'تعديل المستخدم',
-                                icon: const Icon(Icons.edit),
-                                onPressed: () => _showUserDialog(context, ref, roles, user: u),
-                              ),
-                              IconButton(
-                                tooltip: 'تغيير كلمة المرور',
-                                icon: const Icon(Icons.password),
-                                onPressed: () => _showPasswordDialog(context, ref, user: u),
-                              ),
-                              if (!u.isOwner)
-                                Switch(value: u.isActive, onChanged: (v) async { await repo.setUserActive(u.id, v, actor: current); }),
+                              if (permissions.can(PermissionKeys.settingsUsersManage)) ...[
+                                IconButton(
+                                  tooltip: 'تعديل المستخدم',
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () => _showUserDialog(context, ref, roles, user: u),
+                                ),
+                                IconButton(
+                                  tooltip: 'تغيير كلمة المرور',
+                                  icon: const Icon(Icons.password),
+                                  onPressed: () => _showPasswordDialog(context, ref, user: u),
+                                ),
+                                if (!u.isOwner)
+                                  Switch(value: u.isActive, onChanged: (v) async { await repo.setUserActive(u.id, v, actor: current); }),
+                              ],
                             ],
                           ),
                         )),
@@ -866,18 +876,20 @@ class _UsersRolesTab extends ConsumerWidget {
                           leading: Icon(r.isSystemRole ? Icons.admin_panel_settings : Icons.badge, color: AppConstants.accentGold),
                           title: Text(r.name),
                           subtitle: Text('مستخدمون: ${r.userCount} • صلاحيات: ${r.permissionCount}${r.description.isNotEmpty ? ' • ${r.description}' : ''}'),
-                          trailing: Wrap(
-                            spacing: 6,
-                            children: [
-                              TextButton.icon(onPressed: () => _showRoleDialog(context, ref, role: r), icon: const Icon(Icons.edit), label: const Text('تعديل')),
-                              TextButton.icon(onPressed: () => _showCopyRoleDialog(context, ref, role: r), icon: const Icon(Icons.copy), label: const Text('نسخ')),
-                              if (!r.isSystemRole)
-                                Switch(value: r.isActive, onChanged: (v) async {
-                                  try { await ref.read(authRepositoryProvider).setRoleActive(r.id, v, actor: ref.read(authControllerProvider).user); }
-                                  catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: AppColors.error)); }
-                                }),
-                            ],
-                          ),
+                          trailing: permissions.can(PermissionKeys.settingsUsersManage)
+                              ? Wrap(
+                                  spacing: 6,
+                                  children: [
+                                    TextButton.icon(onPressed: () => _showRoleDialog(context, ref, role: r), icon: const Icon(Icons.edit), label: const Text('تعديل')),
+                                    TextButton.icon(onPressed: () => _showCopyRoleDialog(context, ref, role: r), icon: const Icon(Icons.copy), label: const Text('نسخ')),
+                                    if (!r.isSystemRole)
+                                      Switch(value: r.isActive, onChanged: (v) async {
+                                        try { await ref.read(authRepositoryProvider).setRoleActive(r.id, v, actor: ref.read(authControllerProvider).user); }
+                                        catch (e) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: AppColors.error)); }
+                                      }),
+                                  ],
+                                )
+                              : null,
                         )),
                   ],
                 ),
@@ -890,6 +902,7 @@ class _UsersRolesTab extends ConsumerWidget {
   }
 
   void _showUserDialog(BuildContext context, WidgetRef ref, List roles, {dynamic user}) {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.settingsUsersManage)) return;
     final name = TextEditingController(text: user?.fullName ?? '');
     final username = TextEditingController(text: user?.username ?? '');
     final phone = TextEditingController();
@@ -930,6 +943,7 @@ class _UsersRolesTab extends ConsumerWidget {
   }
 
   void _showPasswordDialog(BuildContext context, WidgetRef ref, {required dynamic user}) {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.settingsUsersManage)) return;
     final password = TextEditingController();
     final confirm = TextEditingController();
     showDialog<void>(context: context, builder: (ctx) => AlertDialog(
@@ -951,6 +965,7 @@ class _UsersRolesTab extends ConsumerWidget {
   }
 
   void _showCopyRoleDialog(BuildContext context, WidgetRef ref, {required dynamic role}) {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.settingsUsersManage)) return;
     final name = TextEditingController(text: '${role.name} - نسخة');
     showDialog<void>(context: context, builder: (ctx) => AlertDialog(
       title: const Text('نسخ دور'),
@@ -967,6 +982,7 @@ class _UsersRolesTab extends ConsumerWidget {
   }
 
   void _showRoleDialog(BuildContext context, WidgetRef ref, {dynamic role}) {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.settingsUsersManage)) return;
     final name = TextEditingController(text: role?.name ?? '');
     final description = TextEditingController(text: role?.description ?? '');
     final selected = <String>{};
@@ -1083,7 +1099,20 @@ class _AuditTabState extends ConsumerState<_AuditTab> {
           length: 2,
           child: Column(
             children: [
-              const TabBar(tabs: [Tab(text: 'سجل المسؤولية'), Tab(text: 'جلسات الدخول')]),
+              Row(
+                children: [
+                  const Expanded(child: TabBar(tabs: [Tab(text: 'سجل المسؤولية'), Tab(text: 'جلسات الدخول')])),
+                  if (ref.watch(permissionServiceProvider).can(PermissionKeys.auditExport))
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 12),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.download),
+                        label: const Text('تصدير CSV'),
+                        onPressed: () => _exportAudit(events),
+                      ),
+                    ),
+                ],
+              ),
               Expanded(child: TabBarView(children: [
                 Column(
                   children: [
@@ -1161,6 +1190,52 @@ class _AuditTabState extends ConsumerState<_AuditTab> {
     );
   }
 
+  Future<void> _exportAudit(List events) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.auditExport)) return;
+    final buffer = StringBuffer('time,user,role,action,category,entity,description,severity\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final dynamic e in events) {
+      buffer.writeln([
+        esc(e.createdAt),
+        esc(e.fullName),
+        esc(e.roleName),
+        esc(e.action),
+        esc(e.category),
+        esc(e.entityTitle),
+        esc(e.description),
+        esc(e.severity),
+      ].join(','));
+    }
+    final dir = await getApplicationDocumentsDirectory();
+    final exportDir = Directory(path.join(dir.path, AppConstants.appDataDirectoryName, 'audit_exports'));
+    if (!await exportDir.exists()) await exportDir.create(recursive: true);
+    final file = File(path.join(exportDir.path, 'audit_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await file.writeAsString(buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'audit', entityType: 'audit_events', entityTitle: file.path, description: 'تصدير سجل المسؤولية CSV', severity: 'critical');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير سجل المسؤولية: ${file.path}'), backgroundColor: AppColors.success));
+    }
+  }
+
+  Widget _jsonDetails(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: decoded.entries
+              .map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: SelectableText('${e.key}: ${e.value}'),
+                  ))
+              .toList(),
+        );
+      }
+    } catch (_) {}
+    return SelectableText(raw);
+  }
+
   void _showAuditDetails(BuildContext context, dynamic e) {
     showDialog<void>(
       context: context,
@@ -1184,12 +1259,12 @@ class _AuditTabState extends ConsumerState<_AuditTab> {
                 if (e.beforeJson != null) ...[
                   const SizedBox(height: 12),
                   Text('قبل التعديل', style: AppTextStyles.labelLarge),
-                  SelectableText(e.beforeJson!),
+                  _jsonDetails(e.beforeJson!),
                 ],
                 if (e.afterJson != null) ...[
                   const SizedBox(height: 12),
                   Text('بعد التعديل', style: AppTextStyles.labelLarge),
-                  SelectableText(e.afterJson!),
+                  _jsonDetails(e.afterJson!),
                 ],
               ],
             ),
