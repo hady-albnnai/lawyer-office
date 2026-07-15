@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/office_settings_provider.dart';
 
 /// شاشة الطباعة القانونية الرسمية وتصدير تقارير PDF بالترويسة السورية (LegalPrintingScreen V6.2)
@@ -22,6 +24,7 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(officeSettingsProvider);
+    final canPrint = ref.watch(permissionServiceProvider).can(PermissionKeys.reportsExport);
 
     return Scaffold(
       appBar: AppBar(title: const Text('الطباعة القانونية الرسمية وتصدير تقارير PDF')),
@@ -52,8 +55,8 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
             child: settingsAsync.when(
               data: (settings) => PdfPreview(
                 build: (format) => _generatePdfReport(format, settings),
-                allowPrinting: true,
-                allowSharing: true,
+                allowPrinting: canPrint,
+                allowSharing: canPrint,
                 canChangeOrientation: false,
                 canChangePageFormat: false,
                 pdfFileName: 'SyrLawOffice_Report_${DateTime.now().millisecondsSinceEpoch}.pdf',
@@ -84,6 +87,13 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
 
   /// توليد مستند الـ PDF القانوني السوري الرسمي
   Future<Uint8List> _generatePdfReport(PdfPageFormat format, OfficeSettingsModel settings) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.reportsView)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'reports', entityType: 'legal_printing', description: 'محاولة توليد تقرير طباعة دون صلاحية', severity: 'warning');
+      final denied = pw.Document();
+      denied.addPage(pw.Page(build: (_) => pw.Center(child: pw.Text('لا تملك صلاحية عرض التقارير'))));
+      return denied.save();
+    }
+    await ref.read(auditServiceProvider).log(action: 'preview', category: 'reports', entityType: 'legal_printing', entityTitle: _getReportTitle(), description: 'معاينة تقرير الطباعة القانونية', severity: 'info');
     final pdf = pw.Document();
 
     // جلب الخطوط العربية الرسمية المعتمدة

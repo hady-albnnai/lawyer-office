@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/permission_catalog.dart';
+import '../../providers/auth_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../documents/document_models.dart' as doc_models;
@@ -83,6 +85,16 @@ class FilesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final canCreate = ref.watch(permissionServiceProvider).canAny(const [
+      PermissionKeys.casesCreateNew,
+      PermissionKeys.contractsCreate,
+      PermissionKeys.companiesCreate,
+      PermissionKeys.proceduresCreate,
+      PermissionKeys.workOrdersCreate,
+      PermissionKeys.personsCreate,
+      PermissionKeys.poaCreate,
+      PermissionKeys.documentsUpload,
+    ]);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: DefaultTabController(
@@ -123,7 +135,8 @@ class FilesScreen extends ConsumerWidget {
                 onPressed: () => showDialog<void>(context: context, builder: (context) => const FilesFilterDialog()),
                 tooltip: 'فلترة',
               ),
-              IconButton(icon: const Icon(Icons.add), onPressed: () => context.go('/new-work'), tooltip: 'جديد'),
+              if (canCreate)
+                IconButton(icon: const Icon(Icons.add), onPressed: () => context.go('/new-work'), tooltip: 'جديد'),
             ],
           ),
           body: const TabBarView(
@@ -138,11 +151,13 @@ class FilesScreen extends ConsumerWidget {
               WaitingDocFilesTab(),
             ],
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => context.go('/new-work'),
-            tooltip: 'عمل جديد',
-            child: const Icon(Icons.add),
-          ),
+          floatingActionButton: canCreate
+              ? FloatingActionButton(
+                  onPressed: () => context.go('/new-work'),
+                  tooltip: 'عمل جديد',
+                  child: const Icon(Icons.add),
+                )
+              : null,
         ),
       ),
     );
@@ -356,14 +371,15 @@ class FileCard extends StatelessWidget {
   }
 }
 
-class FileDocsDialog extends StatelessWidget {
+class FileDocsDialog extends ConsumerWidget {
   final FileItem file;
 
   const FileDocsDialog({super.key, required this.file});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final docs = _getDocs(file);
+    final canOpenDocs = ref.watch(permissionServiceProvider).can(PermissionKeys.documentsOpen);
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
@@ -400,10 +416,10 @@ class FileDocsDialog extends StatelessWidget {
                   subtitle: Text('${docs[index].fileType.displayName} - ${docs[index].formattedSize}', style: AppTextStyles.bodySmallSecondary),
                   trailing: IconButton(
                     icon: const Icon(Icons.open_in_new, size: 18),
-                    onPressed: () => openDocument(context, docs[index].id),
+                    onPressed: canOpenDocs ? () => openDocument(context, docs[index].id) : null,
                     tooltip: 'فتح',
                   ),
-                  onTap: () => openDocument(context, docs[index].id),
+                  onTap: canOpenDocs ? () => openDocument(context, docs[index].id) : null,
                 ),
               ),
             ),
