@@ -91,6 +91,9 @@ class PermissionKeys {
   static const workOrdersSend = 'work_orders.send';
   static const workOrdersResultEnter = 'work_orders.result.enter';
   static const workOrdersApprove = 'work_orders.approve';
+  static const workOrdersAttachmentsUpload = 'work_orders.attachments.upload';
+  static const workOrdersAttachmentsView = 'work_orders.attachments.view';
+  static const workOrdersAttachmentsDelete = 'work_orders.attachments.delete';
 
   static const reportsView = 'reports.view';
   static const reportsExport = 'reports.export';
@@ -191,6 +194,9 @@ class PermissionCatalog {
     PermissionDefinition(key: PermissionKeys.workOrdersSend, label: 'إرسال أمر عمل', group: 'work_orders', description: 'إرسال واتساب'),
     PermissionDefinition(key: PermissionKeys.workOrdersResultEnter, label: 'إدخال نتيجة أمر', group: 'work_orders', description: 'تسجيل نتيجة أمر عمل'),
     PermissionDefinition(key: PermissionKeys.workOrdersApprove, label: 'اعتماد أمر عمل', group: 'work_orders', description: 'اعتماد نتيجة أمر عمل', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.workOrdersAttachmentsUpload, label: 'رفع مرفقات أمر عمل', group: 'work_orders', description: 'إرفاق ملفات وصور نتيجة أمر العمل'),
+    PermissionDefinition(key: PermissionKeys.workOrdersAttachmentsView, label: 'عرض مرفقات أمر عمل', group: 'work_orders', description: 'عرض مرفقات أوامر العمل'),
+    PermissionDefinition(key: PermissionKeys.workOrdersAttachmentsDelete, label: 'حذف مرفقات أمر عمل', group: 'work_orders', description: 'حذف مرفقات أوامر العمل', sensitive: true),
 
     PermissionDefinition(key: PermissionKeys.reportsView, label: 'عرض التقارير', group: 'reports', description: 'عرض التقارير'),
     PermissionDefinition(key: PermissionKeys.reportsExport, label: 'تصدير التقارير', group: 'reports', description: 'تصدير PDF/Excel'),

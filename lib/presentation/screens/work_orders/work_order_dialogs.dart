@@ -1,15 +1,18 @@
+import 'dart:io';
 import 'dart:typed_data';
 /// حوارات أوامر العمل — تنفيذ حقيقي على SQLite + PDF + واتساب.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart' as fp;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/auth/permission_catalog.dart';
+import '../../../core/enums/app_enums.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
@@ -57,6 +60,48 @@ String workOrderPriorityToDb(WorkOrderPriority p) {
   }
 }
 
+enum WorkOrderLinkTarget {
+  none,
+  caseFile,
+  procedure,
+  company,
+  contract,
+  person;
+
+  String get label => const [
+        'بدون ارتباط / أمر عام',
+        'دعوى',
+        'إجراء إداري',
+        'شركة',
+        'عقد',
+        'موكل / جهة',
+      ][index];
+
+  int get entityType {
+    switch (this) {
+      case WorkOrderLinkTarget.none:
+      case WorkOrderLinkTarget.caseFile:
+        return EntityType.caseEntity.index;
+      case WorkOrderLinkTarget.procedure:
+        return EntityType.adminProcedure.index;
+      case WorkOrderLinkTarget.company:
+        return EntityType.company.index;
+      case WorkOrderLinkTarget.contract:
+        return EntityType.contract.index;
+      case WorkOrderLinkTarget.person:
+        return EntityType.person.index;
+    }
+  }
+}
+
+const int workOrderDocumentEntityType = 99;
+
+String _fileExtension(String path) {
+  final name = path.split(Platform.pathSeparator).last;
+  final dot = name.lastIndexOf('.');
+  return dot == -1 ? 'file' : name.substring(dot + 1).toLowerCase();
+}
+
 class CreateWorkOrderDialog extends ConsumerStatefulWidget {
   const CreateWorkOrderDialog({super.key});
 
@@ -68,7 +113,10 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _instructions = TextEditingController();
-  final _entityId = TextEditingController(text: '1');
+  final _linkSearch = TextEditingController();
+  WorkOrderLinkTarget _linkTarget = WorkOrderLinkTarget.none;
+  int _linkedEntityId = 0;
+  String _linkedEntityTitle = 'أمر عام';
   WorkOrderType _type = WorkOrderType.courtAttendance;
   WorkOrderPriority _priority = WorkOrderPriority.medium;
   DateTime _due = DateTime.now().add(const Duration(days: 1));
@@ -79,7 +127,7 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
     // name.dispose();
     // phone.dispose();
     // instructions.dispose();
-    // entityId.dispose();
+    // linkSearch.dispose();
     // super.dispose();
   }
 
@@ -115,11 +163,33 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
                 onChanged: (v) => setState(() => _priority = v ?? _priority),
               ),
               const SizedBox(height: 10),
-              TextField(
-                controller: _entityId,
-                decoration: const InputDecoration(labelText: 'معرف الملف المرتبط (دعوى/إجراء)'),
-                keyboardType: TextInputType.number,
+              DropdownButtonFormField<WorkOrderLinkTarget>(
+                value: _linkTarget,
+                decoration: const InputDecoration(labelText: 'يرتبط هذا الأمر بـ'),
+                items: WorkOrderLinkTarget.values
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.label)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  _linkTarget = v ?? WorkOrderLinkTarget.none;
+                  _linkedEntityId = 0;
+                  _linkedEntityTitle = _linkTarget == WorkOrderLinkTarget.none ? 'أمر عام' : '';
+                  _linkSearch.clear();
+                }),
               ),
+              if (_linkTarget != WorkOrderLinkTarget.none) ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _linkSearch,
+                  decoration: InputDecoration(
+                    labelText: _linkSearchLabel,
+                    hintText: _linkSearchHint,
+                    prefixIcon: const Icon(Icons.search),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 8),
+                _buildLinkResults(),
+              ],
               const SizedBox(height: 10),
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -155,6 +225,130 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
     );
   }
 
+  String get _linkSearchLabel {
+    switch (_linkTarget) {
+      case WorkOrderLinkTarget.caseFile:
+        return 'اختر الدعوى';
+      case WorkOrderLinkTarget.procedure:
+        return 'اختر المعاملة / الإجراء';
+      case WorkOrderLinkTarget.company:
+        return 'اختر الشركة';
+      case WorkOrderLinkTarget.contract:
+        return 'اختر العقد';
+      case WorkOrderLinkTarget.person:
+        return 'اختر الموكل أو الجهة';
+      case WorkOrderLinkTarget.none:
+        return '';
+    }
+  }
+
+  String get _linkSearchHint {
+    switch (_linkTarget) {
+      case WorkOrderLinkTarget.caseFile:
+        return 'اسم الموكل أو رقم الدعوى أو موضوعها';
+      case WorkOrderLinkTarget.procedure:
+        return 'اسم الموكل أو عنوان المعاملة أو رقمها';
+      case WorkOrderLinkTarget.company:
+        return 'اسم الشركة أو رقم الملف';
+      case WorkOrderLinkTarget.contract:
+        return 'عنوان العقد أو أحد الأطراف';
+      case WorkOrderLinkTarget.person:
+        return 'الاسم أو الهاتف أو رقم الهوية';
+      case WorkOrderLinkTarget.none:
+        return '';
+    }
+  }
+
+  Widget _buildLinkResults() {
+    final query = _linkSearch.text.trim().toLowerCase();
+    switch (_linkTarget) {
+      case WorkOrderLinkTarget.caseFile:
+        final asyncItems = ref.watch(allCasesProvider);
+        return asyncItems.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('تعذر تحميل الدعاوى: $e', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+          data: (items) => _buildChoices(items
+              .where((c) => query.isEmpty || c.internalNumber.toLowerCase().contains(query) || (c.subject ?? '').toLowerCase().contains(query) || (c.baseNumber ?? '').toLowerCase().contains(query))
+              .take(8)
+              .map((c) => (id: c.id, title: '${c.internalNumber} — ${c.subject ?? 'دعوى'}'))
+              .toList()),
+        );
+      case WorkOrderLinkTarget.procedure:
+        final asyncItems = ref.watch(allProceduresProvider);
+        return asyncItems.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('تعذر تحميل الإجراءات: $e', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+          data: (items) => _buildChoices(items
+              .where((p) => query.isEmpty || p.title.toLowerCase().contains(query) || (p.transactionNumber ?? '').toLowerCase().contains(query))
+              .take(8)
+              .map((p) => (id: p.id, title: '${p.title} — ${p.transactionNumber ?? p.procedureType}'))
+              .toList()),
+        );
+      case WorkOrderLinkTarget.company:
+        final asyncItems = ref.watch(allCompaniesProvider);
+        return asyncItems.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('تعذر تحميل الشركات: $e', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+          data: (items) => _buildChoices(items
+              .where((c) => query.isEmpty || c.name.toLowerCase().contains(query) || c.internalNumber.toLowerCase().contains(query))
+              .take(8)
+              .map((c) => (id: c.id, title: '${c.name} — ${c.internalNumber}'))
+              .toList()),
+        );
+      case WorkOrderLinkTarget.contract:
+        final asyncItems = ref.watch(allContractsProvider);
+        return asyncItems.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('تعذر تحميل العقود: $e', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+          data: (items) => _buildChoices(items
+              .where((c) => query.isEmpty || c.title.toLowerCase().contains(query) || c.internalNumber.toLowerCase().contains(query))
+              .take(8)
+              .map((c) => (id: c.id, title: '${c.title} — ${c.internalNumber}'))
+              .toList()),
+        );
+      case WorkOrderLinkTarget.person:
+        final asyncItems = ref.watch(allPersonsProvider(null));
+        return asyncItems.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('تعذر تحميل الأشخاص: $e', style: AppTextStyles.bodySmall.copyWith(color: AppColors.error)),
+          data: (items) => _buildChoices(items
+              .where((p) => query.isEmpty || p.fullName.toLowerCase().contains(query) || (p.phone1 ?? '').toLowerCase().contains(query) || (p.nationalId ?? '').toLowerCase().contains(query))
+              .take(8)
+              .map((p) => (id: p.id, title: p.fullName))
+              .toList()),
+        );
+      case WorkOrderLinkTarget.none:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildChoices(List<({int id, String title})> choices) {
+    if (choices.isEmpty) {
+      return Text('لا توجد نتائج مطابقة', style: AppTextStyles.bodySmallSecondary);
+    }
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 180),
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: choices.length,
+        itemBuilder: (_, i) {
+          final item = choices[i];
+          final selected = item.id == _linkedEntityId;
+          return ListTile(
+            dense: true,
+            selected: selected,
+            leading: Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked, color: selected ? AppColors.success : AppColors.textSecondary),
+            title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            onTap: () => setState(() {
+              _linkedEntityId = item.id;
+              _linkedEntityTitle = item.title;
+            }),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _save() async {
     final permissions = ref.read(permissionServiceProvider);
     if (!permissions.can(PermissionKeys.workOrdersCreate)) {
@@ -170,6 +364,12 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
           SnackBar(content: const Text('لا تملك صلاحية إنشاء أمر عمل'), backgroundColor: AppColors.error),
         );
       }
+      return;
+    }
+    if (_linkTarget != WorkOrderLinkTarget.none && _linkedEntityId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('اختر الملف المرتبط بأمر العمل أو اختر بدون ارتباط'), backgroundColor: AppColors.error),
+      );
       return;
     }
     if (_name.text.trim().isEmpty) {
@@ -191,16 +391,16 @@ class _CreateWorkOrderDialogState extends ConsumerState<CreateWorkOrderDialog> {
         dueDate: _due,
         instructions: _instructions.text.trim(),
         createdBy: currentUser?.fullName ?? 'المحامي',
-        linkedEntityType: 0,
-        linkedEntityId: int.tryParse(_entityId.text.trim()) ?? 0,
+        linkedEntityType: _linkTarget.entityType,
+        linkedEntityId: _linkTarget == WorkOrderLinkTarget.none ? 0 : _linkedEntityId,
       );
       await ref.read(auditServiceProvider).log(
         action: 'create',
         category: 'work_orders',
         entityType: 'work_order',
         entityId: '$orderId',
-        entityTitle: _name.text.trim(),
-        description: 'إنشاء أمر عمل للمعقب',
+        entityTitle: _linkedEntityTitle,
+        description: 'إنشاء أمر عمل للمعقب مرتبط بـ: $_linkedEntityTitle',
         severity: 'info',
       );
       ref.invalidate(uiWorkOrdersProvider);
@@ -233,6 +433,7 @@ class EnterWorkOrderResultDialog extends ConsumerStatefulWidget {
 class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResultDialog> {
   WorkOrderResultStatus? _status = WorkOrderResultStatus.completed;
   final _result = TextEditingController();
+  final List<File> _attachments = [];
   DateTime? _nextDate;
   bool _saving = false;
 
@@ -247,10 +448,11 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
     return AlertDialog(
       title: Text('نتيجة أمر ${widget.workOrder.internalNumber}'),
       content: SizedBox(
-        width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             DropdownButtonFormField<WorkOrderResultStatus>(
               value: _status,
               decoration: const InputDecoration(labelText: 'نتيجة التنفيذ'),
@@ -275,7 +477,29 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
                 if (picked != null) setState(() => _nextDate = picked);
               },
             ),
-          ],
+            const Divider(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text('مرفقات النتيجة', style: AppTextStyles.labelLarge),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _pickAttachments,
+              icon: const Icon(Icons.attach_file),
+              label: const Text('إضافة ملف أو صورة'),
+            ),
+            if (_attachments.isNotEmpty)
+              ..._attachments.asMap().entries.map((entry) => ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.insert_drive_file),
+                    title: Text(entry.value.path.split(Platform.pathSeparator).last, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => setState(() => _attachments.removeAt(entry.key)),
+                    ),
+                  )),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -283,6 +507,13 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
         ElevatedButton(onPressed: _saving ? null : _save, child: const Text('حفظ النتيجة')),
       ],
     );
+  }
+
+  Future<void> _pickAttachments() async {
+    final result = await fp.FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null) return;
+    final files = result.paths.whereType<String>().map(File.new).toList();
+    if (files.isNotEmpty) setState(() => _attachments.addAll(files));
   }
 
   Future<void> _save() async {
@@ -324,9 +555,43 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
         entityType: 'work_order',
         entityId: widget.workOrder.id,
         entityTitle: widget.workOrder.internalNumber,
-        description: 'إدخال نتيجة أمر عمل',
+        description: 'إدخال نتيجة أمر عمل مع ${_attachments.length} مرفق',
         severity: 'info',
       );
+      if (_attachments.isNotEmpty) {
+        final docRepo = ref.read(documentRepositoryProvider);
+        final db = ref.read(databaseProvider);
+        final userRef = ref.read(authControllerProvider).user?.fullName ?? 'المكتب';
+        for (final file in _attachments) {
+          final fileName = file.path.split(Platform.pathSeparator).last;
+          final isGeneral = widget.workOrder.linkedEntityId == '0';
+          final primaryEntityType = isGeneral ? workOrderDocumentEntityType : _entityTypeFromWorkOrder(widget.workOrder.linkedEntityType);
+          final primaryEntityId = isGeneral ? id : int.tryParse(widget.workOrder.linkedEntityId) ?? 0;
+          final docId = await docRepo.addDocument(
+            docName: 'نتيجة ${widget.workOrder.internalNumber} - $fileName',
+            docType: 'work_order_result',
+            fileType: _fileExtension(file.path),
+            summary: _result.text.trim(),
+            notes: 'مرفق نتيجة أمر عمل ${widget.workOrder.internalNumber}',
+            sourceFile: file,
+            entityType: primaryEntityType,
+            entityId: primaryEntityId,
+            userRef: userRef,
+          );
+          if (!isGeneral) {
+            await db.documentDao.linkDocument(docId, workOrderDocumentEntityType, id, linkType: 'work_order_result');
+          }
+          await ref.read(auditServiceProvider).log(
+            action: 'attachment_upload',
+            category: 'work_orders',
+            entityType: 'work_order',
+            entityId: widget.workOrder.id,
+            entityTitle: widget.workOrder.internalNumber,
+            description: 'رفع مرفق نتيجة أمر عمل: $fileName',
+            severity: 'info',
+          );
+        }
+      }
       ref.invalidate(uiWorkOrdersProvider);
       if (mounted) {
         Navigator.pop(context, true);
@@ -343,6 +608,24 @@ class _EnterWorkOrderResultDialogState extends ConsumerState<EnterWorkOrderResul
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+}
+
+
+int _entityTypeFromWorkOrder(String type) {
+  switch (type) {
+    case 'case':
+      return EntityType.caseEntity.index;
+    case 'procedure':
+      return EntityType.adminProcedure.index;
+    case 'company':
+      return EntityType.company.index;
+    case 'contract':
+      return EntityType.contract.index;
+    case 'person':
+      return EntityType.person.index;
+    default:
+      return workOrderDocumentEntityType;
   }
 }
 

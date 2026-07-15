@@ -362,6 +362,26 @@ ui_wo.WorkOrderStatus _mapWoStatus(String raw) {
   }
 }
 
+
+String _mapWorkOrderEntityType(int raw) {
+  switch (raw) {
+    case 0:
+      return 'case';
+    case 1:
+      return 'procedure';
+    case 2:
+      return 'company';
+    case 3:
+      return 'contract';
+    case 4:
+      return 'person';
+    case 99:
+      return 'work_order';
+    default:
+      return 'general';
+  }
+}
+
 final uiWorkOrdersProvider = StreamProvider<List<ui_wo.WorkOrder>>((ref) async* {
   await ref.watch(coreDataBootstrapProvider.future);
   final repo = ref.watch(workOrderRepositoryProvider);
@@ -371,7 +391,7 @@ final uiWorkOrdersProvider = StreamProvider<List<ui_wo.WorkOrder>>((ref) async* 
         (w) => ui_wo.WorkOrder(
           id: '${w.id}',
           internalNumber: w.internalNumber,
-          linkedEntityType: w.linkedEntityType == 0 ? 'case' : 'procedure',
+          linkedEntityType: _mapWorkOrderEntityType(w.linkedEntityType),
           linkedEntityId: '${w.linkedEntityId}',
           assignedToName: w.assignedToName,
           assignedToPhone: w.assignedToPhone ?? '',

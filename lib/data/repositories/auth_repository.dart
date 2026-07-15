@@ -135,6 +135,7 @@ class AuthRepository {
 
   Future<bool> ownerExists() async {
     await ensureReady();
+    await _ensureOwnerPermissions();
     final rows = await _db.customSelect('SELECT COUNT(*) AS c FROM app_users WHERE is_owner = 1').get();
     return (rows.first.data['c'] as int) > 0;
   }
@@ -426,6 +427,24 @@ class AuthRepository {
       severity,
       AppConstants.appDisplayName,
     ]);
+  }
+
+
+  Future<void> _ensureOwnerPermissions() async {
+    final rows = await _db.customSelect('''
+      SELECT DISTINCT r.id AS role_id
+      FROM app_users u JOIN app_roles r ON r.id = u.role_id
+      WHERE u.is_owner = 1
+    ''').get();
+    for (final row in rows) {
+      final roleId = row.data['role_id'] as int;
+      for (final key in PermissionCatalog.allKeys) {
+        await _db.customStatement(
+          'INSERT OR IGNORE INTO role_permissions(role_id, permission_key) VALUES(?, ?)',
+          [roleId, key],
+        );
+      }
+    }
   }
 
   Future<int> _createRoleInternal({required String name, String description = '', bool isSystemRole = false, required Iterable<String> permissions}) async {

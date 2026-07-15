@@ -25,7 +25,7 @@ class WorkOrdersScreen extends ConsumerWidget {
     final permissions = ref.watch(permissionServiceProvider);
     final canCreate = permissions.can(PermissionKeys.workOrdersCreate);
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('أوامر العمل للمعقب'),
@@ -48,6 +48,7 @@ class WorkOrdersScreen extends ConsumerWidget {
                   Tab(text: 'بانتظار نتيجة'),
                   Tab(text: 'بانتظار اعتماد'),
                   Tab(text: 'معتمدة'),
+                  Tab(text: 'أوامر عامة'),
                 ],
               ),
             ),
@@ -84,6 +85,7 @@ class WorkOrdersScreen extends ConsumerWidget {
             _WoTab(filter: WorkOrderStatus.waitingForResult),
             _WoTab(filter: WorkOrderStatus.waitingForApproval),
             _WoTab(filter: WorkOrderStatus.approved),
+            _WoTab(generalOnly: true),
           ],
         ),
         floatingActionButton: canCreate
@@ -106,7 +108,8 @@ class WorkOrdersScreen extends ConsumerWidget {
 
 class _WoTab extends ConsumerWidget {
   final WorkOrderStatus? filter;
-  const _WoTab({this.filter});
+  final bool generalOnly;
+  const _WoTab({this.filter, this.generalOnly = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -114,10 +117,13 @@ class _WoTab extends ConsumerWidget {
     if (filter != null) {
       list = list.where((w) => w.status == filter).toList();
     }
+    if (generalOnly) {
+      list = list.where((w) => w.linkedEntityId == '0').toList();
+    }
     if (list.isEmpty) {
       return Center(
         child: Text(
-          filter == null ? 'لا توجد أوامر عمل — أنشئ أمرًا جديدًا' : 'لا عناصر في هذا التبويب',
+          generalOnly ? 'لا توجد أوامر عامة' : (filter == null ? 'لا توجد أوامر عمل — أنشئ أمرًا جديدًا' : 'لا عناصر في هذا التبويب'),
           style: AppTextStyles.bodyMedium,
         ),
       );
