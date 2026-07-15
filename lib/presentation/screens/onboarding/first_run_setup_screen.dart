@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/crypto_utils.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../providers/office_settings_provider.dart';
 import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
@@ -33,6 +34,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
   final _lawyer = TextEditingController(text: AppConstants.defaultLawyerName);
   final _address = TextEditingController(text: AppConstants.defaultAddress);
   final _phone = TextEditingController();
+  final _username = TextEditingController(text: 'admin');
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   final _question = TextEditingController(text: 'ما اسم مدينتك؟');
@@ -86,6 +88,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
                         const SizedBox(height: 10),
                         TextField(controller: _phone, decoration: const InputDecoration(labelText: 'الهاتف')),
                         const SizedBox(height: 10),
+                        TextField(controller: _username, decoration: const InputDecoration(labelText: 'اسم دخول المدير *')),
+                        const SizedBox(height: 10),
                         TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة مرور الحماية *')),
                         const SizedBox(height: 10),
                         TextField(controller: _confirm, obscureText: true, decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور *')),
@@ -123,6 +127,10 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       _err('اسم المكتب واسم المحامي إلزاميان');
       return;
     }
+    if (_username.text.trim().isEmpty) {
+      _err('اسم دخول المدير إلزامي');
+      return;
+    }
     if (_password.text.length < 6) {
       _err('كلمة المرور يجب ألا تقل عن 6 أحرف');
       return;
@@ -155,6 +163,14 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         userRef: _lawyer.text.trim(),
       );
 
+      if (!await ref.read(authRepositoryProvider).ownerExists()) {
+        await ref.read(authRepositoryProvider).createOwner(
+              fullName: _lawyer.text.trim(),
+              username: _username.text.trim(),
+              password: _password.text,
+            );
+      }
+
       await ref.read(officeSettingsProvider.notifier).updateSettings(
             newTitle: _title.text.trim(),
             newLawyerName: _lawyer.text.trim(),
@@ -180,7 +196,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       await prefs.setString('security_password_hash_hint', CryptoUtils.hashPassword(_password.text).substring(0, 8));
 
       ref.invalidate(firstRunCompletedProvider);
-      if (mounted) context.go('/today');
+      await ref.read(authControllerProvider.notifier).markOwnerCreated();
+      if (mounted) context.go('/login');
     } catch (e) {
       _err('فشل الإعداد: $e');
     } finally {

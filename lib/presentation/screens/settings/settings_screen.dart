@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/auth/permission_catalog.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/ui_data_providers.dart';
+import '../../providers/auth_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -25,7 +28,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 5, vsync: this);
+    _tabs = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -57,6 +60,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Tab(text: 'الأمان'),
                 Tab(text: 'النسخ الاحتياطي'),
                 Tab(text: 'القوائم المرجعية'),
+                Tab(text: 'المستخدمون والصلاحيات'),
+                Tab(text: 'سجل المسؤولية'),
                 Tab(text: 'سجل النشاط'),
               ],
             ),
@@ -81,6 +86,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     _SecurityTab(),
                     _BackupTab(),
                     _LookupsTab(),
+                    _UsersRolesTab(),
+                    _AuditTab(),
                     _ActivityTab(),
                   ],
                 ),
@@ -792,5 +799,176 @@ class _ActivityTab extends ConsumerWidget {
       default:
         return Icons.edit;
     }
+  }
+}
+
+class _UsersRolesTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.watch(authRepositoryProvider);
+    final current = ref.watch(authControllerProvider).user;
+    return FutureBuilder<List<Object>>(
+      future: Future.wait([repo.getUsers(), repo.getRoles()]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final users = snapshot.data![0] as List;
+        final roles = snapshot.data![1] as List;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text('المستخدمون والصلاحيات', style: AppTextStyles.headline5.copyWith(color: AppColors.primaryNavy))),
+                  ElevatedButton.icon(onPressed: () => _showRoleDialog(context, ref), icon: const Icon(Icons.security), label: const Text('دور جديد')),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(onPressed: () => _showUserDialog(context, ref, roles), icon: const Icon(Icons.person_add), label: const Text('مستخدم جديد')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(title: Text('المستخدمون', style: AppTextStyles.headline6)),
+                    ...users.map((dynamic u) => ListTile(
+                          leading: Icon(u.isOwner ? Icons.workspace_premium : Icons.person, color: u.isActive ? AppColors.primaryNavy : AppColors.textSecondary),
+                          title: Text(u.fullName),
+                          subtitle: Text('${u.username} • ${u.roleName} • ${u.isActive ? 'فعال' : 'معطل'}'),
+                          trailing: u.isOwner
+                              ? const Text('Owner')
+                              : Switch(value: u.isActive, onChanged: (v) async { await repo.setUserActive(u.id, v, actor: current); }),
+                        )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(title: Text('الأدوار', style: AppTextStyles.headline6)),
+                    ...roles.map((dynamic r) => ListTile(
+                          leading: Icon(r.isSystemRole ? Icons.admin_panel_settings : Icons.badge, color: AppConstants.accentGold),
+                          title: Text(r.name),
+                          subtitle: Text('مستخدمون: ${r.userCount} • صلاحيات: ${r.permissionCount}${r.description.isNotEmpty ? ' • ${r.description}' : ''}'),
+                          trailing: TextButton.icon(onPressed: () => _showRoleDialog(context, ref, role: r), icon: const Icon(Icons.edit), label: const Text('تعديل')),
+                        )),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showUserDialog(BuildContext context, WidgetRef ref, List roles) {
+    final name = TextEditingController();
+    final username = TextEditingController();
+    final password = TextEditingController();
+    int? roleId = roles.isNotEmpty ? roles.first.id as int : null;
+    showDialog<void>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
+      title: const Text('إضافة مستخدم'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم الكامل *')),
+        const SizedBox(height: 8),
+        TextField(controller: username, decoration: const InputDecoration(labelText: 'اسم الدخول *')),
+        const SizedBox(height: 8),
+        TextField(controller: password, obscureText: true, decoration: const InputDecoration(labelText: 'كلمة المرور المؤقتة *')),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(value: roleId, decoration: const InputDecoration(labelText: 'الدور'), items: roles.map<DropdownMenuItem<int>>((dynamic r) => DropdownMenuItem<int>(value: r.id as int, child: Text(r.name))).toList(), onChanged: (v) => setDialog(() => roleId = v)),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')), ElevatedButton(onPressed: () async {
+        if (name.text.trim().isEmpty || username.text.trim().isEmpty || password.text.length < 6 || roleId == null) return;
+        await ref.read(authRepositoryProvider).createUser(fullName: name.text.trim(), username: username.text.trim(), password: password.text, roleId: roleId!, actor: ref.read(authControllerProvider).user);
+        if (ctx.mounted) Navigator.pop(ctx);
+      }, child: const Text('حفظ'))],
+    )));
+  }
+
+  void _showRoleDialog(BuildContext context, WidgetRef ref, {dynamic role}) {
+    final name = TextEditingController(text: role?.name ?? '');
+    final description = TextEditingController(text: role?.description ?? '');
+    final selected = <String>{};
+    if (role != null) selected.addAll((role.permissions as Set<String>));
+    showDialog<void>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialog) => AlertDialog(
+      title: Text(role == null ? 'إنشاء دور' : 'تعديل دور'),
+      content: SizedBox(width: 720, height: 560, child: Column(children: [
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الدور *')),
+        const SizedBox(height: 8),
+        TextField(controller: description, decoration: const InputDecoration(labelText: 'وصف اختياري')),
+        const SizedBox(height: 12),
+        Expanded(child: ListView(children: PermissionCatalog.groups.map((g) => ExpansionTile(
+          title: Text(g.label, style: AppTextStyles.labelLarge),
+          children: PermissionCatalog.byGroup(g.key).map((p) => CheckboxListTile(
+            value: selected.contains(p.key),
+            title: Text(p.label),
+            subtitle: Text(p.description),
+            secondary: p.sensitive ? Icon(Icons.warning_amber, color: AppColors.warning) : null,
+            onChanged: (v) => setDialog(() { if (v == true) selected.add(p.key); else selected.remove(p.key); }),
+          )).toList(),
+        )).toList())),
+      ])),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')), ElevatedButton(onPressed: () async {
+        if (name.text.trim().isEmpty) return;
+        final repo = ref.read(authRepositoryProvider);
+        final actor = ref.read(authControllerProvider).user;
+        if (role == null) { await repo.createRole(name: name.text.trim(), description: description.text.trim(), permissions: selected, actor: actor); }
+        else { await repo.updateRole(id: role.id, name: name.text.trim(), description: description.text.trim(), permissions: selected, actor: actor); }
+        if (ctx.mounted) Navigator.pop(ctx);
+      }, child: const Text('حفظ'))],
+    )));
+  }
+}
+
+class _AuditTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.watch(authRepositoryProvider);
+    return FutureBuilder<List<Object>>(
+      future: Future.wait([repo.getSessions(), repo.getAuditEvents()]),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final sessions = snapshot.data![0] as List;
+        final events = snapshot.data![1] as List;
+        return DefaultTabController(
+          length: 2,
+          child: Column(
+            children: [
+              const TabBar(tabs: [Tab(text: 'سجل المسؤولية'), Tab(text: 'جلسات الدخول')]),
+              Expanded(child: TabBarView(children: [
+                ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: events.length,
+                  itemBuilder: (_, i) {
+                    final dynamic e = events[i];
+                    return Card(child: ListTile(
+                      leading: Icon(e.severity == 'critical' ? Icons.error : e.severity == 'warning' ? Icons.warning : Icons.info_outline, color: e.severity == 'critical' ? AppColors.error : e.severity == 'warning' ? AppColors.warning : AppColors.info),
+                      title: Text('${e.fullName} • ${e.action} • ${e.category}'),
+                      subtitle: Text('${e.description}\n${e.entityTitle} • ${e.createdAt.toString().substring(0, 16)}'),
+                      isThreeLine: true,
+                    ));
+                  },
+                ),
+                ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: sessions.length,
+                  itemBuilder: (_, i) {
+                    final dynamic s = sessions[i];
+                    return Card(child: ListTile(
+                      leading: Icon(s.status == 'failed' ? Icons.lock : Icons.login, color: s.status == 'failed' ? AppColors.error : AppColors.success),
+                      title: Text('${s.fullName.isEmpty ? s.username : s.fullName} • ${s.status}'),
+                      subtitle: Text('${s.roleName}\nدخول: ${s.loginAt.toString().substring(0, 16)}${s.logoutAt == null ? '' : ' • خروج: ${s.logoutAt.toString().substring(0, 16)}'}${s.failedReason == null ? '' : ' • ${s.failedReason}'}'),
+                      isThreeLine: true,
+                    ));
+                  },
+                ),
+              ])),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

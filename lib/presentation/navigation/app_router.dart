@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/permission_catalog.dart';
+
+import '../providers/auth_providers.dart';
 import '../screens/agenda/agenda_screen.dart';
 import '../screens/cases/case_detail_screen.dart';
 import '../screens/cases/cases_screen.dart';
@@ -34,27 +37,36 @@ import '../screens/admin_procedures/create_procedure_screen.dart';
 import '../screens/tasks/daily_tasks_screen.dart';
 import '../screens/reports/legal_printing_screen.dart';
 import '../screens/archive/archive_screen.dart';
+import '../screens/auth/login_screen.dart';
 
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final firstRun = ref.watch(firstRunCompletedProvider);
+  final auth = ref.watch(authControllerProvider);
   return GoRouter(
-    initialLocation: '/today',
+    initialLocation: '/splash',
     redirect: (context, state) {
-      final done = firstRun.maybeWhen(data: (v) => v, orElse: () => true);
       final loc = state.matchedLocation;
-      final onSetup = loc == '/setup';
-      if (!done && !onSetup) return '/setup';
-      if (done && onSetup) return '/today';
-      if (loc == '/') return '/today';
+      if (!auth.initialized || auth.isLoading && loc == '/splash') return null;
+      if (!auth.initialized) return '/splash';
+      if (!auth.hasOwner) return loc == '/setup' ? null : '/setup';
+      if (!auth.isAuthenticated) {
+        if (loc == '/login') return null;
+        return '/login';
+      }
+      if (loc == '/splash' || loc == '/login' || loc == '/setup' || loc == '/') return '/today';
+      final denied = _requiredPermissionForLocation(loc);
+      if (denied != null && !(auth.user?.permissions.contains(denied) ?? false)) return '/no-access';
       return null;
     },
     routes: [
+      GoRoute(path: '/splash', name: 'splash', builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/login', name: 'login', builder: (_, __) => const LoginScreen()),
       GoRoute(
         path: '/setup',
         name: 'setup',
         builder: (_, __) => const FirstRunSetupScreen(),
       ),
+      GoRoute(path: '/no-access', name: 'no-access', builder: (_, __) => const _NoAccessScreen()),
       ShellRoute(
         builder: (context, state, child) => MainShellScreen(child: child),
         routes: [

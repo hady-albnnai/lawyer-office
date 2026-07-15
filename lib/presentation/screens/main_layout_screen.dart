@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/permission_catalog.dart';
 import '../../core/constants/app_constants.dart';
+import '../providers/auth_providers.dart';
 import '../providers/office_settings_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/sidebar/nav_sidebar.dart';
+import '../widgets/sidebar/sidebar_item.dart';
 import 'admin_procedures/create_procedure_screen.dart';
 import 'cases/create_case_wizard.dart';
 import 'companies/create_company_wizard.dart';
@@ -73,7 +76,7 @@ class MainShellScreen extends ConsumerWidget {
         body: Row(
           children: [
             AppSidebar(
-              items: getDefaultSidebarItems(),
+              items: _filterSidebarItems(getDefaultSidebarItems(), ref),
               officeName: officeName,
               lawyerName: lawyerName,
               logo: SizedBox(
@@ -300,6 +303,14 @@ class _TopBar extends ConsumerWidget {
                 tooltip: "الإعدادات",
                 onPressed: () => context.go("/settings"),
                 icon: const Icon(Icons.settings_outlined, color: AppConstants.accentGold),
+              ),
+              IconButton(
+                tooltip: "تسجيل الخروج",
+                onPressed: () async {
+                  await ref.read(authControllerProvider.notifier).logout();
+                  if (context.mounted) context.go('/login');
+                },
+                icon: const Icon(Icons.logout, color: AppConstants.accentGold),
               ),
             ],
           ),

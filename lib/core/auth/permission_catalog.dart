@@ -1,0 +1,216 @@
+class PermissionGroup {
+  final String key;
+  final String label;
+  const PermissionGroup(this.key, this.label);
+}
+
+class PermissionDefinition {
+  final String key;
+  final String label;
+  final String group;
+  final String description;
+  final bool sensitive;
+  const PermissionDefinition({
+    required this.key,
+    required this.label,
+    required this.group,
+    required this.description,
+    this.sensitive = false,
+  });
+}
+
+class PermissionKeys {
+  static const settingsView = 'settings.view';
+  static const settingsOfficeEdit = 'settings.office.edit';
+  static const settingsSecurityEdit = 'settings.security.edit';
+  static const settingsBackupCreate = 'settings.backup.create';
+  static const settingsBackupRestore = 'settings.backup.restore';
+  static const settingsLookupsManage = 'settings.lookups.manage';
+  static const settingsUsersManage = 'settings.users.manage';
+  static const auditView = 'audit.view';
+  static const auditExport = 'audit.export';
+  static const sessionsView = 'sessions.view';
+
+  static const personsView = 'persons.view';
+  static const personsCreate = 'persons.create';
+  static const personsEdit = 'persons.edit';
+  static const personsArchive = 'persons.archive';
+  static const personsSensitiveView = 'persons.sensitive.view';
+
+  static const poaView = 'poa.view';
+  static const poaCreate = 'poa.create';
+  static const poaEdit = 'poa.edit';
+  static const poaArchive = 'poa.archive';
+  static const poaFilesView = 'poa.files.view';
+
+  static const casesView = 'cases.view';
+  static const casesCreateNew = 'cases.create_new';
+  static const casesArchiveOld = 'cases.archive_old';
+  static const casesEdit = 'cases.edit';
+  static const casesSessionsManage = 'cases.sessions.manage';
+  static const casesResultEnter = 'cases.result.enter';
+  static const casesClose = 'cases.close';
+  static const casesArchive = 'cases.archive';
+
+  static const contractsView = 'contracts.view';
+  static const contractsCreate = 'contracts.create';
+  static const contractsEdit = 'contracts.edit';
+  static const contractsRemindersManage = 'contracts.reminders.manage';
+  static const contractsArchive = 'contracts.archive';
+
+  static const companiesView = 'companies.view';
+  static const companiesCreate = 'companies.create';
+  static const companiesEdit = 'companies.edit';
+  static const companiesPhasesManage = 'companies.phases.manage';
+  static const companiesArchive = 'companies.archive';
+
+  static const proceduresView = 'procedures.view';
+  static const proceduresCreate = 'procedures.create';
+  static const proceduresEdit = 'procedures.edit';
+  static const proceduresStepsManage = 'procedures.steps.manage';
+  static const proceduresArchive = 'procedures.archive';
+
+  static const documentsView = 'documents.view';
+  static const documentsUpload = 'documents.upload';
+  static const documentsOpen = 'documents.open';
+  static const documentsEdit = 'documents.edit';
+  static const documentsDelete = 'documents.delete';
+  static const documentsExport = 'documents.export';
+
+  static const financeView = 'finance.view';
+  static const financeAgreementsCreate = 'finance.agreements.create';
+  static const financeAgreementsEdit = 'finance.agreements.edit';
+  static const financePaymentsCreate = 'finance.payments.create';
+  static const financeExpensesCreate = 'finance.expenses.create';
+  static const financeReportsView = 'finance.reports.view';
+  static const financeDelete = 'finance.delete';
+
+  static const workOrdersView = 'work_orders.view';
+  static const workOrdersCreate = 'work_orders.create';
+  static const workOrdersPrint = 'work_orders.print';
+  static const workOrdersSend = 'work_orders.send';
+  static const workOrdersResultEnter = 'work_orders.result.enter';
+  static const workOrdersApprove = 'work_orders.approve';
+
+  static const reportsView = 'reports.view';
+  static const reportsExport = 'reports.export';
+  static const searchView = 'search.view';
+
+  static const libraryView = 'library.view';
+  static const libraryAdd = 'library.add';
+  static const libraryEdit = 'library.edit';
+  static const libraryDelete = 'library.delete';
+  static const libraryLink = 'library.link';
+}
+
+class PermissionCatalog {
+  static const groups = <PermissionGroup>[
+    PermissionGroup('settings', 'النظام والإعدادات'),
+    PermissionGroup('persons', 'الأشخاص والجهات'),
+    PermissionGroup('poa', 'الوكالات'),
+    PermissionGroup('cases', 'الدعاوى والجلسات'),
+    PermissionGroup('contracts', 'العقود'),
+    PermissionGroup('companies', 'الشركات'),
+    PermissionGroup('procedures', 'الإجراءات الإدارية'),
+    PermissionGroup('documents', 'المستندات'),
+    PermissionGroup('finance', 'المالية'),
+    PermissionGroup('work_orders', 'أوامر العمل'),
+    PermissionGroup('reports', 'التقارير والبحث'),
+    PermissionGroup('library', 'المكتبة القانونية'),
+  ];
+
+  static const permissions = <PermissionDefinition>[
+    PermissionDefinition(key: PermissionKeys.settingsView, label: 'عرض الإعدادات', group: 'settings', description: 'الدخول إلى شاشة الإعدادات'),
+    PermissionDefinition(key: PermissionKeys.settingsOfficeEdit, label: 'تعديل بيانات المكتب', group: 'settings', description: 'تعديل اسم المكتب والترويسة'),
+    PermissionDefinition(key: PermissionKeys.settingsSecurityEdit, label: 'تعديل الأمان', group: 'settings', description: 'تغيير كلمة المرور ومهلة القفل', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.settingsBackupCreate, label: 'إنشاء نسخة احتياطية', group: 'settings', description: 'تنفيذ نسخ احتياطي'),
+    PermissionDefinition(key: PermissionKeys.settingsBackupRestore, label: 'استعادة نسخة', group: 'settings', description: 'استعادة نسخة احتياطية', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.settingsLookupsManage, label: 'إدارة القوائم المرجعية', group: 'settings', description: 'إضافة وتعديل المحاكم والقوائم'),
+    PermissionDefinition(key: PermissionKeys.settingsUsersManage, label: 'إدارة المستخدمين والصلاحيات', group: 'settings', description: 'إنشاء مستخدمين وأدوار وتعديل الصلاحيات', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.auditView, label: 'عرض سجل المسؤولية', group: 'settings', description: 'عرض أحداث التدقيق', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.auditExport, label: 'تصدير سجل المسؤولية', group: 'settings', description: 'تصدير أحداث التدقيق', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.sessionsView, label: 'عرض جلسات المستخدمين', group: 'settings', description: 'عرض الدخول والخروج', sensitive: true),
+
+    PermissionDefinition(key: PermissionKeys.personsView, label: 'عرض الأشخاص', group: 'persons', description: 'عرض دليل الأشخاص والجهات'),
+    PermissionDefinition(key: PermissionKeys.personsCreate, label: 'إضافة شخص/جهة', group: 'persons', description: 'إضافة موكل أو خصم أو جهة'),
+    PermissionDefinition(key: PermissionKeys.personsEdit, label: 'تعديل شخص/جهة', group: 'persons', description: 'تعديل بيانات الأشخاص'),
+    PermissionDefinition(key: PermissionKeys.personsArchive, label: 'أرشفة شخص/جهة', group: 'persons', description: 'تعطيل أو أرشفة سجل'),
+    PermissionDefinition(key: PermissionKeys.personsSensitiveView, label: 'عرض البيانات الحساسة', group: 'persons', description: 'عرض الهواتف والهويات والبيانات الحساسة', sensitive: true),
+
+    PermissionDefinition(key: PermissionKeys.poaView, label: 'عرض الوكالات', group: 'poa', description: 'عرض الوكالات'),
+    PermissionDefinition(key: PermissionKeys.poaCreate, label: 'إضافة وكالة', group: 'poa', description: 'إضافة وكالة جديدة'),
+    PermissionDefinition(key: PermissionKeys.poaEdit, label: 'تعديل وكالة', group: 'poa', description: 'تعديل بيانات وكالة'),
+    PermissionDefinition(key: PermissionKeys.poaArchive, label: 'أرشفة وكالة', group: 'poa', description: 'أرشفة وكالة'),
+    PermissionDefinition(key: PermissionKeys.poaFilesView, label: 'عرض ملفات الوكالات', group: 'poa', description: 'فتح ملفات الوكالات'),
+
+    PermissionDefinition(key: PermissionKeys.casesView, label: 'عرض الدعاوى', group: 'cases', description: 'عرض ملفات الدعاوى'),
+    PermissionDefinition(key: PermissionKeys.casesCreateNew, label: 'إنشاء دعوى جديدة', group: 'cases', description: 'فتح دعوى جديدة'),
+    PermissionDefinition(key: PermissionKeys.casesArchiveOld, label: 'أرشفة دعوى قديمة', group: 'cases', description: 'إدخال دعوى قائمة سابقاً'),
+    PermissionDefinition(key: PermissionKeys.casesEdit, label: 'تعديل دعوى', group: 'cases', description: 'تعديل بيانات الدعوى'),
+    PermissionDefinition(key: PermissionKeys.casesSessionsManage, label: 'إدارة الجلسات', group: 'cases', description: 'إضافة وتعديل الجلسات'),
+    PermissionDefinition(key: PermissionKeys.casesResultEnter, label: 'إدخال نتيجة جلسة', group: 'cases', description: 'تسجيل نتيجة جلسة'),
+    PermissionDefinition(key: PermissionKeys.casesClose, label: 'إغلاق دعوى', group: 'cases', description: 'إغلاق ملف دعوى', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.casesArchive, label: 'أرشفة دعوى', group: 'cases', description: 'أرشفة ملف دعوى', sensitive: true),
+
+    PermissionDefinition(key: PermissionKeys.contractsView, label: 'عرض العقود', group: 'contracts', description: 'عرض العقود'),
+    PermissionDefinition(key: PermissionKeys.contractsCreate, label: 'إنشاء عقد', group: 'contracts', description: 'تنظيم عقد'),
+    PermissionDefinition(key: PermissionKeys.contractsEdit, label: 'تعديل عقد', group: 'contracts', description: 'تعديل بيانات عقد'),
+    PermissionDefinition(key: PermissionKeys.contractsRemindersManage, label: 'إدارة تذكيرات العقود', group: 'contracts', description: 'إدارة مواعيد العقود'),
+    PermissionDefinition(key: PermissionKeys.contractsArchive, label: 'أرشفة عقد', group: 'contracts', description: 'أرشفة عقد'),
+
+    PermissionDefinition(key: PermissionKeys.companiesView, label: 'عرض الشركات', group: 'companies', description: 'عرض الشركات'),
+    PermissionDefinition(key: PermissionKeys.companiesCreate, label: 'تأسيس شركة', group: 'companies', description: 'إنشاء شركة'),
+    PermissionDefinition(key: PermissionKeys.companiesEdit, label: 'تعديل شركة', group: 'companies', description: 'تعديل بيانات شركة'),
+    PermissionDefinition(key: PermissionKeys.companiesPhasesManage, label: 'إدارة مراحل الشركة', group: 'companies', description: 'إدارة مراحل التأسيس'),
+    PermissionDefinition(key: PermissionKeys.companiesArchive, label: 'أرشفة شركة', group: 'companies', description: 'أرشفة شركة'),
+
+    PermissionDefinition(key: PermissionKeys.proceduresView, label: 'عرض الإجراءات', group: 'procedures', description: 'عرض الإجراءات الإدارية'),
+    PermissionDefinition(key: PermissionKeys.proceduresCreate, label: 'إنشاء إجراء', group: 'procedures', description: 'تسجيل إجراء إداري'),
+    PermissionDefinition(key: PermissionKeys.proceduresEdit, label: 'تعديل إجراء', group: 'procedures', description: 'تعديل إجراء إداري'),
+    PermissionDefinition(key: PermissionKeys.proceduresStepsManage, label: 'إدارة خطوات الإجراءات', group: 'procedures', description: 'إدارة Checklist'),
+    PermissionDefinition(key: PermissionKeys.proceduresArchive, label: 'أرشفة إجراء', group: 'procedures', description: 'أرشفة إجراء'),
+
+    PermissionDefinition(key: PermissionKeys.documentsView, label: 'عرض المستندات', group: 'documents', description: 'عرض أرشيف المستندات'),
+    PermissionDefinition(key: PermissionKeys.documentsUpload, label: 'رفع مستند', group: 'documents', description: 'إضافة مستند'),
+    PermissionDefinition(key: PermissionKeys.documentsOpen, label: 'فتح مستند', group: 'documents', description: 'معاينة المستندات'),
+    PermissionDefinition(key: PermissionKeys.documentsEdit, label: 'تعديل مستند', group: 'documents', description: 'تعديل بيانات مستند'),
+    PermissionDefinition(key: PermissionKeys.documentsDelete, label: 'حذف مستند', group: 'documents', description: 'حذف مستند', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.documentsExport, label: 'تصدير مستند', group: 'documents', description: 'تصدير أو تنزيل مستند'),
+
+    PermissionDefinition(key: PermissionKeys.financeView, label: 'عرض المالية', group: 'finance', description: 'عرض المالية', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.financeAgreementsCreate, label: 'إضافة اتفاق أتعاب', group: 'finance', description: 'إنشاء اتفاق أتعاب', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.financeAgreementsEdit, label: 'تعديل اتفاق أتعاب', group: 'finance', description: 'تعديل اتفاق', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.financePaymentsCreate, label: 'إضافة قبض', group: 'finance', description: 'إضافة دفعة أو سند قبض', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.financeExpensesCreate, label: 'إضافة مصروف', group: 'finance', description: 'إضافة مصروف', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.financeReportsView, label: 'عرض التقارير المالية', group: 'finance', description: 'عرض التقارير المالية', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.financeDelete, label: 'حذف حركة مالية', group: 'finance', description: 'حذف حركة مالية', sensitive: true),
+
+    PermissionDefinition(key: PermissionKeys.workOrdersView, label: 'عرض أوامر العمل', group: 'work_orders', description: 'عرض أوامر العمل'),
+    PermissionDefinition(key: PermissionKeys.workOrdersCreate, label: 'إنشاء أمر عمل', group: 'work_orders', description: 'إنشاء أمر عمل'),
+    PermissionDefinition(key: PermissionKeys.workOrdersPrint, label: 'طباعة أمر عمل', group: 'work_orders', description: 'طباعة PDF'),
+    PermissionDefinition(key: PermissionKeys.workOrdersSend, label: 'إرسال أمر عمل', group: 'work_orders', description: 'إرسال واتساب'),
+    PermissionDefinition(key: PermissionKeys.workOrdersResultEnter, label: 'إدخال نتيجة أمر', group: 'work_orders', description: 'تسجيل نتيجة أمر عمل'),
+    PermissionDefinition(key: PermissionKeys.workOrdersApprove, label: 'اعتماد أمر عمل', group: 'work_orders', description: 'اعتماد نتيجة أمر عمل', sensitive: true),
+
+    PermissionDefinition(key: PermissionKeys.reportsView, label: 'عرض التقارير', group: 'reports', description: 'عرض التقارير'),
+    PermissionDefinition(key: PermissionKeys.reportsExport, label: 'تصدير التقارير', group: 'reports', description: 'تصدير PDF/Excel'),
+    PermissionDefinition(key: PermissionKeys.searchView, label: 'البحث', group: 'reports', description: 'استخدام البحث العام'),
+
+    PermissionDefinition(key: PermissionKeys.libraryView, label: 'عرض المكتبة', group: 'library', description: 'عرض المكتبة القانونية'),
+    PermissionDefinition(key: PermissionKeys.libraryAdd, label: 'إضافة للمكتبة', group: 'library', description: 'إضافة مادة قانونية'),
+    PermissionDefinition(key: PermissionKeys.libraryEdit, label: 'تعديل المكتبة', group: 'library', description: 'تعديل مادة'),
+    PermissionDefinition(key: PermissionKeys.libraryDelete, label: 'حذف من المكتبة', group: 'library', description: 'حذف مادة', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.libraryLink, label: 'ربط المكتبة بالملفات', group: 'library', description: 'ربط مادة بملف'),
+  ];
+
+  static List<String> get allKeys => permissions.map((p) => p.key).toList(growable: false);
+  static PermissionDefinition? byKey(String key) {
+    for (final p in permissions) {
+      if (p.key == key) return p;
+    }
+    return null;
+  }
+
+  static List<PermissionDefinition> byGroup(String group) =>
+      permissions.where((p) => p.group == group).toList(growable: false);
+}

@@ -95,8 +95,93 @@ class AppDatabase extends _$AppDatabase {
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
+      await ensureAuthTables();
     },
   );
+
+
+  /// إنشاء جداول الأمان والصلاحيات وسجل المسؤولية عبر SQL مخصص.
+  /// ملاحظة: هذه الجداول مستقلة عن منطق التشغيل الحالي، وتُفتح قبل استخدام AuthRepository.
+  Future<void> ensureAuthTables() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS app_roles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        is_system_role INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS app_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        full_name TEXT NOT NULL,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role_id INTEGER NOT NULL REFERENCES app_roles(id),
+        phone TEXT,
+        email TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        is_owner INTEGER NOT NULL DEFAULT 0,
+        last_login_at DATETIME,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS role_permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        role_id INTEGER NOT NULL REFERENCES app_roles(id) ON DELETE CASCADE,
+        permission_key TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(role_id, permission_key)
+      );
+    ''');
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES app_users(id),
+        username_snapshot TEXT,
+        user_full_name_snapshot TEXT,
+        role_name_snapshot TEXT,
+        login_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        logout_at DATETIME,
+        last_active_at DATETIME,
+        status TEXT NOT NULL DEFAULT 'active',
+        device_name TEXT,
+        app_version TEXT,
+        failed_reason TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS audit_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER REFERENCES user_sessions(id),
+        user_id INTEGER REFERENCES app_users(id),
+        username_snapshot TEXT,
+        user_full_name_snapshot TEXT,
+        role_name_snapshot TEXT,
+        action TEXT NOT NULL,
+        category TEXT NOT NULL,
+        entity_type TEXT,
+        entity_id TEXT,
+        entity_title TEXT,
+        description TEXT,
+        before_json TEXT,
+        after_json TEXT,
+        severity TEXT NOT NULL DEFAULT 'info',
+        device_name TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_events(user_id, created_at);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_category ON audit_events(category, action);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id, login_at);');
+  }
 
   /// مسح كل بيانات التشغيل/البيانات التجريبية مع الإبقاء على الإعدادات والقوائم المرجعية.
   /// يستخدم عند تسليم التطبيق لمكتب حقيقي يريد البدء من قاعدة نظيفة.
