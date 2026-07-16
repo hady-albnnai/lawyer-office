@@ -20,6 +20,7 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
 final _archiveIntakeRefreshProvider = StateProvider<int>((ref) => 0);
+final _archiveWizardQuerySeedProvider = StateProvider<String?>((ref) => null);
 
 final _archiveWizardProvider = StateProvider<_ArchiveWizardSelection>((ref) => const _ArchiveWizardSelection());
 
@@ -190,25 +191,26 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final query = GoRouterState.of(context).uri.queryParameters;
     final requestedStatus = query['status'];
     final requestedKind = query['kind'];
+    final validStatus = requestedStatus == 'closed' || requestedStatus == 'running' ? requestedStatus : null;
     final validKind = _archiveFileKindOptions.containsKey(requestedKind) ? requestedKind : null;
-    if (requestedStatus == 'closed' || requestedStatus == 'running' || validKind != null) {
+    if (validStatus != null || validKind != null) {
+      final seedSignature = '${validStatus ?? ''}|${validKind ?? ''}';
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        final lastSeed = ref.read(_archiveWizardQuerySeedProvider);
+        if (lastSeed == seedSignature) return;
         final current = ref.read(_archiveWizardProvider);
-        final statusChanged = requestedStatus == 'closed' || requestedStatus == 'running' ? current.archiveStatus != requestedStatus : false;
-        final kindChanged = validKind != null && current.fileKind != validKind;
-        if (statusChanged || kindChanged) {
-          ref.read(_archiveWizardProvider.notifier).state = current.copyWith(
-            archiveStatus: (requestedStatus == 'closed' || requestedStatus == 'running') ? requestedStatus : current.archiveStatus,
-            fileKind: validKind ?? (statusChanged ? null : current.fileKind),
-            caseType: null,
-            courtLevel: null,
-            companyGroup: null,
-            companyType: null,
-            procedureType: null,
-            contractType: null,
-            poaType: null,
-          );
-        }
+        ref.read(_archiveWizardQuerySeedProvider.notifier).state = seedSignature;
+        ref.read(_archiveWizardProvider.notifier).state = current.copyWith(
+          archiveStatus: validStatus ?? current.archiveStatus,
+          fileKind: validKind,
+          caseType: null,
+          courtLevel: null,
+          companyGroup: null,
+          companyType: null,
+          procedureType: null,
+          contractType: null,
+          poaType: null,
+        );
       });
     }
     ref.watch(_archiveIntakeRefreshProvider);
