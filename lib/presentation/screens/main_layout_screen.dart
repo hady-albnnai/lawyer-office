@@ -53,7 +53,7 @@ class MainShellScreen extends ConsumerWidget {
     // نحدد المسار للـ Sidebar بناءً على بداية الرابط (مثلاً /cases/1 تقع ضمن الشؤون القانونية)
     String selectedRoute = '/today';
     if (location.startsWith('/contracts/templates')) selectedRoute = '/contracts/templates';
-    else if (location.startsWith('/files') || location.startsWith('/cases') || location.startsWith('/companies') || location.startsWith('/contracts') || location.startsWith('/procedures') || location.startsWith('/poa')) selectedRoute = '/files';
+    else if (location.startsWith('/files') || location.startsWith('/cases') || location.startsWith('/companies') || location.startsWith('/contracts') || location.startsWith('/procedures') || location.startsWith('/poa') || location.startsWith('/persons') || location.startsWith('/archive')) selectedRoute = '/files';
     else if (location.startsWith('/work-orders') || location.startsWith('/tasks')) selectedRoute = '/work-orders';
     else if (location.startsWith('/agenda')) selectedRoute = '/agenda';
     else if (location.startsWith('/finance')) selectedRoute = '/finance';

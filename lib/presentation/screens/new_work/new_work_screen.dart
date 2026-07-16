@@ -66,28 +66,12 @@ class NewWorkScreen extends ConsumerWidget {
         ),
       ),
       _NewWorkAction(
-        title: 'شخص / جهة',
-        subtitle: 'فتح دليل الأشخاص',
-        icon: Icons.person_add,
-        color: AppColors.primaryNavy,
-        permission: PermissionKeys.personsCreate,
-        onTap: () => context.go('/persons'),
-      ),
-      _NewWorkAction(
-        title: 'وكالة',
-        subtitle: 'أرشيف الوكالات',
+        title: 'ملف وكالة',
+        subtitle: 'إدارة الوكالات ضمن ملفات المكتب',
         icon: Icons.verified_user,
         color: AppColors.info,
         permission: PermissionKeys.poaCreate,
         onTap: () => context.go('/poa'),
-      ),
-      _NewWorkAction(
-        title: 'مستند',
-        subtitle: 'إدارة المستندات',
-        icon: Icons.attach_file,
-        color: AppColors.secondaryGold,
-        permission: PermissionKeys.documentsUpload,
-        onTap: () => context.go('/documents'),
       ),
     ].where((item) => permissions.can(item.permission)).toList();
 
