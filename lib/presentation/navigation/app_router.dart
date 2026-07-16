@@ -75,8 +75,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/today', name: 'today', builder: (_, __) => const DailyWorkCenterScreen()),
           GoRoute(path: '/agenda', name: 'agenda', builder: (_, __) => const AgendaScreen()),
           GoRoute(path: '/new-work', name: 'new-work', builder: (_, __) => const NewWorkScreen()),
-          GoRoute(path: '/files', name: 'files', builder: (_, __) => const FilesScreen()),
+          GoRoute(path: '/files', name: 'files', builder: (_, state) => FilesScreen(initialStatus: state.uri.queryParameters['status'])),
           GoRoute(path: '/persons', name: 'persons', builder: (_, __) => const PersonsScreen()),
+          GoRoute(path: '/poa', name: 'poa', builder: (_, __) => const PoaListScreen()),
           GoRoute(path: '/work-orders', name: 'work-orders', builder: (_, __) => const WorkOrdersScreen()),
           GoRoute(path: '/finance', name: 'finance', builder: (_, __) => const FinanceScreen()),
           GoRoute(path: '/documents', name: 'documents', builder: (_, __) => const DocumentsScreen()),
@@ -130,7 +131,8 @@ String? _requiredPermissionForLocation(String loc) {
   if (loc.startsWith('/documents')) return PermissionKeys.documentsView;
   if (loc.startsWith('/legal-library')) return PermissionKeys.libraryView;
   if (loc.startsWith('/search-reports')) return PermissionKeys.searchView;
-  if (loc.startsWith('/persons') || loc.startsWith('/poa')) return PermissionKeys.personsView;
+  if (loc.startsWith('/poa')) return PermissionKeys.poaView;
+  if (loc.startsWith('/persons')) return PermissionKeys.personsView;
   if (loc.startsWith('/cases/create')) return PermissionKeys.casesCreateNew;
   if (loc.startsWith('/cases')) return PermissionKeys.casesView;
   if (loc.startsWith('/companies/create')) return PermissionKeys.companiesCreate;

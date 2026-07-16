@@ -21,6 +21,123 @@ import '../../theme/app_theme.dart';
 
 final _archiveIntakeRefreshProvider = StateProvider<int>((ref) => 0);
 
+final _archiveWizardProvider = StateProvider<_ArchiveWizardSelection>((ref) => const _ArchiveWizardSelection());
+
+class _ArchiveWizardSelection {
+  final String? archiveStatus; // running / closed
+  final String? fileKind;
+  final String? caseType;
+  final String? courtLevel;
+  final String? companyGroup;
+  final String? companyType;
+  final String? procedureType;
+  final String? contractType;
+  final String? poaType;
+  final List<String> customFileKinds;
+  final List<String> customCaseTypes;
+  final Map<String, List<String>> customCourtsByCaseType;
+  final List<String> customCompanyTypes;
+  final List<String> customProcedureTypes;
+  final List<String> customContractTypes;
+  final List<String> customPoaTypes;
+  final List<String> customDocumentTypes;
+
+  const _ArchiveWizardSelection({
+    this.archiveStatus,
+    this.fileKind,
+    this.caseType,
+    this.courtLevel,
+    this.companyGroup,
+    this.companyType,
+    this.procedureType,
+    this.contractType,
+    this.poaType,
+    this.customFileKinds = const [],
+    this.customCaseTypes = const [],
+    this.customCourtsByCaseType = const {},
+    this.customCompanyTypes = const [],
+    this.customProcedureTypes = const [],
+    this.customContractTypes = const [],
+    this.customPoaTypes = const [],
+    this.customDocumentTypes = const [],
+  });
+
+  _ArchiveWizardSelection copyWith({
+    Object? archiveStatus = _sentinel,
+    Object? fileKind = _sentinel,
+    Object? caseType = _sentinel,
+    Object? courtLevel = _sentinel,
+    Object? companyGroup = _sentinel,
+    Object? companyType = _sentinel,
+    Object? procedureType = _sentinel,
+    Object? contractType = _sentinel,
+    Object? poaType = _sentinel,
+    List<String>? customFileKinds,
+    List<String>? customCaseTypes,
+    Map<String, List<String>>? customCourtsByCaseType,
+    List<String>? customCompanyTypes,
+    List<String>? customProcedureTypes,
+    List<String>? customContractTypes,
+    List<String>? customPoaTypes,
+    List<String>? customDocumentTypes,
+  }) {
+    return _ArchiveWizardSelection(
+      archiveStatus: archiveStatus == _sentinel ? this.archiveStatus : archiveStatus as String?,
+      fileKind: fileKind == _sentinel ? this.fileKind : fileKind as String?,
+      caseType: caseType == _sentinel ? this.caseType : caseType as String?,
+      courtLevel: courtLevel == _sentinel ? this.courtLevel : courtLevel as String?,
+      companyGroup: companyGroup == _sentinel ? this.companyGroup : companyGroup as String?,
+      companyType: companyType == _sentinel ? this.companyType : companyType as String?,
+      procedureType: procedureType == _sentinel ? this.procedureType : procedureType as String?,
+      contractType: contractType == _sentinel ? this.contractType : contractType as String?,
+      poaType: poaType == _sentinel ? this.poaType : poaType as String?,
+      customFileKinds: customFileKinds ?? this.customFileKinds,
+      customCaseTypes: customCaseTypes ?? this.customCaseTypes,
+      customCourtsByCaseType: customCourtsByCaseType ?? this.customCourtsByCaseType,
+      customCompanyTypes: customCompanyTypes ?? this.customCompanyTypes,
+      customProcedureTypes: customProcedureTypes ?? this.customProcedureTypes,
+      customContractTypes: customContractTypes ?? this.customContractTypes,
+      customPoaTypes: customPoaTypes ?? this.customPoaTypes,
+      customDocumentTypes: customDocumentTypes ?? this.customDocumentTypes,
+    );
+  }
+
+  bool get isClosed => archiveStatus == 'closed';
+  bool get isRunning => archiveStatus == 'running';
+}
+
+class _UnsetValue {
+  const _UnsetValue();
+}
+
+const _UnsetValue _sentinel = _UnsetValue();
+
+const _archiveFileKindOptions = <String, String>{
+  'case': 'دعوى',
+  'company': 'شركة',
+  'procedure': 'إجراء / معاملة',
+  'contract': 'عقد',
+  'poa': 'وكالة',
+  'misc': 'أرشيف غير محدد',
+};
+
+const _caseCourtMap = <String, List<String>>{
+  'مدنية': ['صلح مدني', 'بداية مدنية', 'استئناف مدني', 'نقض', 'مخاصمة'],
+  'شرعية': ['صلح شرعي', 'نقض شرعي', 'مخاصمة شرعية'],
+  'جزائية': ['نيابة عامة', 'تحقيق', 'إحالة', 'صلح جزاء', 'استئناف جنح', 'جنايات', 'نقض جزائي', 'مخاصمة جزائية'],
+  'تجارية': ['بداية تجارية', 'استئناف تجاري', 'نقض تجاري'],
+  'إدارية': ['محكمة عمالية', 'محكمة قضاء إداري', 'المحكمة الإدارية العليا', 'نقض إداري'],
+};
+
+const _companyTypeMap = <String, List<String>>{
+  'شركات أشخاص': ['شركة تضامنية', 'شركة توصية بسيطة'],
+  'شركات أموال': ['شركة محدودة المسؤولية', 'مساهمة مغفلة خاصة', 'مساهمة مغفلة عامة'],
+};
+
+const _procedureTypeOptions = ['أحوال شخصية', 'إجراءات عقارية', 'إجراءات تجارية', 'إجراءات تنفيذية', 'إجراءات إدارية عامة'];
+const _contractTypeOptions = ['عقد بيع', 'عقد إيجار', 'عقد شراكة', 'عقد عمل', 'عقد مقاولة', 'مخالصة / إبراء'];
+const _poaTypeOptions = ['وكالة عامة', 'وكالة خاصة', 'وكالة قضائية', 'وكالة بيع عقار', 'وكالة شركة'];
+
 enum _ArchiveLinkTarget {
   caseFile,
   procedure,
@@ -86,7 +203,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               children: [
                 _introCard(),
                 const SizedBox(height: 16),
-                _sectionTitle('ابدأ دفعة إدخال'),
+                _archiveGuidedEntryPanel(context, ref),
+                const SizedBox(height: 24),
+                _sectionTitle('دفعات رفع الملفات الخام'),
                 const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -240,6 +359,254 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _archiveGuidedEntryPanel(BuildContext context, WidgetRef ref) {
+    final selection = ref.watch(_archiveWizardProvider);
+    final notifier = ref.read(_archiveWizardProvider.notifier);
+    final statusDone = selection.archiveStatus != null;
+    final kindDone = selection.fileKind != null;
+    final canStart = _archiveSelectionReady(selection);
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(backgroundColor: AppColors.primaryNavy.withOpacity(0.1), child: const Icon(Icons.account_tree, color: AppColors.primaryNavy)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('معالج إدخال الأرشيف القديم', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('ابدأ بتحديد هل الملف منتهٍ أم جارٍ، ثم اختر نوع الملف وتصنيفه. الجارية فقط تغذي مكتب العمل بالمواعيد القادمة.', style: AppTextStyles.bodySmallSecondary),
+                    ],
+                  ),
+                ),
+                TextButton.icon(icon: const Icon(Icons.refresh, size: 16), label: const Text('إعادة ضبط'), onPressed: () => notifier.state = const _ArchiveWizardSelection()),
+              ],
+            ),
+            const Divider(height: 28),
+            _wizardStep('1', 'نوع الأرشيف', 'هذا الاختيار يحدد أثر الملف على مكتب العمل.', Wrap(spacing: 10, runSpacing: 10, children: [
+              _archiveChoice(selected: selection.archiveStatus == 'closed', icon: Icons.inventory_2, title: 'أرشيف منتهٍ', subtitle: 'للحفظ والبحث فقط، بلا مواعيد قادمة.', onTap: () => notifier.state = selection.copyWith(archiveStatus: 'closed')),
+              _archiveChoice(selected: selection.archiveStatus == 'running', icon: Icons.pending_actions, title: 'أرشيف جارٍ', subtitle: 'أي موعد قادم سينعكس على مكتب العمل والتقويم.', onTap: () => notifier.state = selection.copyWith(archiveStatus: 'running')),
+            ])),
+            if (statusDone) ...[
+              const SizedBox(height: 16),
+              _wizardStep('2', 'النوع الفرعي للملف', 'اختر نوع الأرشيف المراد إدخاله، أو أضف نوعاً غير موجود.', Wrap(spacing: 8, runSpacing: 8, children: [
+                ..._archiveFileKindOptions.entries.map((e) => _choiceChip(selection.fileKind == e.key, e.value, () => notifier.state = selection.copyWith(fileKind: e.key, caseType: null, courtLevel: null, companyGroup: null, companyType: null, procedureType: null, contractType: null, poaType: null))),
+                ...selection.customFileKinds.map((v) => _choiceChip(selection.fileKind == v, v, () => notifier.state = selection.copyWith(fileKind: v))),
+                ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع جديد'), onPressed: () => _addCustomValue(context, 'نوع ملف جديد', (value) => notifier.state = selection.copyWith(customFileKinds: [...selection.customFileKinds, value], fileKind: value))),
+              ])),
+            ],
+            if (kindDone) ...[
+              const SizedBox(height: 16),
+              _wizardDetailsForKind(context, ref, selection),
+            ],
+            if (selection.fileKind != null) ...[
+              const SizedBox(height: 16),
+              _documentsHint(context, ref, selection),
+            ],
+            const SizedBox(height: 18),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ElevatedButton.icon(
+                icon: Icon(selection.isRunning ? Icons.play_circle : Icons.archive),
+                label: Text(selection.isRunning ? 'فتح شاشة إدخال ملف جارٍ' : 'فتح شاشة أرشفة ملف منتهٍ'),
+                onPressed: canStart ? () => _startArchiveEntry(context, ref, selection) : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _wizardStep(String number, String title, String subtitle, Widget child) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      CircleAvatar(radius: 14, backgroundColor: AppColors.secondaryGold, child: Text(number, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(title, style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
+        const SizedBox(height: 3),
+        Text(subtitle, style: AppTextStyles.bodySmallSecondary),
+        const SizedBox(height: 10),
+        child,
+      ])),
+    ]);
+  }
+
+  Widget _archiveChoice({required bool selected, required IconData icon, required String title, required String subtitle, required VoidCallback onTap}) {
+    return SizedBox(
+      width: 300,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: selected ? AppColors.primaryNavy.withOpacity(0.08) : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: selected ? AppColors.primaryNavy : AppColors.cardBorder, width: selected ? 1.4 : 0.7)),
+          child: Row(children: [
+            CircleAvatar(backgroundColor: AppColors.primaryNavy.withOpacity(0.1), child: Icon(icon, color: AppColors.primaryNavy)),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: AppTextStyles.labelLarge), Text(subtitle, style: AppTextStyles.bodySmallSecondary)])),
+            if (selected) const Icon(Icons.check_circle, color: AppColors.success),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _choiceChip(bool selected, String label, VoidCallback onTap) {
+    return ChoiceChip(selected: selected, label: Text(label), selectedColor: AppColors.primaryNavy.withOpacity(0.12), labelStyle: TextStyle(color: selected ? AppColors.primaryNavy : AppColors.textPrimary, fontWeight: selected ? FontWeight.bold : FontWeight.normal), onSelected: (_) => onTap());
+  }
+
+  Widget _wizardDetailsForKind(BuildContext context, WidgetRef ref, _ArchiveWizardSelection s) {
+    final notifier = ref.read(_archiveWizardProvider.notifier);
+    if (s.fileKind == 'case') {
+      final caseTypes = [..._caseCourtMap.keys, ...s.customCaseTypes];
+      final courts = s.caseType == null ? const <String>[] : [...(_caseCourtMap[s.caseType] ?? const <String>[]), ...(s.customCourtsByCaseType[s.caseType] ?? const <String>[])];
+      return _wizardStep('3', 'تصنيف الدعوى والمحكمة', 'اختر نوع الدعوى ثم المحكمة/درجة التقاضي. يمكن إضافة أي تصنيف أو محكمة غير موجودة.', Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          ...caseTypes.map((v) => _choiceChip(s.caseType == v, v, () => notifier.state = s.copyWith(caseType: v, courtLevel: null))),
+          ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع دعوى'), onPressed: () => _addCustomValue(context, 'نوع دعوى جديد', (value) => notifier.state = s.copyWith(customCaseTypes: [...s.customCaseTypes, value], caseType: value, courtLevel: null))),
+        ]),
+        if (s.caseType != null) ...[
+          const SizedBox(height: 12),
+          Text('المحكمة / درجة التقاضي', style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryNavy)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ...courts.map((v) => _choiceChip(s.courtLevel == v, v, () => notifier.state = s.copyWith(courtLevel: v))),
+            ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة محكمة / درجة'), onPressed: () => _addCustomValue(context, 'محكمة أو درجة جديدة', (value) {
+              final updated = Map<String, List<String>>.from(s.customCourtsByCaseType);
+              updated[s.caseType!] = [...(updated[s.caseType!] ?? const <String>[]), value];
+              notifier.state = s.copyWith(customCourtsByCaseType: updated, courtLevel: value);
+            })),
+          ]),
+        ],
+      ]));
+    }
+    if (s.fileKind == 'company') {
+      final groups = _companyTypeMap.keys.toList();
+      final subtypes = s.companyGroup == null ? const <String>[] : [...(_companyTypeMap[s.companyGroup] ?? const <String>[]), ...s.customCompanyTypes];
+      return _wizardStep('3', 'نوع الشركة ووثائقها', 'حدد إن كانت شركة أشخاص أو أموال، ثم نوعها التفصيلي.', Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Wrap(spacing: 8, runSpacing: 8, children: groups.map((v) => _choiceChip(s.companyGroup == v, v, () => notifier.state = s.copyWith(companyGroup: v, companyType: null))).toList()),
+        if (s.companyGroup != null) ...[
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ...subtypes.map((v) => _choiceChip(s.companyType == v, v, () => notifier.state = s.copyWith(companyType: v))),
+            ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع شركة'), onPressed: () => _addCustomValue(context, 'نوع شركة جديد', (value) => notifier.state = s.copyWith(customCompanyTypes: [...s.customCompanyTypes, value], companyType: value))),
+          ]),
+        ],
+      ]));
+    }
+    if (s.fileKind == 'procedure') {
+      final items = [..._procedureTypeOptions, ...s.customProcedureTypes];
+      return _wizardSimpleClassifier(context, '3', 'نوع الإجراء / المعاملة', 'اختر تصنيف الإجراء أو أضف تصنيفاً جديداً.', items, s.procedureType, (v) => notifier.state = s.copyWith(procedureType: v), 'إضافة نوع إجراء', (v) => notifier.state = s.copyWith(customProcedureTypes: [...s.customProcedureTypes, v], procedureType: v));
+    }
+    if (s.fileKind == 'contract') {
+      final items = [..._contractTypeOptions, ...s.customContractTypes];
+      return _wizardSimpleClassifier(context, '3', 'نوع العقد', 'اختر نوع العقد أو أضف نوعاً جديداً.', items, s.contractType, (v) => notifier.state = s.copyWith(contractType: v), 'إضافة نوع عقد', (v) => notifier.state = s.copyWith(customContractTypes: [...s.customContractTypes, v], contractType: v));
+    }
+    if (s.fileKind == 'poa') {
+      final items = [..._poaTypeOptions, ...s.customPoaTypes];
+      return _wizardSimpleClassifier(context, '3', 'نوع الوكالة', 'اختر نوع الوكالة أو أضف نوعاً جديداً.', items, s.poaType, (v) => notifier.state = s.copyWith(poaType: v), 'إضافة نوع وكالة', (v) => notifier.state = s.copyWith(customPoaTypes: [...s.customPoaTypes, v], poaType: v));
+    }
+    return _wizardStep('3', 'أرشيف غير محدد', 'استخدم هذا المسار للمواد التي لا تنتمي لأي نوع معروف حالياً، مع إمكانية إضافة الوثائق المطلوبة يدوياً.', Text('سيتم حفظه كأرشيف يحتاج تصنيفاً لاحقاً.', style: AppTextStyles.bodyMediumSecondary));
+  }
+
+  Widget _wizardSimpleClassifier(BuildContext context, String number, String title, String subtitle, List<String> items, String? selected, ValueChanged<String> onSelect, String addLabel, ValueChanged<String> onAdd) {
+    return _wizardStep(number, title, subtitle, Wrap(spacing: 8, runSpacing: 8, children: [
+      ...items.map((v) => _choiceChip(selected == v, v, () => onSelect(v))),
+      ActionChip(avatar: const Icon(Icons.add, size: 16), label: Text(addLabel), onPressed: () => _addCustomValue(context, addLabel, onAdd)),
+    ]));
+  }
+
+  Widget _documentsHint(BuildContext context, WidgetRef ref, _ArchiveWizardSelection s) {
+    final notifier = ref.read(_archiveWizardProvider.notifier);
+    final docs = [..._defaultDocumentsFor(s), ...s.customDocumentTypes];
+    return _wizardStep('4', 'الوثائق والثبوتيات المتوقعة', 'هذه قائمة مساعدة فقط، ويمكن إضافة أي وثيقة يحتاجها المستخدم داخل الأرشفة.', Wrap(spacing: 8, runSpacing: 8, children: [
+      ...docs.map((d) => Chip(label: Text(d), avatar: const Icon(Icons.description, size: 16))),
+      ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة وثيقة'), onPressed: () => _addCustomValue(context, 'اسم الوثيقة', (value) => notifier.state = s.copyWith(customDocumentTypes: [...s.customDocumentTypes, value]))),
+    ]));
+  }
+
+  List<String> _defaultDocumentsFor(_ArchiveWizardSelection s) {
+    if (s.fileKind == 'case') return ['استدعاء الدعوى', 'الوكالة', 'الهوية / السجل', 'المبرزات', 'القرارات / الأحكام', if (s.isRunning) 'موعد الجلسة القادمة'];
+    if (s.fileKind == 'company') {
+      if (s.companyGroup == 'شركات أموال') return ['النظام الأساسي', 'طلب التأسيس', 'بيانات الشركاء', 'إيصال الرسوم', if (s.isRunning) 'موعد متابعة التأسيس'];
+      if (s.companyGroup == 'شركات أشخاص') return ['عقد الشركة', 'بيانات الشركاء', 'السجل التجاري', 'إيصال الرسوم', if (s.isRunning) 'موعد متابعة'];
+      return ['وثائق الشركة الأساسية'];
+    }
+    if (s.fileKind == 'procedure') return ['طلب المعاملة', 'الثبوتيات', 'الإيصالات', if (s.isRunning) 'موعد المراجعة القادمة'];
+    if (s.fileKind == 'contract') return ['نسخة العقد', 'وثائق الأطراف', 'مرفقات العقد', if (s.isRunning) 'موعد تجديد / متابعة'];
+    if (s.fileKind == 'poa') return ['سند الوكالة', 'هوية الموكل', 'بيانات الوكيل', 'فرع النقابة'];
+    return ['اسم الوثيقة', 'وصف الوثيقة', 'مكان الأصل الورقي'];
+  }
+
+  bool _archiveSelectionReady(_ArchiveWizardSelection s) {
+    if (s.archiveStatus == null || s.fileKind == null) return false;
+    if (s.fileKind == 'case') return s.caseType != null && s.courtLevel != null;
+    if (s.fileKind == 'company') return s.companyGroup != null && s.companyType != null;
+    if (s.fileKind == 'procedure') return s.procedureType != null;
+    if (s.fileKind == 'contract') return s.contractType != null;
+    if (s.fileKind == 'poa') return s.poaType != null;
+    return true;
+  }
+
+  Future<void> _addCustomValue(BuildContext context, String title, ValueChanged<String> onAdd) async {
+    final controller = TextEditingController();
+    final value = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(title: Text(title), content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'القيمة الجديدة')), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')), ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة'))]));
+    if (value == null || value.trim().isEmpty) return;
+    onAdd(value.trim());
+  }
+
+  Future<void> _startArchiveEntry(BuildContext context, WidgetRef ref, _ArchiveWizardSelection s) async {
+    final route = _routeForArchiveKind(s.fileKind ?? 'misc');
+    final requiredPermission = _permissionForArchiveKind(s.fileKind ?? 'misc');
+    if (requiredPermission != null && !ref.read(permissionServiceProvider).can(requiredPermission)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_wizard', description: 'محاولة بدء إدخال أرشيف دون صلاحية للنوع المحدد', severity: 'warning');
+      return;
+    }
+    await ref.read(auditServiceProvider).log(action: 'start_entry', category: 'archive', entityType: 'archive_wizard', entityTitle: _archiveSummary(s), description: 'بدء إدخال أرشيف قديم من المعالج الهرمي', after: {'status': s.archiveStatus, 'kind': s.fileKind, 'summary': _archiveSummary(s)}, severity: 'info');
+    if (!context.mounted) return;
+    if (route == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تجهيز مسار أرشيف غير محدد: ${_archiveSummary(s)}. أضف ملفاته من دفعات رفع الملفات ثم صنّفها لاحقاً.'), backgroundColor: AppColors.info));
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('سيتم فتح شاشة الإدخال الرسمية. الاختيار: ${_archiveSummary(s)}'), backgroundColor: AppColors.success));
+    context.go(route);
+  }
+
+  String? _permissionForArchiveKind(String kind) {
+    switch (kind) {
+      case 'case': return PermissionKeys.casesCreateNew;
+      case 'company': return PermissionKeys.companiesCreate;
+      case 'procedure': return PermissionKeys.proceduresCreate;
+      case 'contract': return PermissionKeys.contractsCreate;
+      case 'poa': return PermissionKeys.poaCreate;
+      default: return PermissionKeys.archiveIntakeCreate;
+    }
+  }
+
+  String? _routeForArchiveKind(String kind) {
+    switch (kind) {
+      case 'case': return '/cases/create';
+      case 'company': return '/companies/create';
+      case 'procedure': return '/procedures/create';
+      case 'contract': return '/contracts/create';
+      case 'poa': return '/poa';
+      default: return null;
+    }
+  }
+
+  String _archiveSummary(_ArchiveWizardSelection s) {
+    final parts = <String>[s.isRunning ? 'جارٍ' : 'منتهٍ', _archiveFileKindOptions[s.fileKind] ?? s.fileKind ?? '', if (s.caseType != null) s.caseType!, if (s.courtLevel != null) s.courtLevel!, if (s.companyGroup != null) s.companyGroup!, if (s.companyType != null) s.companyType!, if (s.procedureType != null) s.procedureType!, if (s.contractType != null) s.contractType!, if (s.poaType != null) s.poaType!].where((p) => p.trim().isNotEmpty).toList();
+    return parts.join(' > ');
   }
 
   Widget _importTemplatesPanel(BuildContext context, WidgetRef ref) {

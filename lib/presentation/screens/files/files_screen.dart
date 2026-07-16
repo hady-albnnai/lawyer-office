@@ -83,14 +83,20 @@ final filesProvider = Provider<List<FileItem>>((ref) {
 
 
 class FilesScreen extends ConsumerStatefulWidget {
-  const FilesScreen({super.key});
+  final String? initialStatus;
+  const FilesScreen({super.key, this.initialStatus});
 
   @override
   ConsumerState<FilesScreen> createState() => _FilesScreenState();
 }
 
 class _FilesScreenState extends ConsumerState<FilesScreen> {
-  String _statusFilter = 'active';
+  late String _statusFilter;
+  @override
+  void initState() {
+    super.initState();
+    _statusFilter = widget.initialStatus == 'completed' ? 'completed' : 'active';
+  }
   FileType? _typeFilter;
   String? _subCategoryFilter;
   String _query = '';
@@ -218,32 +224,47 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _statusChip('active', 'الملفات الجارية'),
-                _statusChip('completed', 'الملفات المنتهية'),
-                _statusChip('needs_completion', 'تحتاج استكمال'),
-                _statusChip('all', 'كل ملفات المكتب'),
-              ],
-            ),
+          Row(
+            children: [
+              Expanded(child: _statusTab('active', 'الملفات الجارية', 'تؤثر على مكتب العمل والمواعيد القادمة')),
+              const SizedBox(width: 10),
+              Expanded(child: _statusTab('completed', 'الملفات المنتهية', 'للحفظ والبحث فقط دون أثر على المواعيد')),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _statusChip(String value, String label) {
+  Widget _statusTab(String value, String label, String subtitle) {
     final selected = _statusFilter == value;
-    return Padding(
-      padding: const EdgeInsetsDirectional.only(end: 8),
-      child: ChoiceChip(
-        selected: selected,
-        label: Text(label),
-        selectedColor: AppColors.primaryNavy.withOpacity(0.12),
-        labelStyle: TextStyle(color: selected ? AppColors.primaryNavy : AppColors.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
-        onSelected: (_) => setState(() => _statusFilter = value),
+    return InkWell(
+      onTap: () => setState(() => _statusFilter = value),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryNavy.withOpacity(0.10) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: selected ? AppColors.primaryNavy : AppColors.cardBorder, width: selected ? 1.5 : 0.7),
+        ),
+        child: Row(
+          children: [
+            Icon(value == 'active' ? Icons.pending_actions : Icons.inventory_2, color: selected ? AppColors.primaryNavy : AppColors.textSecondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: AppTextStyles.labelLarge.copyWith(color: selected ? AppColors.primaryNavy : AppColors.textPrimary)),
+                  const SizedBox(height: 3),
+                  Text(subtitle, style: AppTextStyles.bodySmallSecondary, maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            if (selected) const Icon(Icons.check_circle, color: AppColors.success),
+          ],
+        ),
       ),
     );
   }
