@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -480,9 +481,7 @@ class _AddWorkButton extends ConsumerWidget {
             showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
             break;
           case 'manual':
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: const Text('سيتم تفعيل المهام المخصصة وقوالب نتائجها في المرحلة التالية.'), backgroundColor: AppColors.info),
-            );
+            showDialog(context: context, builder: (_) => const _ManualTaskDialog());
             break;
         }
       },
@@ -492,7 +491,7 @@ class _AddWorkButton extends ConsumerWidget {
         if (permissions.can(PermissionKeys.companiesCreate)) const PopupMenuItem(value: 'company', child: Text('شركة')),
         if (permissions.can(PermissionKeys.contractsCreate)) const PopupMenuItem(value: 'contract', child: Text('عقد')),
         if (permissions.can(PermissionKeys.workOrdersCreate)) const PopupMenuItem(value: 'work_order', child: Text('أمر عمل')),
-        const PopupMenuItem(value: 'manual', child: Text('مهمة مخصصة')),
+        if (permissions.can(PermissionKeys.tasksCreate)) const PopupMenuItem(value: 'manual', child: Text('مهمة مخصصة')),
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -560,10 +559,8 @@ List<_WorkItem> _collectItemsForDay(BuildContext context, WidgetRef ref, DateTim
       icon: _taskIcon(t.taskType),
       priority: t.priority >= 2 ? 'حرجة' : 'عادية',
       status: t.status == 2 ? 'تم' : 'مجدول',
-      needsResult: true,
-      onResult: () => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('سيتم تفعيل نتيجة المهمة والترحيل التلقائي في المرحلة التالية.'), backgroundColor: AppColors.info),
-      ),
+      needsResult: permissions.can(PermissionKeys.tasksResultEnter),
+      onResult: () => _showTaskResultDialog(context, ref, t),
     ));
   }
 
