@@ -191,8 +191,18 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (requestedStatus == 'closed' || requestedStatus == 'running') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final current = ref.read(_archiveWizardProvider);
-        if (current.archiveStatus == null) {
-          ref.read(_archiveWizardProvider.notifier).state = current.copyWith(archiveStatus: requestedStatus);
+        if (current.archiveStatus != requestedStatus) {
+          ref.read(_archiveWizardProvider.notifier).state = current.copyWith(
+            archiveStatus: requestedStatus,
+            fileKind: null,
+            caseType: null,
+            courtLevel: null,
+            companyGroup: null,
+            companyType: null,
+            procedureType: null,
+            contractType: null,
+            poaType: null,
+          );
         }
       });
     }

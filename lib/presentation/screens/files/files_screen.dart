@@ -242,9 +242,52 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               Expanded(child: _statusTab('completed', 'الملفات المنتهية', 'للحفظ والبحث فقط دون أثر على المواعيد')),
             ],
           ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _typeChip(null, 'كل الأنواع', Icons.folder_copy),
+                ...FileType.values.map((type) => _typeChip(type, type.displayName, _fileTypeIcon(type))),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _typeChip(FileType? value, String label, IconData icon) {
+    final selected = _typeFilter == value;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: ChoiceChip(
+        avatar: Icon(icon, size: 16, color: selected ? AppColors.primaryNavy : AppColors.textSecondary),
+        selected: selected,
+        label: Text(label),
+        selectedColor: AppColors.primaryNavy.withOpacity(0.10),
+        labelStyle: TextStyle(color: selected ? AppColors.primaryNavy : AppColors.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+        onSelected: (_) => setState(() {
+          _typeFilter = value;
+          _subCategoryFilter = null;
+        }),
+      ),
+    );
+  }
+
+  IconData _fileTypeIcon(FileType type) {
+    switch (type) {
+      case FileType.caseFile:
+        return Icons.gavel;
+      case FileType.contract:
+        return Icons.description;
+      case FileType.company:
+        return Icons.business;
+      case FileType.adminProcedure:
+        return Icons.assignment;
+      case FileType.agency:
+        return Icons.verified_user_outlined;
+    }
   }
 
   Widget _statusTab(String value, String label, String subtitle) {
