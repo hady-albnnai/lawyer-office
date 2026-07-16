@@ -33,7 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 7, vsync: this);
+    _tabs = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -52,7 +52,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         textDirection: TextDirection.rtl,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('الإعدادات والأمان والنسخ الاحتياطي'),
+            title: const Text('إدارة المكتب'),
             bottom: TabBar(
               controller: _tabs,
               isScrollable: true,
@@ -63,11 +63,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               tabs: const [
                 Tab(text: 'بيانات المكتب'),
                 Tab(text: 'الأمان'),
-                Tab(text: 'النسخ الاحتياطي'),
-                Tab(text: 'القوائم المرجعية'),
                 Tab(text: 'المستخدمون والصلاحيات'),
                 Tab(text: 'سجل المسؤولية'),
-                Tab(text: 'سجل النشاط'),
+                Tab(text: 'النسخ الاحتياطي'),
+                Tab(text: 'القوائم المرجعية'),
               ],
             ),
           ),
@@ -89,11 +88,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   children: [
                     _OfficeTab(),
                     _SecurityTab(),
-                    _BackupTab(),
-                    _LookupsTab(),
                     _UsersRolesTab(),
                     _AuditTab(),
-                    _ActivityTab(),
+                    _BackupTab(),
+                    _LookupsTab(),
                   ],
                 ),
               ),
