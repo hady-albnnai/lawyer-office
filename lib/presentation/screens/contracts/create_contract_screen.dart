@@ -91,7 +91,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تنظيم عقد جديد في المكتب مع ربط التنبيهات ونماذج Word'),
+        title: Text(widget.archiveContext == null ? 'تنظيم عقد جديد في المكتب مع ربط التنبيهات ونماذج Word' : (widget.archiveContext!.isRunning ? 'إدخال عقد أرشيفي جارٍ' : 'أرشفة عقد منتهٍ')),
       ),
       body: Form(
         key: _formKey,

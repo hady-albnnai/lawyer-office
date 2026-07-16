@@ -78,7 +78,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تسجيل معاملة وإجراء إداري جديد في المكتب (V6.2)'),
+        title: Text(widget.archiveContext == null ? 'تسجيل معاملة وإجراء إداري جديد في المكتب (V6.2)' : (widget.archiveContext!.isRunning ? 'إدخال إجراء أرشيفي جارٍ' : 'أرشفة إجراء منتهٍ')),
       ),
       body: Form(
         key: _formKey,

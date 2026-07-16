@@ -50,7 +50,7 @@ class _PoaListScreenState extends ConsumerState<PoaListScreen> {
         textDirection: TextDirection.rtl,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('أرشيف الوكالات'),
+            title: Text(widget.archiveContext == null ? 'أرشيف الوكالات' : (widget.archiveContext!.isRunning ? 'إدخال وكالة أرشيفية جارية' : 'أرشفة وكالة منتهية')),
             actions: [
               if (permissions.can(PermissionKeys.poaCreate))
                 IconButton(
@@ -333,7 +333,7 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
     _principalPersonId ??= persons.isNotEmpty ? persons.first.id : null;
 
     return AlertDialog(
-      title: const Text('إضافة وكالة جديدة'),
+      title: Text(widget.archiveContext == null ? 'إضافة وكالة جديدة' : (widget.archiveContext!.isRunning ? 'إضافة وكالة أرشيفية جارية' : 'إضافة وكالة منتهية للأرشيف')),
       content: SingleChildScrollView(
         child: SizedBox(
           width: 560,

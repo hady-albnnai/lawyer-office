@@ -78,7 +78,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('معالج تأسيس شركة تجارية أو أرشفة شركة قائمة (V6.2)'),
+        title: Text(widget.archiveContext == null ? 'معالج تأسيس شركة تجارية أو أرشفة شركة قائمة (V6.2)' : (widget.archiveContext!.isRunning ? 'إدخال شركة أرشيفية جارية' : 'أرشفة شركة منتهية')),
       ),
       body: Column(
         children: [

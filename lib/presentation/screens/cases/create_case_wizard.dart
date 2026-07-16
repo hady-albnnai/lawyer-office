@@ -169,7 +169,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إنشاء دعوى جديدة'),
+        title: Text(widget.archiveContext == null ? 'إنشاء دعوى جديدة' : (widget.archiveContext!.isRunning ? 'إدخال دعوى أرشيفية جارية' : 'أرشفة دعوى منتهية')),
         actions: [
           if (_currentStep > 0)
             TextButton(
@@ -222,7 +222,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
                           color: AppColors.textOnLight,
                         ),
                       )
-                    : const Text('إنشاء الدعوى'),
+                    : Text(widget.archiveContext == null ? 'إنشاء الدعوى' : (widget.archiveContext!.isRunning ? 'حفظ الدعوى الجارية' : 'حفظ الدعوى المنتهية')),
               ),
           ],
         ),
