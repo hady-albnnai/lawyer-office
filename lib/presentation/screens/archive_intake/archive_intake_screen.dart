@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
@@ -12,6 +13,7 @@ import '../../../core/enums/app_enums.dart';
 import '../../../data/repositories/archive_intake_repository.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/app_providers.dart';
+import '../files/files_screen.dart' show FileItem, FileType, filesProvider;
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -142,7 +144,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   children: [
                     _statusTile('دفعات الإدخال', 'متابعة دفعات الاستيراد وحالاتها.', Icons.inventory_2, AppColors.primaryNavy),
                     _statusTile('صندوق غير مصنف', 'ملفات تحتاج ربطاً أو تصنيفاً.', Icons.inbox, AppColors.warning, onTap: () => _showUnclassifiedInbox(context, ref)),
-                    _statusTile('ملفات جارية تحتاج استكمال', 'دعاوى وإجراءات مستوردة ناقصة بيانات تشغيلية.', Icons.pending_actions, AppColors.error),
+                    _statusTile('ملفات جارية تحتاج استكمال', 'دعاوى وإجراءات وملفات نشطة ناقصة بيانات تشغيلية.', Icons.pending_actions, AppColors.error, onTap: () => _showActiveNeedsCompletion(context, ref)),
                     _statusTile('المكررات', 'ملفات كشفها النظام كنسخ مكررة.', Icons.copy_all, AppColors.info, onTap: () => _showDuplicates(context, ref)),
                     _statusTile('تقارير الجودة', 'نتائج الاستيراد والأخطاء والعينات المطلوبة للمراجعة.', Icons.fact_check, AppColors.success, onTap: () => _showQualityReport(context, ref)),
                   ],
