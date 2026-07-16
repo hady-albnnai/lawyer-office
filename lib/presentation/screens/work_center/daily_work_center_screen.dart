@@ -57,7 +57,7 @@ class _DailyWorkCenterScreenState extends ConsumerState<DailyWorkCenterScreen> w
               IconButton(
                 tooltip: 'طباعة لائحة العمل',
                 icon: const Icon(Icons.print),
-                onPressed: () => _printCurrentWorkList(context),
+                onPressed: () => _showPrintOptions(context),
               ),
               const SizedBox(width: 8),
             ],
@@ -92,33 +92,99 @@ class _DailyWorkCenterScreenState extends ConsumerState<DailyWorkCenterScreen> w
     );
   }
 
-  Future<void> _printCurrentWorkList(BuildContext context) async {
+  ({String title, DateTime date, List<_WorkItem> items}) _currentWorkListData() {
     final index = _tabs.index;
-    late final String title;
-    late final DateTime date;
-    late final List<_WorkItem> items;
-
     if (index == 0) {
-      title = 'لائحة عمل اليوم';
-      date = DateTime.now();
-      items = _collectItemsForDay(context, ref, date, includeAttention: true);
-    } else if (index == 1) {
-      title = 'لائحة عمل الغد';
-      date = DateTime.now().add(const Duration(days: 1));
-      items = _collectItemsForDay(context, ref, date);
-    } else if (index == 2) {
-      title = 'لائحة عمل الأسبوع';
-      date = DateTime.now();
-      items = <_WorkItem>[];
+      final date = DateTime.now();
+      return (title: 'لائحة عمل اليوم', date: date, items: _collectItemsForDay(context, ref, date, includeAttention: true));
+    }
+    if (index == 1) {
+      final date = DateTime.now().add(const Duration(days: 1));
+      return (title: 'لائحة عمل الغد', date: date, items: _collectItemsForDay(context, ref, date));
+    }
+    if (index == 2) {
+      final date = DateTime.now();
+      final items = <_WorkItem>[];
       for (var i = 0; i < 7; i++) {
         items.addAll(_collectItemsForDay(context, ref, DateTime.now().add(Duration(days: i))));
       }
-    } else {
-      title = 'لائحة عمل يوم ${_date(_calendarDay)}';
-      date = _calendarDay;
-      items = _collectItemsForDay(context, ref, _calendarDay);
+      return (title: 'لائحة عمل الأسبوع', date: date, items: items);
     }
+    return (
+      title: 'لائحة عمل يوم ${_date(_calendarDay)}',
+      date: _calendarDay,
+      items: _collectItemsForDay(context, ref, _calendarDay),
+    );
+  }
 
+  Future<void> _showPrintOptions(BuildContext context) async {
+    final data = _currentWorkListData();
+    final assignees = <String>{'all', ...data.items.map((i) => i.assignedTo.trim()).where((v) => v.isNotEmpty)}.toList();
+    final types = <String>{'all', ...data.items.map((i) => i.type)}.toList();
+    String assignee = 'all';
+    String type = 'all';
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          final filtered = data.items.where((i) {
+            final assigneeOk = assignee == 'all' || i.assignedTo == assignee;
+            final typeOk = type == 'all' || i.type == type;
+            return assigneeOk && typeOk;
+          }).toList();
+          return AlertDialog(
+            title: const Text('طباعة لائحة العمل'),
+            content: SizedBox(
+              width: 520,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(data.title, style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: assignee,
+                    decoration: const InputDecoration(labelText: 'المكلف'),
+                    items: assignees
+                        .map((a) => DropdownMenuItem(value: a, child: Text(a == 'all' ? 'كل المكلفين' : a)))
+                        .toList(),
+                    onChanged: (v) => setDialog(() => assignee = v ?? 'all'),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: type,
+                    decoration: const InputDecoration(labelText: 'نوع العمل'),
+                    items: types
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t == 'all' ? 'كل الأنواع' : t)))
+                        .toList(),
+                    onChanged: (v) => setDialog(() => type = v ?? 'all'),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text('عدد العناصر في اللائحة: ${filtered.length}', style: AppTextStyles.bodyMedium),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('تصدير PDF'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _exportWorkList(data.title, data.date, filtered);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _exportWorkList(String title, DateTime date, List<_WorkItem> items) async {
     final bytes = await _DailyWorkPdfBuilder.build(title: title, date: date, items: items);
     await ref.read(auditServiceProvider).log(
       action: 'print',
