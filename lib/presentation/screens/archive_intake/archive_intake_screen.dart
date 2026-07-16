@@ -496,7 +496,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
 
   Future<void> _showLinkItemDialog(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
     _ArchiveLinkTarget target = _ArchiveLinkTarget.caseFile;
-    String documentType = 'archive_document';
+    String documentType = _documentTypeOptions.containsKey(item.suggestedDocumentType) ? item.suggestedDocumentType! : 'archive_document';
     int? selectedId;
     String selectedTitle = '';
     final search = TextEditingController();
@@ -620,6 +620,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       default: return AppColors.primaryNavy;
     }
   }
+
+  String _documentTypeLabel(String key) => _documentTypeOptions[key] ?? key;
 
   String _itemStatusLabel(String status) {
     switch (status) {

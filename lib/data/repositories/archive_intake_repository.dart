@@ -54,6 +54,9 @@ class ArchiveItemRecord {
   final String status;
   final String reviewStatus;
   final String? errorMessage;
+  final String? suggestedDocumentType;
+  final int? suggestedEntityType;
+  final int? suggestedEntityId;
   final String? confirmedDocumentType;
   final int? confirmedEntityType;
   final int? confirmedEntityId;
@@ -71,6 +74,9 @@ class ArchiveItemRecord {
     required this.status,
     required this.reviewStatus,
     this.errorMessage,
+    this.suggestedDocumentType,
+    this.suggestedEntityType,
+    this.suggestedEntityId,
     this.confirmedDocumentType,
     this.confirmedEntityType,
     this.confirmedEntityId,
@@ -153,8 +159,8 @@ class ArchiveIntakeRepository {
         await _db.customStatement('''
           INSERT INTO archive_items(
             batch_id, original_file_name, source_path, stored_path, file_type, file_size, sha256,
-            status, review_status, error_message
-          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            status, review_status, suggested_document_type, error_message
+          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', [
           batchId,
           file.path.split(Platform.pathSeparator).last,
@@ -165,6 +171,7 @@ class ArchiveIntakeRepository {
           hash,
           isDuplicate ? 'duplicate' : 'imported',
           'needs_review',
+          _suggestDocumentType(file.path),
           isDuplicate ? 'ملف مكرر محتمل' : null,
         ]);
       } catch (e) {
@@ -239,6 +246,9 @@ class ArchiveIntakeRepository {
       status: d['status'] as String,
       reviewStatus: d['review_status'] as String,
       errorMessage: d['error_message'] as String?,
+      suggestedDocumentType: d['suggested_document_type'] as String?,
+      suggestedEntityType: d['suggested_entity_type'] as int?,
+      suggestedEntityId: d['suggested_entity_id'] as int?,
       confirmedDocumentType: d['confirmed_document_type'] as String?,
       confirmedEntityType: d['confirmed_entity_type'] as int?,
       confirmedEntityId: d['confirmed_entity_id'] as int?,
