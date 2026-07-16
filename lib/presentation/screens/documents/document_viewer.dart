@@ -13,40 +13,53 @@ class DocumentViewerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final doc = _getDoc(ref, documentId);
-    if (doc == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('غير موجود')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: AppColors.error),
-              const SizedBox(height: 16),
-              Text('المستند غير موجود', style: AppTextStyles.headline4),
-              const SizedBox(height: 8),
-              Text('الرقم: $documentId', style: AppTextStyles.bodyMediumSecondary),
-              const SizedBox(height: 16),
-              ElevatedButton(onPressed: () => context.pop(), child: const Text('العودة')),
+    final docsAsync = ref.watch(documentsFutureProvider);
+    return docsAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('تحميل المستند')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => Scaffold(
+        appBar: AppBar(title: const Text('تعذر تحميل المستند')),
+        body: Center(child: Text('تعذر تحميل بيانات المستند: $error')),
+      ),
+      data: (docs) {
+        final doc = _getDoc(docs, documentId);
+        if (doc == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('غير موجود')),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  Text('المستند غير موجود', style: AppTextStyles.headline4),
+                  const SizedBox(height: 8),
+                  Text('الرقم: $documentId', style: AppTextStyles.bodyMediumSecondary),
+                  const SizedBox(height: 16),
+                  ElevatedButton(onPressed: () => context.pop(), child: const Text('العودة')),
+                ],
+              ),
+            ),
+          );
+        }
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(doc.title),
+            actions: [
+              IconButton(icon: const Icon(Icons.download), onPressed: () => _showMsg(context, 'تم تنزيل ${doc.fileName}'), tooltip: 'تنزيل'),
+              IconButton(icon: const Icon(Icons.share), onPressed: () => _showMsg(context, 'تم مشاركة ${doc.fileName}'), tooltip: 'مشاركة'),
             ],
           ),
-        ),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(doc.title),
-        actions: [
-          IconButton(icon: const Icon(Icons.download), onPressed: () => _showMsg(context, 'تم تنزيل ${doc.fileName}'), tooltip: 'تنزيل'),
-          IconButton(icon: const Icon(Icons.share), onPressed: () => _showMsg(context, 'تم مشاركة ${doc.fileName}'), tooltip: 'مشاركة'),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildInfo(doc),
-          Expanded(child: _buildViewer(doc, context)),
-        ],
-      ),
+          body: Column(
+            children: [
+              _buildInfo(doc),
+              Expanded(child: _buildViewer(doc, context)),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -176,8 +189,7 @@ class DocumentViewerScreen extends ConsumerWidget {
 
   void _showMsg(BuildContext c, String msg) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.success));
 
-  DocumentItem? _getDoc(WidgetRef ref, String id) {
-    final docs = ref.watch(documentsProvider);
+  DocumentItem? _getDoc(List<DocumentItem> docs, String id) {
     for (final doc in docs) {
       if (doc.id == id) return doc;
     }
