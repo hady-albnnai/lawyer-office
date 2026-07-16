@@ -334,8 +334,8 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
         location: drift.Value(_locationController.text.trim()),
         financialValue: drift.Value(double.tryParse(_valueController.text.trim()) ?? 0),
         currency: drift.Value(_currency),
-        isRenewable: drift.Value(_isRenewable),
-        needsFollowup: drift.Value(_needsFollowup),
+        isRenewable: drift.Value(widget.archiveContext?.isClosed == true ? false : _isRenewable),
+        needsFollowup: drift.Value(widget.archiveContext?.isClosed == true ? false : _needsFollowup),
         summary: drift.Value(widget.archiveContext?.summary),
         notes: drift.Value(widget.archiveContext == null ? null : 'سياق الأرشيف: ${widget.archiveContext!.summary}\nالحالة: ${widget.archiveContext!.statusLabel}'),
       );
