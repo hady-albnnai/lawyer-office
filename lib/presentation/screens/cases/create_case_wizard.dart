@@ -1183,6 +1183,42 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   // ===========================================================================
   
   Widget _buildNextSessionStep() {
+    if (widget.archiveContext?.isClosed == true) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildStepHeader(
+            title: 'أثر الأرشيف المنتهي',
+            description: 'هذا الملف محفوظ للأرشيف والبحث فقط، لذلك لن يتم تسجيل موعد قادم أو توليد مهمة في مكتب العمل.',
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primaryNavy.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primaryNavy.withOpacity(0.25)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.inventory_2, color: AppColors.primaryNavy),
+                const SizedBox(width: 10),
+                Expanded(child: Text('لن يظهر هذا الملف ضمن اليوم أو الغد أو التقويم إلا إذا حُوّل لاحقاً إلى ملف جارٍ.', style: AppTextStyles.bodyMediumSecondary)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _nextActionController,
+            decoration: InputDecoration(
+              labelText: 'ملاحظة أرشيفية اختيارية',
+              hintText: 'مثال: الملف منتهٍ بحكم مبرم / محفوظ ورقياً',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
