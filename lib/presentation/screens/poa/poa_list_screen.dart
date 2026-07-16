@@ -297,6 +297,7 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
   final TextEditingController _agentController = TextEditingController(text: 'الأستاذ هادي فيصل البني');
   final TextEditingController _branchController = TextEditingController(text: 'دمشق');
   final TextEditingController _scopeController = TextEditingController();
+  final TextEditingController _customTypeController = TextEditingController();
   final TextEditingController _documentController = TextEditingController();
   AgencyType _type = AgencyType.general;
   AgencySource _source = AgencySource.barDelegate;
@@ -355,6 +356,8 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
                 items: AgencyType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.displayName))).toList(),
                 onChanged: (value) => setState(() => _type = value ?? _type),
               ),
+              const SizedBox(height: 8),
+              TextField(controller: _customTypeController, decoration: const InputDecoration(labelText: 'نوع وكالة آخر / تفصيل غير موجود بالقائمة')),
               const SizedBox(height: 12),
               DropdownButtonFormField<AgencySource>(
                 value: _source,
@@ -425,6 +428,10 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
     }
 
     try {
+      final scope = [
+        if (_customTypeController.text.trim().isNotEmpty) 'نوع مخصص: ${_customTypeController.text.trim()}',
+        if (_scopeController.text.trim().isNotEmpty) _scopeController.text.trim(),
+      ].join('\n');
       final poaId = await ref.read(poaRepositoryProvider).createPoa(
             poa: db.PowersOfAttorneyCompanion.insert(
               sourceType: _source == AgencySource.notary ? 'notary' : 'delegate',
@@ -432,8 +439,8 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
               poaNumber: Value(_numberController.text.trim()),
               poaDate: Value(_issuedAt),
               delegateBranch: Value(_branchController.text.trim().isEmpty ? 'دمشق' : _branchController.text.trim()),
-              scopeText: Value(_scopeController.text.trim()),
-              status: const Value('active'),
+              scopeText: Value(scope),
+              status: Value(widget.archiveContext?.isClosed == true ? 'archived' : 'active'),
             ),
             principalId: principalId,
           );
@@ -448,6 +455,7 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
               'number': _numberController.text.trim(),
               'principalId': principalId,
               'type': _type.displayName,
+              'customType': _customTypeController.text.trim(),
               'source': _source.displayName,
             },
             severity: 'info',

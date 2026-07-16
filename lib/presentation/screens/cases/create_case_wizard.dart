@@ -132,7 +132,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
       }
       if ((archive.courtLevel ?? '').isNotEmpty) {
         _caseSubType = archive.courtLevel!;
-        _selectedCourtId = _courtNames.indexOf(archive.courtLevel!) + 1;
+        _selectedCourtId = _courtNames.indexOf(archive.courtLevel!);
       }
       if (archive.isClosed) {
         _nextSessionDate = null;
@@ -705,6 +705,21 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
     );
   }
 
+  Future<String?> _askCustomValue(String title) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'القيمة الجديدة')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة')),
+        ],
+      ),
+    );
+  }
+
   // ===========================================================================
   // الخطوة 3: التصنيف
   // ===========================================================================
@@ -755,6 +770,21 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
             ),
           ),
         ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('إضافة نوع فرعي غير موجود'),
+            onPressed: () async {
+              final value = await _askCustomValue('إضافة نوع فرعي للدعوى');
+              if (value == null || value.isEmpty) return;
+              setState(() {
+                if (!_caseSubTypes.contains(value)) _caseSubTypes.add(value);
+                _caseSubType = value;
+              });
+            },
+          ),
+        ),
         const SizedBox(height: 16),
         
         // المحكمة
@@ -772,6 +802,21 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('إضافة محكمة / درجة غير موجودة'),
+            onPressed: () async {
+              final value = await _askCustomValue('إضافة محكمة أو درجة تقاضي');
+              if (value == null || value.isEmpty) return;
+              setState(() {
+                if (!_courtNames.contains(value)) _courtNames.add(value);
+                _selectedCourtId = _courtNames.indexOf(value);
+              });
+            },
           ),
         ),
         const SizedBox(height: 16),
@@ -1389,6 +1434,9 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
         }
         break;
       case 7: // الموعد القادم
+        if (widget.archiveContext?.isClosed == true) {
+          return true;
+        }
         if (_nextSessionDate == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1440,7 +1488,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
         year: int.tryParse(_baseYearController.text) ?? DateTime.now().year,
         caseType: _caseType.toString().split('.').last,
         subType: Value(_caseSubType),
-        status: const Value('registered'),
+        status: Value(widget.archiveContext?.isClosed == true ? 'closed' : 'registered'),
         courtId: Value(_selectedCourtId),
         baseNumber: Value(_baseNumberController.text.isNotEmpty ? _baseNumberController.text : null),
         subject: Value(_subjectController.text.isNotEmpty ? _subjectController.text : _titleController.text),
@@ -1469,6 +1517,8 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
           'caseType': _caseType.displayName,
           'clientId': _selectedClientId,
           'opponentId': _selectedOpponentId,
+          if (widget.archiveContext != null) 'archive': widget.archiveContext!.summary,
+          if (widget.archiveContext != null) 'archiveStatus': widget.archiveContext!.status,
         },
         severity: 'info',
       );

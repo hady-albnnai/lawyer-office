@@ -57,6 +57,21 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
     }
   }
 
+  Future<String?> _askCustomValue(String title) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'القيمة الجديدة')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final personsAsync = ref.watch(allPersonsProvider(null));
@@ -104,6 +119,40 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
                       ),
                     ),
                   ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: const Text('إضافة تصنيف رئيسي'),
+                        onPressed: () async {
+                          final value = await _askCustomValue('إضافة تصنيف إجراء');
+                          if (value == null || value.isEmpty) return;
+                          setState(() {
+                            _subTypesMap[value] = [value];
+                            _category = value;
+                            _subType = value;
+                          });
+                        },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: const Text('إضافة نوع فرعي'),
+                        onPressed: () async {
+                          final value = await _askCustomValue('إضافة نوع فرعي للإجراء');
+                          if (value == null || value.isEmpty) return;
+                          setState(() {
+                            final list = _subTypesMap[_category]!;
+                            if (!list.contains(value)) list.add(value);
+                            _subType = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
 
@@ -248,7 +297,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
         entityId: '$procId',
         entityTitle: _titleController.text.trim(),
         description: 'إنشاء إجراء إداري',
-        after: {'title': _titleController.text.trim(), 'category': _category, 'subType': _subType},
+        after: {'title': _titleController.text.trim(), 'category': _category, 'subType': _subType, if (widget.archiveContext != null) 'archive': widget.archiveContext!.summary, if (widget.archiveContext != null) 'archiveStatus': widget.archiveContext!.status},
         severity: 'info',
       );
 

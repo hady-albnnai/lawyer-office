@@ -175,6 +175,21 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
     );
   }
 
+  Future<String?> _askCustomValue(String title) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'القيمة الجديدة')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة')),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTypeStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,6 +200,21 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
           value: _companyType,
           items: _companyTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
           onChanged: (val) => setState(() => _companyType = val!),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('إضافة شكل قانوني غير موجود'),
+            onPressed: () async {
+              final value = await _askCustomValue('إضافة نوع شركة');
+              if (value == null || value.isEmpty) return;
+              setState(() {
+                if (!_companyTypes.contains(value)) _companyTypes.add(value);
+                _companyType = value;
+              });
+            },
+          ),
         ),
       ],
     );
@@ -479,7 +509,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
       final company = CompaniesCompanion.insert(
         internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
         companyType: _companyType,
-        legalStatus: drift.Value(_isNewEstablishment ? 'under_establishment' : 'active'),
+        legalStatus: drift.Value(widget.archiveContext?.isClosed == true ? 'archived' : (_isNewEstablishment ? 'under_establishment' : 'active')),
         name: _nameController.text.trim(),
         activity: drift.Value(_activityController.text.trim()),
         capitalDeclared: drift.Value(double.tryParse(_capitalController.text.trim()) ?? 0),
@@ -504,7 +534,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
         entityId: '$companyId',
         entityTitle: _nameController.text.trim(),
         description: _isNewEstablishment ? 'تأسيس شركة جديدة' : 'أرشفة شركة قائمة',
-        after: {'name': _nameController.text.trim(), 'type': _companyType, 'status': _isNewEstablishment ? 'new' : 'archive'},
+        after: {'name': _nameController.text.trim(), 'type': _companyType, 'status': _isNewEstablishment ? 'new' : 'archive', if (widget.archiveContext != null) 'archive': widget.archiveContext!.summary, if (widget.archiveContext != null) 'archiveStatus': widget.archiveContext!.status},
         severity: 'info',
       );
 

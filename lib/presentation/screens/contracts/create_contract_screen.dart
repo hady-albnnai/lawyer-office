@@ -70,6 +70,21 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
     }
   }
 
+  Future<String?> _askCustomValue(String title) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'القيمة الجديدة')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final personsAsync = ref.watch(allPersonsProvider(null));
@@ -110,6 +125,21 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                       ),
                     ),
                   ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('إضافة نوع عقد غير موجود'),
+                    onPressed: () async {
+                      final value = await _askCustomValue('إضافة نوع عقد');
+                      if (value == null || value.isEmpty) return;
+                      setState(() {
+                        if (!_types.contains(value)) _types.add(value);
+                        _contractType = value;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(height: 24),
 
@@ -339,7 +369,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
         entityId: '$contractId',
         entityTitle: _titleController.text.trim(),
         description: 'إنشاء عقد جديد',
-        after: {'title': _titleController.text.trim(), 'type': _contractType, 'value': _valueController.text.trim()},
+        after: {'title': _titleController.text.trim(), 'type': _contractType, 'value': _valueController.text.trim(), if (widget.archiveContext != null) 'archive': widget.archiveContext!.summary, if (widget.archiveContext != null) 'archiveStatus': widget.archiveContext!.status},
         severity: 'info',
       );
 
