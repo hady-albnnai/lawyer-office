@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../../core/auth/permission_catalog.dart';
 import '../../../data/database/database.dart' as db;
@@ -54,7 +57,7 @@ class _DailyWorkCenterScreenState extends ConsumerState<DailyWorkCenterScreen> w
               IconButton(
                 tooltip: 'طباعة لائحة العمل',
                 icon: const Icon(Icons.print),
-                onPressed: () => _showPrintComingSoon(context),
+                onPressed: () => _printCurrentWorkList(context),
               ),
               const SizedBox(width: 8),
             ],
@@ -89,14 +92,47 @@ class _DailyWorkCenterScreenState extends ConsumerState<DailyWorkCenterScreen> w
     );
   }
 
-  void _showPrintComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('سيتم تفعيل طباعة لائحة اليوم/الغد حسب المكلف ضمن مرحلة الطباعة والكشوف.'),
-        backgroundColor: AppColors.info,
-      ),
+  Future<void> _printCurrentWorkList(BuildContext context) async {
+    final index = _tabs.index;
+    late final String title;
+    late final DateTime date;
+    late final List<_WorkItem> items;
+
+    if (index == 0) {
+      title = 'لائحة عمل اليوم';
+      date = DateTime.now();
+      items = _collectItemsForDay(context, ref, date, includeAttention: true);
+    } else if (index == 1) {
+      title = 'لائحة عمل الغد';
+      date = DateTime.now().add(const Duration(days: 1));
+      items = _collectItemsForDay(context, ref, date);
+    } else if (index == 2) {
+      title = 'لائحة عمل الأسبوع';
+      date = DateTime.now();
+      items = <_WorkItem>[];
+      for (var i = 0; i < 7; i++) {
+        items.addAll(_collectItemsForDay(context, ref, DateTime.now().add(Duration(days: i))));
+      }
+    } else {
+      title = 'لائحة عمل يوم ${_date(_calendarDay)}';
+      date = _calendarDay;
+      items = _collectItemsForDay(context, ref, _calendarDay);
+    }
+
+    final bytes = await _DailyWorkPdfBuilder.build(title: title, date: date, items: items);
+    await ref.read(auditServiceProvider).log(
+      action: 'print',
+      category: 'daily_work',
+      entityType: 'work_list',
+      entityTitle: title,
+      description: 'طباعة/تصدير لائحة عمل من مكتب العمل',
+      after: {'count': items.length, 'date': date.toIso8601String()},
+      severity: 'info',
     );
+    await Printing.sharePdf(bytes: bytes, filename: 'daily_work_${DateTime.now().millisecondsSinceEpoch}.pdf');
   }
+
+  String _date(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
 enum _WorkViewMode { today, tomorrow, week, calendar }
