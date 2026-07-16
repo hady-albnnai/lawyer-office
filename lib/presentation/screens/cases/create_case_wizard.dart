@@ -1493,6 +1493,7 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
         baseNumber: Value(_baseNumberController.text.isNotEmpty ? _baseNumberController.text : null),
         subject: Value(_subjectController.text.isNotEmpty ? _subjectController.text : _titleController.text),
         subjectDetails: Value(_detailsController.text),
+        notes: Value(widget.archiveContext == null ? null : 'سياق الأرشيف: ${widget.archiveContext!.summary}\nالحالة: ${widget.archiveContext!.statusLabel}'),
         nextSessionDate: Value(_nextSessionDate),
         isUrgent: Value(_isUrgent),
       );

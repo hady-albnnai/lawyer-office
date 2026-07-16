@@ -276,6 +276,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
         status: drift.Value(widget.archiveContext?.isClosed == true ? 2 : 1),
         department: drift.Value(_deptController.text.trim()),
         transactionNumber: drift.Value(_transNumController.text.trim()),
+        currentStep: drift.Value(widget.archiveContext == null ? null : 'سياق الأرشيف: ${widget.archiveContext!.summary}'),
         startDate: drift.Value(_startDate),
         nextDate: drift.Value(_nextDate),
       );

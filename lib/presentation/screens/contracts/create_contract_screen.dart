@@ -336,6 +336,8 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
         currency: drift.Value(_currency),
         isRenewable: drift.Value(_isRenewable),
         needsFollowup: drift.Value(_needsFollowup),
+        summary: drift.Value(widget.archiveContext?.summary),
+        notes: drift.Value(widget.archiveContext == null ? null : 'سياق الأرشيف: ${widget.archiveContext!.summary}\nالحالة: ${widget.archiveContext!.statusLabel}'),
       );
 
       final parties = [

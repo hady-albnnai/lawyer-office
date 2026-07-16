@@ -517,8 +517,11 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
         durationType: const drift.Value('fixed'),
         durationYears: drift.Value(int.tryParse(_durationController.text.trim()) ?? 99),
         mainAddress: drift.Value(_addressController.text.trim()),
-        propertyDetails: drift.Value(_propertyDetailsController.text.trim()),
-        currentPhase: drift.Value(_isNewEstablishment ? 'صياغة عقد التأسيس وتصديق النقابة' : 'أرشفة شركة قائمة'),
+        propertyDetails: drift.Value([
+          _propertyDetailsController.text.trim(),
+          if (widget.archiveContext != null) 'سياق الأرشيف: ${widget.archiveContext!.summary}',
+        ].where((v) => v.isNotEmpty).join('\n')),
+        currentPhase: drift.Value(widget.archiveContext == null ? (_isNewEstablishment ? 'صياغة عقد التأسيس وتصديق النقابة' : 'أرشفة شركة قائمة') : widget.archiveContext!.summary),
         isArchived: drift.Value(widget.archiveContext?.isClosed == true),
       );
 
