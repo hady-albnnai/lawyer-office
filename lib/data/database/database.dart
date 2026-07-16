@@ -96,6 +96,7 @@ class AppDatabase extends _$AppDatabase {
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
       await ensureAuthTables();
+      await ensureArchiveTables();
     },
   );
 
@@ -181,6 +182,60 @@ class AppDatabase extends _$AppDatabase {
     await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_events(user_id, created_at);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_category ON audit_events(category, action);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id, login_at);');
+  }
+
+
+  /// إنشاء جداول مركز إدخال الأرشيف القديم عبر SQL مخصص مرحلياً.
+  Future<void> ensureArchiveTables() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS archive_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        source_type TEXT NOT NULL,
+        source_path TEXT,
+        status TEXT NOT NULL DEFAULT 'new',
+        created_by_user_id INTEGER,
+        created_by_name_snapshot TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        started_at DATETIME,
+        completed_at DATETIME,
+        total_files INTEGER NOT NULL DEFAULT 0,
+        processed_files INTEGER NOT NULL DEFAULT 0,
+        failed_files INTEGER NOT NULL DEFAULT 0,
+        duplicate_files INTEGER NOT NULL DEFAULT 0,
+        unclassified_files INTEGER NOT NULL DEFAULT 0,
+        approved_files INTEGER NOT NULL DEFAULT 0,
+        notes TEXT
+      );
+    ''');
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS archive_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        batch_id INTEGER NOT NULL REFERENCES archive_batches(id) ON DELETE CASCADE,
+        original_file_name TEXT NOT NULL,
+        source_path TEXT,
+        stored_path TEXT,
+        file_type TEXT,
+        file_size INTEGER NOT NULL DEFAULT 0,
+        sha256 TEXT,
+        status TEXT NOT NULL DEFAULT 'imported',
+        suggested_document_type TEXT,
+        confirmed_document_type TEXT,
+        suggested_entity_type INTEGER,
+        suggested_entity_id INTEGER,
+        confirmed_entity_type INTEGER,
+        confirmed_entity_id INTEGER,
+        ocr_status TEXT NOT NULL DEFAULT 'not_required',
+        ocr_text_path TEXT,
+        review_status TEXT NOT NULL DEFAULT 'needs_review',
+        error_message TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_batches_status ON archive_batches(status, created_at);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_batch ON archive_items(batch_id, status);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_hash ON archive_items(sha256);');
   }
 
   /// مسح كل بيانات التشغيل/البيانات التجريبية مع الإبقاء على الإعدادات والقوائم المرجعية.

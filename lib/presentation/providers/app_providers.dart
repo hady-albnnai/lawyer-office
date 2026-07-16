@@ -19,6 +19,7 @@ import '../../data/repositories/lookup_repository.dart';
 import '../../data/repositories/legal_library_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/work_order_repository.dart';
+import '../../data/repositories/archive_intake_repository.dart';
 
 // =============================================================================
 // 1. مزود قاعدة البيانات الموحدة (Database Provider)
@@ -125,6 +126,11 @@ final documentRepositoryProvider = Provider<DocumentRepository>((ref) {
 
 final lookupRepositoryProvider = Provider<LookupRepository>((ref) {
   return LookupRepository(ref.watch(databaseProvider).lookupDao);
+});
+
+
+final archiveIntakeRepositoryProvider = Provider<ArchiveIntakeRepository>((ref) {
+  return ArchiveIntakeRepository(ref.watch(databaseProvider));
 });
 
 // =============================================================================

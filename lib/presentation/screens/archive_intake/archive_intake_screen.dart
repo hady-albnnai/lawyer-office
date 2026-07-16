@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/permission_catalog.dart';
 import '../../providers/auth_providers.dart';
+import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
@@ -43,24 +44,28 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                         title: 'أرشيف ورقي',
                         subtitle: 'ملفات ممسوحة ضوئياً PDF أو صور، مع بيانات الأصل الورقي.',
                         enabled: permissions.can(PermissionKeys.archiveIntakeCreate),
+                        onTap: () => _showCreateBatch(context, ref, 'paper'),
                       ),
                       _actionCard(
                         icon: Icons.folder_copy,
                         title: 'أرشيف إلكتروني',
                         subtitle: 'استيراد مجلدات وملفات موجودة على الجهاز أو الفلاش.',
                         enabled: permissions.can(PermissionKeys.archiveIntakeImportFiles),
+                        onTap: () => _showCreateBatch(context, ref, 'electronic'),
                       ),
                       _actionCard(
                         icon: Icons.table_chart,
                         title: 'Excel / CSV',
                         subtitle: 'استيراد الأشخاص والدعاوى والوكالات والمستندات من قوالب منظمة.',
                         enabled: permissions.can(PermissionKeys.archiveIntakeImportExcel),
+                        onTap: () => _showCreateBatch(context, ref, 'excel'),
                       ),
                       _actionCard(
                         icon: Icons.all_inbox,
                         title: 'أرشيف مختلط',
                         subtitle: 'دفعة تجمع ورقي وإلكتروني وجداول قديمة في مسار مراجعة واحد.',
                         enabled: permissions.can(PermissionKeys.archiveIntakeCreate),
+                        onTap: () => _showCreateBatch(context, ref, 'mixed'),
                       ),
                     ];
                     return GridView.count(
@@ -88,6 +93,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     _statusTile('تقارير الجودة', 'نتائج الاستيراد والأخطاء والعينات المطلوبة للمراجعة.', Icons.fact_check, AppColors.success),
                   ],
                 ),
+                const SizedBox(height: 24),
+                _sectionTitle('دفعات الإدخال الحالية'),
+                const SizedBox(height: 12),
+                _batchesList(ref),
                 const SizedBox(height: 24),
                 _notice(),
               ],
@@ -131,11 +140,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold),
       );
 
-  Widget _actionCard({required IconData icon, required String title, required String subtitle, required bool enabled}) {
+  Widget _actionCard({required IconData icon, required String title, required String subtitle, required bool enabled, VoidCallback? onTap}) {
     return Card(
       elevation: enabled ? 2 : 0,
       child: InkWell(
-        onTap: enabled ? () {} : null,
+        onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
