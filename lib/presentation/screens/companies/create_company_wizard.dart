@@ -100,7 +100,11 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
                   icon: _isSaving
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : Icon(_currentStep == 4 ? Icons.check_circle : Icons.arrow_forward),
-                  label: Text(_currentStep == 4 ? (_isSaving ? 'جارٍ تأسيس الشركة...' : 'اعتماد وتوليد مراحل التأسيس الـ 10') : 'التالي'),
+                  label: Text(_currentStep == 4
+                      ? (_isSaving
+                          ? (widget.archiveContext?.isClosed == true ? 'جارٍ أرشفة الشركة...' : 'جارٍ تأسيس الشركة...')
+                          : (widget.archiveContext?.isClosed == true ? 'حفظ الشركة في الأرشيف المنتهي' : 'اعتماد وتوليد مراحل التأسيس الـ 10'))
+                      : 'التالي'),
                   onPressed: _isSaving ? null : details.onStepContinue,
                 ),
                 const SizedBox(width: 12),
@@ -287,6 +291,10 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('إضافة الشركاء وتوزيع الحصص:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        if (widget.archiveContext?.isClosed == true) ...[
+          const SizedBox(height: 8),
+          const Text('هذه شركة مؤرشفة كمنتهية؛ إدخال الشركاء هنا للتوثيق التاريخي فقط ولا يولد نواقص أو عمل قادم.', style: TextStyle(color: AppConstants.textMuted)),
+        ],
         const SizedBox(height: 12),
         personsAsync.when(
           data: (persons) => Container(
@@ -389,6 +397,10 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('تعيين المدير العام والمفوضين بالتوقيع:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        if (widget.archiveContext?.isClosed == true) ...[
+          const SizedBox(height: 8),
+          const Text('إدخال المديرين والمفوضين هنا للتوثيق التاريخي فقط، ولن ينشئ متابعة تأسيس.', style: TextStyle(color: AppConstants.textMuted)),
+        ],
         const SizedBox(height: 12),
         personsAsync.when(
           data: (persons) => Container(
@@ -546,7 +558,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
         ref.invalidate(allCompaniesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم تأسيس الشركة بنجاح!'),
+            content: Text(widget.archiveContext?.isClosed == true ? 'تم حفظ الشركة في الأرشيف المنتهي بنجاح!' : 'تم تأسيس الشركة بنجاح!'),
             backgroundColor: AppConstants.statusSuccess,
           ),
         );
