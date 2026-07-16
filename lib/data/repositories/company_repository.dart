@@ -52,27 +52,32 @@ class CompanyRepository {
         await _companyDao.insertCompanyDirector(d.copyWith(companyId: Value(companyId)));
       }
 
-      // إضافة مرحلة التأسيس الأولى تلقائياً
-      await _taskSyncService.syncCompanyPhase(
-        phase: CompanyPhasesCompanion.insert(
-          companyId: companyId,
-          phaseName: 'صياغة عقد التأسيس وتصديق النقابة',
-          phaseOrder: 1,
-          status: const Value(0),
-          scheduledDate: Value(DateTime.now().add(const Duration(days: 2))),
-        ),
-        companyName: company.name.value,
-        companyId: companyId,
-        userRef: userRef,
-      );
+      final archived = (company.isArchived.present && company.isArchived.value) ||
+          (company.legalStatus.present && company.legalStatus.value == 'archived');
 
-      // تدقيق النواقص
-      await _deficiencyService.auditCompanyDeficiencies(
-        companyId: companyId,
-        companyData: company,
-        hasPartners: partners.isNotEmpty,
-        hasDirectors: directors.isNotEmpty,
-      );
+      if (!archived) {
+        // إضافة مرحلة التأسيس الأولى تلقائياً للملفات الجارية فقط.
+        await _taskSyncService.syncCompanyPhase(
+          phase: CompanyPhasesCompanion.insert(
+            companyId: companyId,
+            phaseName: 'صياغة عقد التأسيس وتصديق النقابة',
+            phaseOrder: 1,
+            status: const Value(0),
+            scheduledDate: Value(DateTime.now().add(const Duration(days: 2))),
+          ),
+          companyName: company.name.value,
+          companyId: companyId,
+          userRef: userRef,
+        );
+
+        // تدقيق النواقص للملفات الجارية فقط حتى لا يظهر الأرشيف المنتهي كعمل مطلوب.
+        await _deficiencyService.auditCompanyDeficiencies(
+          companyId: companyId,
+          companyData: company,
+          hasPartners: partners.isNotEmpty,
+          hasDirectors: directors.isNotEmpty,
+        );
+      }
 
       await _companyDao.into(_companyDao.db.timelineEvents).insert(
         TimelineEventsCompanion.insert(
