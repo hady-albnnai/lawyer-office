@@ -248,7 +248,9 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
                   height: 50,
                   child: ElevatedButton.icon(
                     icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.save),
-                    label: Text(_isSaving ? 'جارٍ الحفظ وتوليد الـ Checklist...' : 'اعتماد وحفظ المعاملة في المكتب مع خطوات التنفيذ التلقائية'),
+                    label: Text(_isSaving
+                        ? (widget.archiveContext?.isClosed == true ? 'جارٍ حفظ الإجراء في الأرشيف...' : 'جارٍ الحفظ وتوليد الـ Checklist...')
+                        : (widget.archiveContext?.isClosed == true ? 'حفظ الإجراء في الأرشيف المنتهي' : 'اعتماد وحفظ المعاملة في المكتب مع خطوات التنفيذ التلقائية')),
                     onPressed: _isSaving ? null : _saveProcedure,
                   ),
                 ),
@@ -324,7 +326,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
 
       if (mounted) {
         ref.invalidate(allProceduresProvider);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تسجيل المعاملة وتوليد خطوات الـ Checklist بنجاح!'), backgroundColor: AppConstants.statusSuccess));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.archiveContext?.isClosed == true ? 'تم حفظ الإجراء في الأرشيف المنتهي بنجاح!' : 'تم تسجيل المعاملة وتوليد خطوات الـ Checklist بنجاح!'), backgroundColor: AppConstants.statusSuccess));
         GoRouter.of(context).pushReplacement('/procedures/$procId');
       }
     } catch (e) {

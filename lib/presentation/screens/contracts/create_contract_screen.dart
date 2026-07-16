@@ -295,7 +295,9 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                   height: 50,
                   child: ElevatedButton.icon(
                     icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.check_circle),
-                    label: Text(_isSaving ? 'جارٍ حفظ وتنظيم العقد...' : 'اعتماد وحفظ العقد وتفعيل التذكيرات الزمنية'),
+                    label: Text(_isSaving
+                        ? (widget.archiveContext?.isClosed == true ? 'جارٍ حفظ العقد في الأرشيف...' : 'جارٍ حفظ وتنظيم العقد...')
+                        : (widget.archiveContext?.isClosed == true ? 'حفظ العقد في الأرشيف المنتهي' : 'اعتماد وحفظ العقد وتفعيل التذكيرات الزمنية')),
                     onPressed: _isSaving ? null : _saveContract,
                   ),
                 ),
@@ -393,7 +395,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
 
       if (mounted) {
         ref.invalidate(allContractsProvider);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تنظيم وحفظ العقد وتوليد التذكيرات بنجاح!'), backgroundColor: AppConstants.statusSuccess));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(widget.archiveContext?.isClosed == true ? 'تم حفظ العقد في الأرشيف المنتهي بنجاح!' : 'تم تنظيم وحفظ العقد وتوليد التذكيرات بنجاح!'), backgroundColor: AppConstants.statusSuccess));
         GoRouter.of(context).pushReplacement('/contracts/$contractId');
       }
     } catch (e) {
