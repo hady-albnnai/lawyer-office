@@ -298,11 +298,13 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
         nextDate: drift.Value(widget.archiveContext?.isClosed == true ? null : _nextDate),
       );
 
-      final List<AdminStepsCompanion> initialSteps = [
-        AdminStepsCompanion.insert(procedureId: 0, stepTitle: 'تقديم الطلب الأولي واستيفاء الشروط', stepDate: drift.Value(DateTime.now()), status: const drift.Value(1)),
-        AdminStepsCompanion.insert(procedureId: 0, stepTitle: 'مراجعة الدائرة المختصة ودفع الرسوم المقررة', status: const drift.Value(0)),
-        AdminStepsCompanion.insert(procedureId: 0, stepTitle: 'استلام البيان أو السند النهائي وتدقيقه', status: const drift.Value(0)),
-      ];
+      final List<AdminStepsCompanion> initialSteps = widget.archiveContext?.isClosed == true
+          ? const <AdminStepsCompanion>[]
+          : [
+              AdminStepsCompanion.insert(procedureId: 0, stepTitle: 'تقديم الطلب الأولي واستيفاء الشروط', stepDate: drift.Value(DateTime.now()), status: const drift.Value(1)),
+              AdminStepsCompanion.insert(procedureId: 0, stepTitle: 'مراجعة الدائرة المختصة ودفع الرسوم المقررة', status: const drift.Value(0)),
+              AdminStepsCompanion.insert(procedureId: 0, stepTitle: 'استلام البيان أو السند النهائي وتدقيقه', status: const drift.Value(0)),
+            ];
 
       final procId = await repo.createProcedure(
         procedure: companion,
