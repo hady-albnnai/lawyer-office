@@ -268,6 +268,10 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
             ),
             const Spacer(),
             Text(doc.formattedSize, style: AppTextStyles.bodySmallSecondary.copyWith(fontSize: 10)),
+            if (doc.notes.contains('الأصل الورقي')) ...[
+              const SizedBox(height: 4),
+              _tag(doc.physicalLocation, AppColors.info),
+            ],
           ],
         ),
       ),
@@ -284,10 +288,18 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
       ),
       leading: Icon(doc.fileType.icon, size: 36, color: _getFileColor(doc.fileType)),
       title: Text(doc.title, style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold)),
-      subtitle: Text('المرتبط بـ: ${doc.entityTitle} • الحجم: ${doc.formattedSize} • التاريخ: ${_formatDate(doc.uploadDate)}', style: AppTextStyles.bodySmallSecondary),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('المرتبط بـ: ${doc.entityTitle} • الحجم: ${doc.formattedSize} • التاريخ: ${_formatDate(doc.uploadDate)}', style: AppTextStyles.bodySmallSecondary),
+          if (doc.notes.contains('الأصل الورقي'))
+            Text(_paperSummary(doc), style: AppTextStyles.bodySmallSecondary.copyWith(color: AppColors.info)),
+        ],
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (doc.notes.contains('الأصل الورقي')) _tag('أصل ورقي', AppColors.info),
           if (doc.isMissingOriginal) _tag('بانتظار الأصل', AppColors.warning),
           const SizedBox(width: 8),
           IconButton(
@@ -349,6 +361,14 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
       child: Text(label, style: AppTextStyles.labelSmall.copyWith(color: color)),
     );
+  }
+
+  String _paperSummary(DocumentItem doc) {
+    final lines = doc.notes.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    final saved = lines.firstWhere((line) => line.startsWith('الأصل الورقي محفوظ'), orElse: () => 'الأصل الورقي محفوظ: غير محدد');
+    final place = lines.firstWhere((line) => line.startsWith('مكان الأصل'), orElse: () => doc.physicalLocation);
+    final box = lines.firstWhere((line) => line.startsWith('الصندوق'), orElse: () => '');
+    return [saved, place, box].where((v) => v.trim().isNotEmpty).join(' • ');
   }
 
   String _formatDate(DateTime date) {
