@@ -40,6 +40,44 @@ class ArchiveBatchRecord {
   });
 }
 
+
+
+class ArchiveItemRecord {
+  final int id;
+  final int batchId;
+  final String originalFileName;
+  final String? sourcePath;
+  final String? storedPath;
+  final String? fileType;
+  final int fileSize;
+  final String? sha256;
+  final String status;
+  final String reviewStatus;
+  final String? errorMessage;
+  final String? confirmedDocumentType;
+  final int? confirmedEntityType;
+  final int? confirmedEntityId;
+  final DateTime createdAt;
+
+  const ArchiveItemRecord({
+    required this.id,
+    required this.batchId,
+    required this.originalFileName,
+    this.sourcePath,
+    this.storedPath,
+    this.fileType,
+    required this.fileSize,
+    this.sha256,
+    required this.status,
+    required this.reviewStatus,
+    this.errorMessage,
+    this.confirmedDocumentType,
+    this.confirmedEntityType,
+    this.confirmedEntityId,
+    required this.createdAt,
+  });
+}
+
 class ArchiveImportSummary {
   final int imported;
   final int duplicates;
@@ -163,6 +201,73 @@ class ArchiveIntakeRepository {
     ]);
 
     return ArchiveImportSummary(imported: imported, duplicates: duplicates, failed: failed);
+  }
+
+
+  Future<List<ArchiveItemRecord>> getItemsForBatch(int batchId) async {
+    await ensureReady();
+    final rows = await _db.customSelect(
+      'SELECT * FROM archive_items WHERE batch_id = ? ORDER BY created_at DESC',
+      variables: [Variable.withInt(batchId)],
+    ).get();
+    return rows.map((row) {
+      final d = row.data;
+      DateTime parseDate(Object? value) => DateTime.tryParse('${value ?? ''}') ?? DateTime.now();
+      return ArchiveItemRecord(
+        id: d['id'] as int,
+        batchId: d['batch_id'] as int,
+        originalFileName: d['original_file_name'] as String,
+        sourcePath: d['source_path'] as String?,
+        storedPath: d['stored_path'] as String?,
+        fileType: d['file_type'] as String?,
+        fileSize: (d['file_size'] as int?) ?? 0,
+        sha256: d['sha256'] as String?,
+        status: d['status'] as String,
+        reviewStatus: d['review_status'] as String,
+        errorMessage: d['error_message'] as String?,
+        confirmedDocumentType: d['confirmed_document_type'] as String?,
+        confirmedEntityType: d['confirmed_entity_type'] as int?,
+        confirmedEntityId: d['confirmed_entity_id'] as int?,
+        createdAt: parseDate(d['created_at']),
+      );
+    }).toList();
+  }
+
+  Future<void> updateItemReview({
+    required int itemId,
+    required String status,
+    required String reviewStatus,
+    String? documentType,
+    int? entityType,
+    int? entityId,
+    String? errorMessage,
+  }) async {
+    await ensureReady();
+    await _db.customStatement('''
+      UPDATE archive_items
+      SET status = ?,
+          review_status = ?,
+          confirmed_document_type = COALESCE(?, confirmed_document_type),
+          confirmed_entity_type = COALESCE(?, confirmed_entity_type),
+          confirmed_entity_id = COALESCE(?, confirmed_entity_id),
+          error_message = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    ''', [status, reviewStatus, documentType, entityType, entityId, errorMessage, itemId]);
+  }
+
+  Future<void> refreshBatchCounters(int batchId) async {
+    await ensureReady();
+    await _db.customStatement('''
+      UPDATE archive_batches SET
+        total_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ?),
+        failed_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND status = 'failed'),
+        duplicate_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND status = 'duplicate'),
+        unclassified_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND review_status = 'needs_review'),
+        approved_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND review_status = 'approved'),
+        processed_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ?)
+      WHERE id = ?
+    ''', [batchId, batchId, batchId, batchId, batchId, batchId, batchId]);
   }
 
   Future<List<ArchiveBatchRecord>> getBatches() async {

@@ -219,6 +219,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     _mini('ملفات', b.totalFiles),
                     _mini('غير مصنف', b.unclassifiedFiles),
                     _mini('مكرر', b.duplicateFiles),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.visibility, size: 16),
+                      label: const Text('فتح'),
+                      onPressed: () => _showBatchDetails(context, ref, b.id, b.name),
+                    ),
                     if (canImport)
                       OutlinedButton.icon(
                         icon: const Icon(Icons.upload_file, size: 16),
