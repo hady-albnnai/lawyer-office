@@ -185,8 +185,11 @@ class _TopBar extends ConsumerWidget {
       case "work_order":
         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
         break;
-      case "archive_intake":
-        GoRouter.of(context).push("/archive-intake");
+      case "archive_running":
+        GoRouter.of(context).push("/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}");
+        break;
+      case "archive_closed":
+        GoRouter.of(context).push("/archive-intake?status=closed&seed=${DateTime.now().millisecondsSinceEpoch}");
         break;
     }
   }
@@ -315,10 +318,21 @@ class _TopBar extends ConsumerWidget {
                     ),
                   if (permissions.can(PermissionKeys.archiveIntakeView))
                     const PopupMenuItem<String>(
-                      value: "archive_intake",
+                      value: "archive_running",
                       child: ListTile(
-                        leading: Icon(Icons.archive_outlined, color: AppColors.primaryNavy),
-                        title: Text("إدخال الأرشيف القديم"),
+                        leading: Icon(Icons.pending_actions, color: AppColors.success),
+                        title: Text("إدخال أرشيف جارٍ"),
+                        subtitle: Text("ينعكس على مكتب العمل والتقويم"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  if (permissions.can(PermissionKeys.archiveIntakeView))
+                    const PopupMenuItem<String>(
+                      value: "archive_closed",
+                      child: ListTile(
+                        leading: Icon(Icons.inventory_2_outlined, color: AppColors.primaryNavy),
+                        title: Text("إدخال أرشيف منتهٍ"),
+                        subtitle: Text("للحفظ والبحث فقط"),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
