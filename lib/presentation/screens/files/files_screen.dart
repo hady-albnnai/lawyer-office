@@ -250,7 +250,10 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   Widget _statusTab(String value, String label, String subtitle) {
     final selected = _statusFilter == value;
     return InkWell(
-      onTap: () => setState(() => _statusFilter = value),
+      onTap: () {
+        setState(() => _statusFilter = value);
+        context.go('/files?status=$value');
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -324,9 +327,27 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           children: [
             Icon(Icons.folder_off, size: 72, color: AppColors.textSecondary),
             const SizedBox(height: 16),
-            Text('لا توجد ملفات ضمن الفلتر الحالي', style: AppTextStyles.headline6),
+            Text('لا توجد ملفات ضمن هذا التبويب', style: AppTextStyles.headline6),
             const SizedBox(height: 8),
-            Text('غيّر حالة الملف أو النوع أو البحث.', style: AppTextStyles.bodySmallSecondary),
+            Text(_statusFilter == 'active' ? 'ابدأ بإدخال أرشيف جارٍ أو إضافة عمل جديد.' : 'يمكنك إدخال أرشيف منتهٍ ليظهر هنا للبحث والحفظ فقط.', style: AppTextStyles.bodySmallSecondary),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeView))
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.archive_outlined),
+                    label: const Text('إدخال الأرشيف القديم'),
+                    onPressed: () => context.go('/archive-intake'),
+                  ),
+                if (_statusFilter == 'active')
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('عمل جديد'),
+                    onPressed: () => context.go('/new-work'),
+                  ),
+              ],
+            ),
           ],
         ),
       );

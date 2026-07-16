@@ -49,12 +49,15 @@ class MainShellScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(officeSettingsProvider);
-    final location = GoRouterState.of(context).uri.path;
+    final currentUri = GoRouterState.of(context).uri;
+    final location = currentUri.path;
     
-    // نحدد المسار للـ Sidebar بناءً على بداية الرابط (مثلاً /cases/1 تقع ضمن الشؤون القانونية)
+    // نحدد المسار للـ Sidebar بناءً على بداية الرابط مع احترام تبويبي ملفات المكتب الجاري/المنتهي.
     String selectedRoute = '/today';
     if (location.startsWith('/templates') || location.startsWith('/contracts/templates')) selectedRoute = '/templates';
-    else if (location.startsWith('/archive-intake') || location.startsWith('/files') || location.startsWith('/cases') || location.startsWith('/companies') || location.startsWith('/contracts') || location.startsWith('/procedures') || location.startsWith('/poa') || location.startsWith('/persons') || location.startsWith('/archive')) selectedRoute = '/files';
+    else if (location == '/files' && currentUri.queryParameters['status'] == 'completed') selectedRoute = '/files?status=completed';
+    else if (location == '/files') selectedRoute = '/files?status=active';
+    else if (location.startsWith('/archive-intake') || location.startsWith('/cases') || location.startsWith('/companies') || location.startsWith('/contracts') || location.startsWith('/procedures') || location.startsWith('/poa') || location.startsWith('/persons') || location.startsWith('/archive')) selectedRoute = '/files';
     else if (location.startsWith('/work-orders') || location.startsWith('/tasks')) selectedRoute = '/work-orders';
     else if (location.startsWith('/agenda')) selectedRoute = '/agenda';
     else if (location.startsWith('/finance')) selectedRoute = '/finance';
