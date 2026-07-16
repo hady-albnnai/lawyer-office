@@ -644,6 +644,7 @@ class _LookupsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final courts = ref.watch(settingsHubProvider).courts;
+    final canManage = ref.watch(permissionServiceProvider).can(PermissionKeys.settingsLookupsManage);
     return Column(
       children: [
         Container(
@@ -654,11 +655,12 @@ class _LookupsTab extends ConsumerWidget {
               Expanded(
                 child: Text('القوائم المرجعية السورية — المحاكم', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
               ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('إضافة محكمة'),
-                onPressed: () => _addCourt(context, ref),
-              ),
+              if (canManage)
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('إضافة محكمة'),
+                  onPressed: () => _showCourtDialog(context, ref),
+                ),
             ],
           ),
         ),
@@ -676,7 +678,27 @@ class _LookupsTab extends ConsumerWidget {
                   ),
                   title: Text(c.name, style: AppTextStyles.labelLarge),
                   subtitle: Text('${c.type} • ${c.city}', style: AppTextStyles.bodySmallSecondary),
-                  trailing: Icon(Icons.check_circle, color: c.isActive ? AppColors.success : AppColors.textSecondary),
+                  trailing: canManage
+                      ? Wrap(
+                          spacing: 6,
+                          children: [
+                            IconButton(
+                              tooltip: 'تعديل',
+                              icon: const Icon(Icons.edit),
+                              onPressed: () => _showCourtDialog(context, ref, court: c),
+                            ),
+                            Switch(
+                              value: c.isActive,
+                              onChanged: (v) => ref.read(settingsHubProvider.notifier).setCourtActive(c.id, v),
+                            ),
+                            IconButton(
+                              tooltip: 'حذف آمن',
+                              icon: Icon(Icons.delete_outline, color: AppColors.error),
+                              onPressed: () => _confirmDeleteCourt(context, ref, c),
+                            ),
+                          ],
+                        )
+                      : Icon(Icons.check_circle, color: c.isActive ? AppColors.success : AppColors.textSecondary),
                 ),
               );
             },
@@ -686,15 +708,16 @@ class _LookupsTab extends ConsumerWidget {
     );
   }
 
-  void _addCourt(BuildContext context, WidgetRef ref) {
-    final name = TextEditingController();
-    String type = 'بداية';
-    String city = 'السويداء';
+  void _showCourtDialog(BuildContext context, WidgetRef ref, {SettingsCourtItem? court}) {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.settingsLookupsManage)) return;
+    final name = TextEditingController(text: court?.name ?? '');
+    String type = court?.type ?? 'بداية';
+    String city = court?.city ?? 'السويداء';
     showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('إضافة محكمة'),
+          title: Text(court == null ? 'إضافة محكمة' : 'تعديل محكمة'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -722,17 +745,23 @@ class _LookupsTab extends ConsumerWidget {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (name.text.trim().isEmpty) return;
-                ref.read(settingsHubProvider.notifier).addCourt(
-                      SettingsCourtItem(
-                        id: 'court_${DateTime.now().microsecondsSinceEpoch}',
-                        name: name.text.trim(),
-                        type: type,
-                        city: city,
-                      ),
-                    );
-                Navigator.pop(ctx);
+                final item = SettingsCourtItem(
+                  id: court?.id ?? 'court_${DateTime.now().microsecondsSinceEpoch}',
+                  name: name.text.trim(),
+                  type: type,
+                  city: city,
+                  isActive: court?.isActive ?? true,
+                );
+                if (court == null) {
+                  ref.read(settingsHubProvider.notifier).addCourt(item);
+                  await ref.read(auditServiceProvider).log(action: 'create', category: 'lookups', entityType: 'court', entityId: item.id, entityTitle: item.name, description: 'إضافة محكمة مرجعية', severity: 'warning');
+                } else {
+                  ref.read(settingsHubProvider.notifier).updateCourt(item);
+                  await ref.read(auditServiceProvider).log(action: 'update', category: 'lookups', entityType: 'court', entityId: item.id, entityTitle: item.name, description: 'تعديل محكمة مرجعية', after: {'name': item.name, 'type': item.type, 'city': item.city}, severity: 'warning');
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
               },
               child: const Text('حفظ'),
             ),
@@ -741,7 +770,30 @@ class _LookupsTab extends ConsumerWidget {
       ),
     );
   }
+
+  void _confirmDeleteCourt(BuildContext context, WidgetRef ref, SettingsCourtItem court) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف محكمة من القوائم المرجعية'),
+        content: const Text('يجب استخدام الحذف فقط للعناصر غير المستخدمة. إذا كانت المحكمة مستخدمة في ملفات سابقة فالأفضل تعطيلها فقط.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () async {
+              ref.read(settingsHubProvider.notifier).deleteCourt(court.id);
+              await ref.read(auditServiceProvider).log(action: 'delete', category: 'lookups', entityType: 'court', entityId: court.id, entityTitle: court.name, description: 'حذف محكمة مرجعية من الواجهة', severity: 'critical');
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
 
 class _ActivityTab extends ConsumerWidget {
   @override

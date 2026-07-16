@@ -68,6 +68,16 @@ class SettingsCourtItem {
     required this.city,
     this.isActive = true,
   });
+
+  SettingsCourtItem copyWith({String? name, String? type, String? city, bool? isActive}) {
+    return SettingsCourtItem(
+      id: id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      city: city ?? this.city,
+      isActive: isActive ?? this.isActive,
+    );
+  }
 }
 
 /// إعدادات الأمان المحلية.
@@ -700,6 +710,31 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
     _log('insert', 'courts', 'إضافة محكمة: ${court.name}');
   }
 
+  void updateCourt(SettingsCourtItem court) {
+    state = state.copyWith(
+      courts: state.courts.map((c) => c.id == court.id ? court : c).toList(),
+      lastMessage: 'تم تعديل المحكمة',
+    );
+    _log('update', 'courts', 'تعديل محكمة: ${court.name}');
+  }
+
+  void setCourtActive(String id, bool active) {
+    final court = state.courts.where((c) => c.id == id).firstOrNull;
+    if (court == null) return;
+    updateCourt(court.copyWith(isActive: active));
+    _log(active ? 'enable' : 'disable', 'courts', active ? 'تفعيل محكمة: ${court.name}' : 'تعطيل محكمة: ${court.name}');
+  }
+
+  void deleteCourt(String id) {
+    final court = state.courts.where((c) => c.id == id).firstOrNull;
+    if (court == null) return;
+    state = state.copyWith(
+      courts: state.courts.where((c) => c.id != id).toList(),
+      lastMessage: 'تم حذف المحكمة من القائمة المرجعية',
+    );
+    _log('delete', 'courts', 'حذف محكمة غير مستخدمة: ${court.name}');
+  }
+
   void clearMessage() {
     state = state.copyWith(clearMessage: true);
   }
@@ -724,5 +759,15 @@ String priorityLabel(int priority) {
       return 'منخفضة';
     default:
       return 'متوسطة';
+  }
+}
+
+
+extension SettingsFirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull {
+    for (final item in this) {
+      return item;
+    }
+    return null;
   }
 }
