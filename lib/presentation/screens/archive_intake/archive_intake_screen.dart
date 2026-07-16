@@ -401,6 +401,130 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _showDuplicates(BuildContext context, WidgetRef ref) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.archiveDuplicatesView)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_duplicates', description: 'محاولة فتح المكررات دون صلاحية', severity: 'warning');
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('الملفات المكررة'),
+        content: SizedBox(
+          width: 860,
+          height: 520,
+          child: FutureBuilder<List<ArchiveItemRecord>>(
+            future: ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate'),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final items = snapshot.data!;
+              if (items.isEmpty) return const Center(child: Text('لا توجد ملفات مكررة حالياً.'));
+              return ListView.builder(
+                itemCount: items.length,
+                itemBuilder: (_, index) {
+                  final item = items[index];
+                  return Card(
+                    child: ListTile(
+                      leading: Icon(Icons.copy_all, color: AppColors.info),
+                      title: Text(item.originalFileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text('دفعة #${item.batchId} • ${item.errorMessage ?? 'ملف مكرر محتمل'}'),
+                      trailing: permissions.can(PermissionKeys.archiveDuplicatesResolve)
+                          ? TextButton(
+                              onPressed: () => _setItemReview(ctx, ref, item.id, item.batchId, 'rejected', 'rejected'),
+                              child: const Text('تجاهل المكرر'),
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      ),
+    );
+  }
+
+  Future<void> _showQualityReport(BuildContext context, WidgetRef ref) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.archiveQualityView)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_quality', description: 'محاولة فتح تقرير جودة الأرشيف دون صلاحية', severity: 'warning');
+      return;
+    }
+    final batches = await ref.read(archiveIntakeRepositoryProvider).getBatches();
+    final files = batches.fold<int>(0, (sum, b) => sum + b.totalFiles);
+    final processed = batches.fold<int>(0, (sum, b) => sum + b.processedFiles);
+    final failed = batches.fold<int>(0, (sum, b) => sum + b.failedFiles);
+    final duplicates = batches.fold<int>(0, (sum, b) => sum + b.duplicateFiles);
+    final unclassified = batches.fold<int>(0, (sum, b) => sum + b.unclassifiedFiles);
+    final approved = batches.fold<int>(0, (sum, b) => sum + b.approvedFiles);
+    if (context.mounted) {
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('تقرير جودة الأرشيف'),
+          content: SizedBox(
+            width: 620,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _qualityRow('عدد الدفعات', batches.length),
+                _qualityRow('إجمالي الملفات', files),
+                _qualityRow('تمت معالجتها', processed),
+                _qualityRow('معتمدة', approved),
+                _qualityRow('غير مصنفة', unclassified),
+                _qualityRow('مكررة', duplicates),
+                _qualityRow('فشلت', failed),
+                const Divider(),
+                ...batches.take(8).map((b) => ListTile(dense: true, title: Text(b.name), subtitle: Text('${_sourceLabel(b.sourceType)} • ${_statusLabel(b.status)}'), trailing: Text('${b.approvedFiles}/${b.totalFiles}'))),
+              ],
+            ),
+          ),
+          actions: [
+            if (permissions.can(PermissionKeys.archiveQualityExport))
+              OutlinedButton.icon(
+                icon: const Icon(Icons.download),
+                label: const Text('تصدير CSV'),
+                onPressed: () async { Navigator.pop(ctx); await _exportQualityReport(context, ref, batches); },
+              ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          ],
+        ),
+      );
+    }
+    await ref.read(auditServiceProvider).log(action: 'view', category: 'archive', entityType: 'archive_quality', description: 'عرض تقرير جودة الأرشيف', severity: 'info');
+  }
+
+  Future<void> _exportQualityReport(BuildContext context, WidgetRef ref, List<ArchiveBatchRecord> batches) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_quality', description: 'محاولة تصدير تقرير جودة الأرشيف دون صلاحية', severity: 'warning');
+      return;
+    }
+    final buffer = StringBuffer('id,name,source,status,total,processed,approved,unclassified,duplicates,failed,createdAt\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final b in batches) {
+      buffer.writeln([b.id, esc(b.name), esc(_sourceLabel(b.sourceType)), esc(_statusLabel(b.status)), b.totalFiles, b.processedFiles, b.approvedFiles, b.unclassifiedFiles, b.duplicateFiles, b.failedFiles, esc(b.createdAt.toIso8601String())].join(','));
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_quality_exports'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = File(path.join(dir.path, 'archive_quality_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await file.writeAsString(buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_quality', entityTitle: file.path, description: 'تصدير تقرير جودة الأرشيف CSV', severity: 'warning');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير تقرير الجودة: ${file.path}'), backgroundColor: AppColors.success));
+    }
+  }
+
+  Widget _qualityRow(String label, int value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(children: [Expanded(child: Text(label, style: AppTextStyles.bodyMedium)), Text('$value', style: AppTextStyles.numberText.copyWith(color: AppColors.primaryNavy))]),
+    );
+  }
+
   Future<void> _showUnclassifiedInbox(BuildContext context, WidgetRef ref) async {
     final permissions = ref.read(permissionServiceProvider);
     if (!permissions.can(PermissionKeys.archiveInboxView)) {
