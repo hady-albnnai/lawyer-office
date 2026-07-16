@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../providers/auth_providers.dart';
@@ -24,7 +25,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _password.text,
         );
     if (ok && mounted) {
-      context.go('/today');
+      final prefs = await SharedPreferences.getInstance();
+      final showArchiveStart = prefs.getBool('show_archive_start_after_setup') ?? false;
+      if (showArchiveStart) {
+        await prefs.setBool('show_archive_start_after_setup', false);
+        if (mounted) context.go('/archive-intake');
+      } else {
+        if (mounted) context.go('/today');
+      }
     }
   }
 

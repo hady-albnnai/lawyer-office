@@ -193,6 +193,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(kFirstRunDoneKey, true);
       await prefs.setBool('demo_seed_enabled', _seedDemo);
+      await prefs.setBool('show_archive_start_after_setup', true);
       await prefs.setString('security_password_hash_hint', CryptoUtils.hashPassword(_password.text).substring(0, 8));
 
       ref.invalidate(firstRunCompletedProvider);
