@@ -295,7 +295,7 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
 
   final directory = await ref.watch(uiPersonsDirectoryProvider.future);
   for (final a in directory.agencies) {
-    final completed = a.isExpired || a.scope.contains('أرشفة وكالة منتهية') || a.scope.contains('أرشيف منته');
+    final completed = a.isExpired || a.notes == 'archived' || a.scope.contains('أرشفة وكالة منتهية') || a.scope.contains('أرشيف منته');
     result.add(ui_files.FileItem(
       id: a.id,
       fileNumber: a.number,
@@ -385,9 +385,10 @@ final uiPersonsDirectoryProvider = FutureProvider<ui_person.PersonsDirectoryStat
           principalPersonId: records.isNotEmpty ? records.first.id : '0',
           agentName: 'وكيل المكتب',
           issuedAt: a.poaDate ?? a.createdAt,
-          expiresAt: a.expiryDate,
+          expiresAt: a.status == 'archived' ? DateTime(2000) : a.expiryDate,
           scope: a.scopeText ?? '',
           documentId: a.filePath ?? '',
+          notes: a.status,
         ),
       )
       .toList();
