@@ -273,6 +273,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
         subType: drift.Value(_subType),
         clientId: _selectedClientId!,
         title: _titleController.text.trim(),
+        status: drift.Value(widget.archiveContext?.isClosed == true ? 2 : 1),
         department: drift.Value(_deptController.text.trim()),
         transactionNumber: drift.Value(_transNumController.text.trim()),
         startDate: drift.Value(_startDate),

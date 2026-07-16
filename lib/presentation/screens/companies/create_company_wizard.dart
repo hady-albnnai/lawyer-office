@@ -519,6 +519,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
         mainAddress: drift.Value(_addressController.text.trim()),
         propertyDetails: drift.Value(_propertyDetailsController.text.trim()),
         currentPhase: drift.Value(_isNewEstablishment ? 'صياغة عقد التأسيس وتصديق النقابة' : 'أرشفة شركة قائمة'),
+        isArchived: drift.Value(widget.archiveContext?.isClosed == true),
       );
 
       final companyId = await repo.createCompany(

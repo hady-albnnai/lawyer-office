@@ -327,6 +327,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
         internalNumber: 'TEMP-${DateTime.now().microsecondsSinceEpoch}',
         title: _titleController.text.trim(),
         contractType: _contractType,
+        status: drift.Value(widget.archiveContext?.isClosed == true ? 'archived' : 'active'),
         dateSigned: drift.Value(_startDate),
         dateStart: drift.Value(_startDate),
         dateEnd: drift.Value(_endDate),

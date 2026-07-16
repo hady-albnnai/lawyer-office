@@ -377,6 +377,7 @@ class UploadDocDialog extends ConsumerStatefulWidget {
 class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
   final _title = TextEditingController();
   DocumentType _type = DocumentType.caseDocument;
+  final _customDocType = TextEditingController();
   fp.PlatformFile? _file;
   bool _saving = false;
   bool _paperOriginalSaved = false;
@@ -390,6 +391,7 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
   @override
   void dispose() {
     _title.dispose();
+    _customDocType.dispose();
     _paperLocation.dispose();
     _box.dispose();
     _shelf.dispose();
@@ -429,7 +431,9 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
     }
     setState(() => _saving = true);
     try {
+      final effectiveDocType = _customDocType.text.trim().isNotEmpty ? _customDocType.text.trim() : _type.name;
       final paperNotes = [
+        if (_customDocType.text.trim().isNotEmpty) 'نوع مستند مخصص: ${_customDocType.text.trim()}',
         'الأصل الورقي محفوظ: ${_paperOriginalSaved ? 'نعم' : 'لا'}',
         if (_paperLocation.text.trim().isNotEmpty) 'مكان الأصل: ${_paperLocation.text.trim()}',
         if (_box.text.trim().isNotEmpty) 'الصندوق: ${_box.text.trim()}',
@@ -440,7 +444,7 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
       ].join('\n');
       final docId = await ref.read(documentRepositoryProvider).addDocument(
             docName: _title.text.trim(),
-            docType: _type.name,
+            docType: effectiveDocType,
             fileType: _file!.extension,
             sourceFile: File(_file!.path!),
             physicalLocation: _paperOriginalSaved ? 0 : 1,
@@ -456,7 +460,7 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
         entityId: '$docId',
         entityTitle: _title.text.trim(),
         description: 'رفع مستند إلى الأرشيف العام',
-        after: {'paperOriginalSaved': _paperOriginalSaved, 'paperLocation': _paperLocation.text.trim(), 'box': _box.text.trim(), 'shelf': _shelf.text.trim(), 'paperFolder': _paperFolder.text.trim(), 'canDestroyOriginal': _canDestroyOriginal, 'reviewedBy': _reviewedBy.text.trim()},
+        after: {'docType': effectiveDocType, 'paperOriginalSaved': _paperOriginalSaved, 'paperLocation': _paperLocation.text.trim(), 'box': _box.text.trim(), 'shelf': _shelf.text.trim(), 'paperFolder': _paperFolder.text.trim(), 'canDestroyOriginal': _canDestroyOriginal, 'reviewedBy': _reviewedBy.text.trim()},
         severity: 'info',
       );
       ref.invalidate(documentsFutureProvider);
@@ -488,6 +492,8 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
               items: DocumentType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.displayName))).toList(),
               onChanged: (v) => setState(() => _type = v ?? _type),
             ),
+            const SizedBox(height: 8),
+            TextField(controller: _customDocType, decoration: const InputDecoration(labelText: 'نوع مستند آخر / غير موجود بالقائمة')),
             const SizedBox(height: 12),
             OutlinedButton.icon(onPressed: _pickFile, icon: const Icon(Icons.attach_file), label: const Text('اختيار ملف')),
             if (_file != null) Text(_file!.name, style: AppTextStyles.bodySmallSecondary),

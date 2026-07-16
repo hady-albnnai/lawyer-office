@@ -295,7 +295,7 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
 
   final directory = await ref.watch(uiPersonsDirectoryProvider.future);
   for (final a in directory.agencies) {
-    final completed = a.isExpired;
+    final completed = a.isExpired || a.scope.contains('أرشفة وكالة منتهية') || a.scope.contains('أرشيف منته');
     result.add(ui_files.FileItem(
       id: a.id,
       fileNumber: a.number,
