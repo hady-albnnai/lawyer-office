@@ -133,7 +133,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           actions: [
             IconButton(icon: const Icon(Icons.search), onPressed: () => context.go('/search-reports'), tooltip: 'بحث'),
             if (ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeView))
-              IconButton(icon: const Icon(Icons.archive_outlined), onPressed: () => context.go('/archive-intake'), tooltip: 'إدخال الأرشيف القديم'),
+              IconButton(icon: const Icon(Icons.archive_outlined), onPressed: () => context.go(_archiveIntakeRouteForCurrentTab()), tooltip: 'إدخال الأرشيف القديم'),
             if (canCreate)
               IconButton(icon: const Icon(Icons.add), onPressed: () => context.go('/new-work'), tooltip: 'جديد'),
           ],
@@ -319,6 +319,10 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     );
   }
 
+  String _archiveIntakeRouteForCurrentTab() {
+    return _statusFilter == 'completed' ? '/archive-intake?status=closed' : '/archive-intake?status=running';
+  }
+
   Widget _buildOfficeFilesList(List<FileItem> files) {
     if (files.isEmpty) {
       return Center(
@@ -338,7 +342,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                   ElevatedButton.icon(
                     icon: const Icon(Icons.archive_outlined),
                     label: const Text('إدخال الأرشيف القديم'),
-                    onPressed: () => context.go('/archive-intake'),
+                    onPressed: () => context.go(_archiveIntakeRouteForCurrentTab()),
                   ),
                 if (_statusFilter == 'active')
                   OutlinedButton.icon(

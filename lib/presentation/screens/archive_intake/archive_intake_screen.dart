@@ -187,6 +187,15 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(permissionServiceProvider);
+    final requestedStatus = GoRouterState.of(context).uri.queryParameters['status'];
+    if (requestedStatus == 'closed' || requestedStatus == 'running') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final current = ref.read(_archiveWizardProvider);
+        if (current.archiveStatus == null) {
+          ref.read(_archiveWizardProvider.notifier).state = current.copyWith(archiveStatus: requestedStatus);
+        }
+      });
+    }
     ref.watch(_archiveIntakeRefreshProvider);
     return Theme(
       data: AppTheme.lightTheme,
