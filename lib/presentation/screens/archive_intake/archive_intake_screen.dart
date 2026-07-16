@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/permission_catalog.dart';
+import '../../../core/enums/app_enums.dart';
+import '../../../data/repositories/archive_intake_repository.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
@@ -12,6 +14,45 @@ import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
 
 final _archiveIntakeRefreshProvider = StateProvider<int>((ref) => 0);
+
+enum _ArchiveLinkTarget {
+  caseFile,
+  procedure,
+  company,
+  contract,
+  person,
+  poa;
+
+  String get label => const ['دعوى', 'إجراء إداري', 'شركة', 'عقد', 'موكل / جهة', 'وكالة'][index];
+
+  int get entityType {
+    switch (this) {
+      case _ArchiveLinkTarget.caseFile:
+        return EntityType.caseEntity.index;
+      case _ArchiveLinkTarget.procedure:
+        return EntityType.adminProcedure.index;
+      case _ArchiveLinkTarget.company:
+        return EntityType.company.index;
+      case _ArchiveLinkTarget.contract:
+        return EntityType.contract.index;
+      case _ArchiveLinkTarget.person:
+        return EntityType.person.index;
+      case _ArchiveLinkTarget.poa:
+        return EntityType.powerOfAttorney.index;
+    }
+  }
+}
+
+const _documentTypeOptions = <String, String>{
+  'case_document': 'مستند دعوى',
+  'power_of_attorney': 'وكالة',
+  'contract': 'عقد',
+  'decision': 'قرار / حكم',
+  'court_record': 'ضبط جلسة',
+  'receipt': 'إيصال',
+  'memo': 'مذكرة',
+  'archive_document': 'مستند أرشيف',
+};
 
 /// مركز إدخال الأرشيف القديم.
 ///
@@ -348,6 +389,247 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
         ),
       );
+    }
+  }
+
+  Future<void> _showUnclassifiedInbox(BuildContext context, WidgetRef ref) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.archiveInboxView)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_inbox', description: 'محاولة فتح صندوق الأرشيف غير المصنف دون صلاحية', severity: 'warning');
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('صندوق الأرشيف غير المصنف'),
+        content: SizedBox(
+          width: 860,
+          height: 560,
+          child: FutureBuilder<List<ArchiveItemRecord>>(
+            future: ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review'),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              return _itemsList(ctx, ref, snapshot.data!);
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      ),
+    );
+  }
+
+  Future<void> _showBatchDetails(BuildContext context, WidgetRef ref, int batchId, String batchName) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('تفاصيل الدفعة: $batchName'),
+        content: SizedBox(
+          width: 860,
+          height: 560,
+          child: FutureBuilder<List<ArchiveItemRecord>>(
+            future: ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              return _itemsList(ctx, ref, snapshot.data!);
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      ),
+    );
+  }
+
+  Widget _itemsList(BuildContext dialogContext, WidgetRef ref, List<ArchiveItemRecord> items) {
+    final permissions = ref.watch(permissionServiceProvider);
+    if (items.isEmpty) return const Center(child: Text('لا توجد عناصر.'));
+    return ListView.builder(
+      itemCount: items.length,
+      itemBuilder: (_, index) {
+        final item = items[index];
+        return Card(
+          child: ListTile(
+            leading: Icon(_itemIcon(item.status), color: _itemColor(item.status)),
+            title: Text(item.originalFileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text([
+              'دفعة #${item.batchId}',
+              'الحالة: ${_itemStatusLabel(item.status)}',
+              'المراجعة: ${_reviewStatusLabel(item.reviewStatus)}',
+              if ((item.fileType ?? '').isNotEmpty) 'النوع: ${item.fileType}',
+              if (item.errorMessage != null) 'ملاحظة: ${item.errorMessage}',
+            ].join(' • ')),
+            trailing: Wrap(
+              spacing: 6,
+              children: [
+                if (permissions.can(PermissionKeys.archiveInboxLink) && item.status != 'duplicate' && item.status != 'failed' && item.reviewStatus != 'approved')
+                  TextButton(onPressed: () => _showLinkItemDialog(dialogContext, ref, item), child: const Text('ربط بملف')),
+                if (permissions.can(PermissionKeys.archiveInboxLink) && item.reviewStatus != 'approved')
+                  TextButton(onPressed: () => _setItemReview(dialogContext, ref, item.id, item.batchId, 'imported', 'approved'), child: const Text('اعتماد عام')),
+                if (permissions.can(PermissionKeys.archiveInboxReject) && item.status != 'rejected')
+                  TextButton(onPressed: () => _setItemReview(dialogContext, ref, item.id, item.batchId, 'rejected', 'rejected'), child: const Text('رفض')),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _setItemReview(BuildContext dialogContext, WidgetRef ref, int itemId, int batchId, String status, String reviewStatus) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.archiveIntakeReview)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_item', entityId: '$itemId', description: 'محاولة مراجعة عنصر أرشيف دون صلاحية', severity: 'warning');
+      return;
+    }
+    await ref.read(archiveIntakeRepositoryProvider).updateItemReview(itemId: itemId, status: status, reviewStatus: reviewStatus);
+    await ref.read(archiveIntakeRepositoryProvider).refreshBatchCounters(batchId);
+    await ref.read(auditServiceProvider).log(action: reviewStatus == 'approved' ? 'approve' : 'reject', category: 'archive', entityType: 'archive_item', entityId: '$itemId', description: reviewStatus == 'approved' ? 'اعتماد عنصر أرشيف' : 'رفض عنصر أرشيف', severity: reviewStatus == 'approved' ? 'info' : 'warning');
+    ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+  }
+
+  Future<void> _showLinkItemDialog(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
+    _ArchiveLinkTarget target = _ArchiveLinkTarget.caseFile;
+    String documentType = 'archive_document';
+    int? selectedId;
+    String selectedTitle = '';
+    final search = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text('ربط ملف: ${item.originalFileName}'),
+          content: SizedBox(
+            width: 760,
+            height: 560,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<_ArchiveLinkTarget>(
+                        value: target,
+                        decoration: const InputDecoration(labelText: 'يرتبط هذا المستند بـ'),
+                        items: _ArchiveLinkTarget.values.map((t) => DropdownMenuItem(value: t, child: Text(t.label))).toList(),
+                        onChanged: (v) => setDialog(() { target = v ?? target; selectedId = null; selectedTitle = ''; search.clear(); }),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: documentType,
+                        decoration: const InputDecoration(labelText: 'نوع المستند'),
+                        items: _documentTypeOptions.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+                        onChanged: (v) => setDialog(() => documentType = v ?? documentType),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: search, decoration: InputDecoration(labelText: 'بحث في ${target.label}', prefixIcon: const Icon(Icons.search)), onChanged: (_) => setDialog(() {})),
+                const SizedBox(height: 8),
+                Expanded(child: _linkChoices(ref, target, search.text, selectedId, (id, title) => setDialog(() { selectedId = id; selectedTitle = title; }))),
+                if (selectedId != null) Align(alignment: Alignment.centerRight, child: Text('تم اختيار: $selectedTitle', style: AppTextStyles.bodySmallSecondary)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: selectedId == null
+                  ? null
+                  : () async {
+                      try {
+                        final docId = await ref.read(archiveIntakeRepositoryProvider).promoteItemToDocument(
+                          itemId: item.id,
+                          documentType: documentType,
+                          entityType: target.entityType,
+                          entityId: selectedId!,
+                          userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
+                        );
+                        await ref.read(auditServiceProvider).log(action: 'link', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'ربط عنصر أرشيف بملف وإنشاء مستند رقم $docId', after: {'target': target.label, 'targetId': selectedId, 'documentType': documentType}, severity: 'info');
+                        ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (e) {
+                        if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الربط: $e'), backgroundColor: AppColors.error));
+                      }
+                    },
+              child: const Text('ربط واعتماد'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _linkChoices(WidgetRef ref, _ArchiveLinkTarget target, String rawQuery, int? selectedId, void Function(int id, String title) onSelect) {
+    final query = rawQuery.trim().toLowerCase();
+    switch (target) {
+      case _ArchiveLinkTarget.caseFile:
+        return ref.watch(allCasesProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الدعاوى: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || c.internalNumber.toLowerCase().contains(query) || (c.subject ?? '').toLowerCase().contains(query) || (c.baseNumber ?? '').toLowerCase().contains(query)).take(20).map((c) => (id: c.id, title: '${c.internalNumber} — ${c.subject ?? 'دعوى'}')).toList(), selectedId, onSelect));
+      case _ArchiveLinkTarget.procedure:
+        return ref.watch(allProceduresProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الإجراءات: $e'), data: (items) => _choiceList(items.where((p) => query.isEmpty || p.title.toLowerCase().contains(query) || (p.transactionNumber ?? '').toLowerCase().contains(query)).take(20).map((p) => (id: p.id, title: '${p.title} — ${p.transactionNumber ?? p.procedureType}')).toList(), selectedId, onSelect));
+      case _ArchiveLinkTarget.company:
+        return ref.watch(allCompaniesProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الشركات: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || c.name.toLowerCase().contains(query) || c.internalNumber.toLowerCase().contains(query)).take(20).map((c) => (id: c.id, title: '${c.name} — ${c.internalNumber}')).toList(), selectedId, onSelect));
+      case _ArchiveLinkTarget.contract:
+        return ref.watch(allContractsProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل العقود: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || c.title.toLowerCase().contains(query) || c.internalNumber.toLowerCase().contains(query)).take(20).map((c) => (id: c.id, title: '${c.title} — ${c.internalNumber}')).toList(), selectedId, onSelect));
+      case _ArchiveLinkTarget.person:
+        return ref.watch(allPersonsProvider(null)).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الأشخاص: $e'), data: (items) => _choiceList(items.where((p) => query.isEmpty || p.fullName.toLowerCase().contains(query) || (p.phone1 ?? '').contains(query) || (p.nationalId ?? '').contains(query)).take(20).map((p) => (id: p.id, title: p.fullName)).toList(), selectedId, onSelect));
+      case _ArchiveLinkTarget.poa:
+        return ref.watch(uiPersonsDirectoryProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الوكالات: $e'), data: (state) => _choiceList(state.agencies.where((a) => query.isEmpty || a.number.toLowerCase().contains(query) || (state.personById(a.principalPersonId)?.fullName.toLowerCase().contains(query) ?? false)).take(20).map((a) => (id: int.tryParse(a.id) ?? 0, title: '${a.number} — ${state.personById(a.principalPersonId)?.fullName ?? 'موكل'}')).where((e) => e.id > 0).toList(), selectedId, onSelect));
+    }
+  }
+
+  Widget _choiceList(List<({int id, String title})> choices, int? selectedId, void Function(int id, String title) onSelect) {
+    if (choices.isEmpty) return const Center(child: Text('لا توجد نتائج مطابقة'));
+    return ListView.builder(
+      itemCount: choices.length,
+      itemBuilder: (_, index) {
+        final item = choices[index];
+        final selected = selectedId == item.id;
+        return ListTile(
+          selected: selected,
+          leading: Icon(selected ? Icons.check_circle : Icons.radio_button_unchecked, color: selected ? AppColors.success : AppColors.textSecondary),
+          title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          onTap: () => onSelect(item.id, item.title),
+        );
+      },
+    );
+  }
+
+  IconData _itemIcon(String status) {
+    switch (status) {
+      case 'duplicate': return Icons.copy_all;
+      case 'failed': return Icons.error_outline;
+      case 'rejected': return Icons.block;
+      default: return Icons.insert_drive_file;
+    }
+  }
+
+  Color _itemColor(String status) {
+    switch (status) {
+      case 'duplicate': return AppColors.info;
+      case 'failed': return AppColors.error;
+      case 'rejected': return AppColors.error;
+      default: return AppColors.primaryNavy;
+    }
+  }
+
+  String _itemStatusLabel(String status) {
+    switch (status) {
+      case 'imported': return 'مستورد';
+      case 'duplicate': return 'مكرر';
+      case 'failed': return 'فشل';
+      case 'rejected': return 'مرفوض';
+      default: return status;
+    }
+  }
+
+  String _reviewStatusLabel(String status) {
+    switch (status) {
+      case 'needs_review': return 'يحتاج مراجعة';
+      case 'approved': return 'معتمد';
+      case 'rejected': return 'مرفوض';
+      default: return status;
     }
   }
 

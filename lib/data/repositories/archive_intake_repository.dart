@@ -245,6 +245,72 @@ class ArchiveIntakeRepository {
     return rows.map(_mapItem).toList();
   }
 
+
+  Future<ArchiveItemRecord?> getItemById(int itemId) async {
+    await ensureReady();
+    final rows = await _db.customSelect(
+      'SELECT * FROM archive_items WHERE id = ? LIMIT 1',
+      variables: [Variable.withInt(itemId)],
+    ).get();
+    if (rows.isEmpty) return null;
+    return _mapItem(rows.first);
+  }
+
+  Future<int> promoteItemToDocument({
+    required int itemId,
+    required String documentType,
+    required int entityType,
+    required int entityId,
+    required String userRef,
+  }) async {
+    await ensureReady();
+    final item = await getItemById(itemId);
+    if (item == null) throw StateError('عنصر الأرشيف غير موجود');
+    if (item.storedPath == null || item.storedPath!.isEmpty) {
+      throw StateError('لا يمكن اعتماد عنصر بلا ملف محفوظ، غالباً لأنه مكرر أو فشل استيراده');
+    }
+    return _db.transaction(() async {
+      final docId = await _db.into(_db.documents).insert(
+            DocumentsCompanion.insert(
+              docName: item.originalFileName,
+              docType: Value(documentType),
+              filePath: Value(item.storedPath),
+              fileType: Value(item.fileType),
+              summary: Value('مستند مستورد من مركز إدخال الأرشيف'),
+              notes: Value('ArchiveItem #$itemId / SHA256: ${item.sha256 ?? '-'}'),
+            ),
+          );
+      await _db.into(_db.documentLinks).insert(
+            DocumentLinksCompanion.insert(
+              documentId: docId,
+              entityType: entityType,
+              entityId: entityId,
+              linkType: const Value('archive_import'),
+            ),
+          );
+      await updateItemReview(
+        itemId: itemId,
+        status: 'imported',
+        reviewStatus: 'approved',
+        documentType: documentType,
+        entityType: entityType,
+        entityId: entityId,
+      );
+      await refreshBatchCounters(item.batchId);
+      await _db.into(_db.timelineEvents).insert(
+            TimelineEventsCompanion.insert(
+              entityType: entityType,
+              entityId: entityId,
+              eventType: 'archive_document_linked',
+              eventDate: Value(DateTime.now()),
+              description: 'تم ربط مستند من الأرشيف القديم: ${item.originalFileName}',
+              userRef: Value(userRef),
+            ),
+          );
+      return docId;
+    });
+  }
+
   Future<void> updateItemReview({
     required int itemId,
     required String status,
