@@ -402,4 +402,27 @@ class ArchiveIntakeRepository {
     final dot = name.lastIndexOf('.');
     return dot == -1 ? 'file' : name.substring(dot + 1).toLowerCase();
   }
+
+  String _suggestDocumentType(String filePath) {
+    final raw = filePath.toLowerCase();
+    if (raw.contains('وكال') || raw.contains('poa') || raw.contains('power')) {
+      return 'power_of_attorney';
+    }
+    if (raw.contains('جلس') || raw.contains('ضبط') || raw.contains('محضر') || raw.contains('session')) {
+      return 'court_record';
+    }
+    if (raw.contains('حكم') || raw.contains('قرار') || raw.contains('decision') || raw.contains('judgment')) {
+      return 'decision';
+    }
+    if (raw.contains('قبض') || raw.contains('ايصال') || raw.contains('إيصال') || raw.contains('receipt')) {
+      return 'receipt';
+    }
+    if (raw.contains('عقد') || raw.contains('contract')) {
+      return 'contract';
+    }
+    if (raw.contains('مذكرة') || raw.contains('لائحة') || raw.contains('memo')) {
+      return 'memo';
+    }
+    return 'archive_document';
+  }
 }

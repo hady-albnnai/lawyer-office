@@ -40,17 +40,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   }
 
   @override
-  void dispose() {    // paidByController.dispose();
-    // descriptionController.dispose();
-    // notesController.dispose();
-    // receiptController.dispose();
-    // documentController.dispose();
-    // amountController.dispose();
-    // partyController.dispose();
-    // entityTitleController.dispose();
-
-    // tabController.dispose();
-    // super.dispose();
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -433,6 +425,76 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _cashboxTab(FinanceState state) {
+    final payments = [...state.filteredPayments]..sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+    final expenses = [...state.filteredExpenses]..sort((a, b) => b.expenseDate.compareTo(a.expenseDate));
+    final incoming = payments.fold(0.0, (sum, p) => sum + p.amount);
+    final officeExpenses = expenses.where((e) => e.paidBy.contains('مكتب')).toList();
+    final outgoing = officeExpenses.fold(0.0, (sum, e) => sum + e.amount);
+    final balance = incoming - outgoing;
+    final movements = <({DateTime date, String title, String subtitle, double amount, bool incoming})>[
+      ...payments.map((p) {
+        final agreement = state.agreementById(p.agreementId);
+        return (
+          date: p.paymentDate,
+          title: 'سند قبض ${p.displayReceiptNumber}',
+          subtitle: agreement == null ? p.method.displayName : '${agreement.partyName} • ${agreement.entityTitle}',
+          amount: p.amount,
+          incoming: true,
+        );
+      }),
+      ...officeExpenses.map((e) => (
+            date: e.expenseDate,
+            title: e.description,
+            subtitle: '${e.entityTitle} • ${e.category.displayName}',
+            amount: e.amount,
+            incoming: false,
+          )),
+    ]..sort((a, b) => b.date.compareTo(a.date));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _metricCard('الوارد الفعلي', _formatCurrency(incoming), Icons.call_received, AppColors.success),
+              _metricCard('الصادر من المكتب', _formatCurrency(outgoing), Icons.call_made, AppColors.error),
+              _metricCard('الرصيد التقريبي', _formatCurrency(balance), Icons.account_balance, balance >= 0 ? AppColors.primaryNavy : AppColors.error),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _sectionCard(
+            title: 'حركات صندوق المكتب',
+            icon: Icons.account_balance_wallet,
+            children: movements.isEmpty
+                ? [Text('لا توجد حركات صندوق ضمن الفلتر الحالي.', style: AppTextStyles.bodySmallSecondary)]
+                : movements
+                    .take(80)
+                    .map(
+                      (m) => ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: (m.incoming ? AppColors.success : AppColors.error).withOpacity(0.12),
+                          child: Icon(m.incoming ? Icons.add : Icons.remove, color: m.incoming ? AppColors.success : AppColors.error),
+                        ),
+                        title: Text(m.title, style: AppTextStyles.labelLarge),
+                        subtitle: Text('${_formatDate(m.date)} • ${m.subtitle}', style: AppTextStyles.bodySmallSecondary),
+                        trailing: Text(
+                          '${m.incoming ? '+' : '-'} ${_formatCurrency(m.amount)}',
+                          style: AppTextStyles.numberText.copyWith(color: m.incoming ? AppColors.success : AppColors.error),
+                        ),
+                      ),
+                    )
+                    .toList(),
+          ),
+        ],
+      ),
     );
   }
 

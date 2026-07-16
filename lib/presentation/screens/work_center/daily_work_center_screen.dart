@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -795,3 +797,256 @@ TimeOfDay? _parseTime(String? raw) {
   final parts = raw.split(':');
   return TimeOfDay(hour: int.tryParse(parts[0]) ?? 0, minute: int.tryParse(parts[1]) ?? 0);
 }
+
+Future<void> _showTaskResultDialog(BuildContext context, WidgetRef ref, db.DailyTask task) async {
+  final reason = TextEditingController();
+  DateTime newDate = task.taskDate.add(const Duration(days: 1));
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialog) => AlertDialog(
+        title: Text('نتيجة المهمة: ${task.title}'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(task.notes ?? 'اختر نتيجة المهمة المطلوبة.', style: AppTextStyles.bodySmallSecondary),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reason,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'ملاحظة / سبب التأجيل أو الإلغاء'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: Text('تاريخ التأجيل: ${_formatDateOnly(newDate)}')),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.calendar_month, size: 16),
+                    label: const Text('اختيار'),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: newDate,
+                        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                        lastDate: DateTime(DateTime.now().year + 5),
+                      );
+                      if (picked != null) setDialog(() => newDate = picked);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          TextButton.icon(
+            icon: const Icon(Icons.block),
+            label: const Text('إلغاء'),
+            onPressed: () async {
+              final note = reason.text.trim();
+              if (note.isEmpty) return;
+              await ref.read(taskRepositoryProvider).cancelTask(
+                    taskId: task.id,
+                    reason: note,
+                    userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
+                  );
+              await ref.read(auditServiceProvider).log(action: 'cancel', category: 'daily_work', entityType: 'daily_task', entityId: '${task.id}', entityTitle: task.title, description: 'إلغاء مهمة من مكتب العمل', severity: 'warning');
+              ref.invalidate(tasksByDateProvider(task.taskDate));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.schedule),
+            label: const Text('تأجيل'),
+            onPressed: () async {
+              final note = reason.text.trim();
+              if (note.isEmpty) return;
+              await ref.read(taskRepositoryProvider).postponeTask(
+                    taskId: task.id,
+                    newDate: newDate,
+                    reason: note,
+                    userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
+                  );
+              await ref.read(auditServiceProvider).log(action: 'postpone', category: 'daily_work', entityType: 'daily_task', entityId: '${task.id}', entityTitle: task.title, description: 'تأجيل مهمة من مكتب العمل', after: {'newDate': newDate.toIso8601String()}, severity: 'info');
+              ref.invalidate(tasksByDateProvider(task.taskDate));
+              ref.invalidate(tasksByDateProvider(newDate));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.check),
+            label: const Text('تم الإنجاز'),
+            onPressed: () async {
+              await ref.read(taskRepositoryProvider).completeTask(task.id, ref.read(authControllerProvider).user?.fullName ?? 'المكتب');
+              await ref.read(auditServiceProvider).log(action: 'complete', category: 'daily_work', entityType: 'daily_task', entityId: '${task.id}', entityTitle: task.title, description: 'إنجاز مهمة من مكتب العمل', severity: 'info');
+              ref.invalidate(tasksByDateProvider(task.taskDate));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ManualTaskDialog extends ConsumerStatefulWidget {
+  const _ManualTaskDialog();
+
+  @override
+  ConsumerState<_ManualTaskDialog> createState() => _ManualTaskDialogState();
+}
+
+class _ManualTaskDialogState extends ConsumerState<_ManualTaskDialog> {
+  final _title = TextEditingController();
+  final _assignedTo = TextEditingController();
+  final _notes = TextEditingController();
+  DateTime _date = DateTime.now();
+  TimeOfDay? _time;
+  int _priority = 1;
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _assignedTo.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('مهمة مخصصة'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: _title, decoration: const InputDecoration(labelText: 'عنوان المهمة *')),
+              const SizedBox(height: 12),
+              TextField(controller: _assignedTo, decoration: const InputDecoration(labelText: 'المكلف / جهة خارجية')),
+              const SizedBox(height: 12),
+              TextField(controller: _notes, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات')),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: Text('التاريخ: ${_formatDateOnly(_date)}')),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.calendar_month, size: 16),
+                    label: const Text('اختيار'),
+                    onPressed: () async {
+                      final picked = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime(2020), lastDate: DateTime(DateTime.now().year + 5));
+                      if (picked != null) setState(() => _date = picked);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: Text('الوقت: ${_time == null ? 'بدون وقت' : _time!.format(context)}')),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.access_time, size: 16),
+                    label: const Text('اختيار'),
+                    onPressed: () async {
+                      final picked = await showTimePicker(context: context, initialTime: _time ?? TimeOfDay.now());
+                      if (picked != null) setState(() => _time = picked);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: _priority,
+                decoration: const InputDecoration(labelText: 'الأولوية'),
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('عادية')),
+                  DropdownMenuItem(value: 2, child: Text('حرجة')),
+                ],
+                onChanged: (v) => setState(() => _priority = v ?? 1),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.save),
+          label: const Text('حفظ'),
+          onPressed: _save,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    final title = _title.text.trim();
+    if (title.isEmpty) return;
+    final timeValue = _time == null ? null : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
+    final id = await ref.read(taskRepositoryProvider).createManualTask(
+          db.DailyTasksCompanion.insert(
+            taskType: 'manual',
+            title: title,
+            taskDate: DateTime(_date.year, _date.month, _date.day),
+            taskTime: Value(timeValue),
+            assignedTo: Value(_assignedTo.text.trim().isEmpty ? null : _assignedTo.text.trim()),
+            priority: Value(_priority),
+            sourceType: const Value('manual'),
+            notes: Value(_notes.text.trim().isEmpty ? null : _notes.text.trim()),
+          ),
+        );
+    await ref.read(auditServiceProvider).log(action: 'create', category: 'daily_work', entityType: 'daily_task', entityId: '$id', entityTitle: title, description: 'إنشاء مهمة مخصصة من مكتب العمل', severity: 'info');
+    ref.invalidate(tasksByDateProvider(_date));
+    if (mounted) Navigator.pop(context);
+  }
+}
+
+class _DailyWorkPdfBuilder {
+  static Future<Uint8List> build({required String title, required DateTime date, required List<_WorkItem> items}) async {
+    final pdf = pw.Document();
+    final fontRegular = await PdfGoogleFonts.cairoRegular();
+    final fontBold = await PdfGoogleFonts.cairoBold();
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        textDirection: pw.TextDirection.rtl,
+        theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
+        build: (_) => [
+          pw.Text(title, style: pw.TextStyle(font: fontBold, fontSize: 18, color: PdfColors.blue900)),
+          pw.SizedBox(height: 4),
+          pw.Text('التاريخ: ${_formatDateOnly(date)}', style: const pw.TextStyle(fontSize: 11)),
+          pw.SizedBox(height: 12),
+          if (items.isEmpty)
+            pw.Text('لا توجد أعمال ضمن هذه اللائحة.')
+          else
+            pw.Table.fromTextArray(
+              headers: const ['النوع', 'العنوان', 'المكلف', 'التاريخ', 'الأولوية', 'الحالة'],
+              data: items
+                  .map((i) => [
+                        i.type,
+                        i.title,
+                        i.assignedTo.isEmpty ? 'غير مكلف' : i.assignedTo,
+                        _formatDateOnly(i.date),
+                        i.priority,
+                        i.status,
+                      ])
+                  .toList(),
+              headerStyle: pw.TextStyle(font: fontBold, color: PdfColors.white),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              cellAlignment: pw.Alignment.centerRight,
+              headerAlignment: pw.Alignment.centerRight,
+            ),
+        ],
+      ),
+    );
+    return pdf.save();
+  }
+}
+
+String _formatDateOnly(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

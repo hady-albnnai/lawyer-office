@@ -385,8 +385,8 @@ class LegalLibraryNotifier extends StateNotifier<LegalLibraryState> {
       section: state.section,
       typeFilter: state.typeFilter,
     );
-    } catch (e, st) {
-      print('Error in reload: $e\n$st');
+    } catch (_) {
+      if (state.items.isEmpty) state = _seedState();
     }
   }
 

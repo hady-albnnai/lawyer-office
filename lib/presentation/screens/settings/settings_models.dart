@@ -383,8 +383,8 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
           )
           .toList(),
     );
-    } catch (e, st) {
-      print('Error in _loadFromDb: $e\n$st');
+    } catch (_) {
+      // تبقى الحالة الحالية كما هي عند تعذر تحميل بيانات الإعدادات من قاعدة البيانات.
     }
   }
 

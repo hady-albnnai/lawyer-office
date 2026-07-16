@@ -13,6 +13,7 @@ import '../../../core/enums/app_enums.dart';
 import '../../../data/repositories/archive_intake_repository.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/app_providers.dart';
+import '../../providers/ui_data_providers.dart';
 import '../files/files_screen.dart' show FileItem, FileStatus, FileType, filesProvider;
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';

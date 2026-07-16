@@ -571,8 +571,10 @@ class FinanceNotifier extends StateNotifier<FinanceState> {
       searchQuery: state.searchQuery,
       entityFilter: state.entityFilter,
     );
-    } catch (e, st) {
-      print('Error in reload: $e\n$st');
+    } catch (_) {
+      if (state.agreements.isEmpty) {
+        state = _seedState();
+      }
     }
   }
 
