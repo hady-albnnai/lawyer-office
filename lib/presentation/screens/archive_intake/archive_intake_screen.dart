@@ -194,7 +194,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final validStatus = requestedStatus == 'closed' || requestedStatus == 'running' ? requestedStatus : null;
     final validKind = _archiveFileKindOptions.containsKey(requestedKind) ? requestedKind : null;
     if (validStatus != null || validKind != null) {
-      final seedSignature = '${validStatus ?? ''}|${validKind ?? ''}';
+      final seedSignature = '${validStatus ?? ''}|${validKind ?? ''}|${query['seed'] ?? ''}';
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final lastSeed = ref.read(_archiveWizardQuerySeedProvider);
         if (lastSeed == seedSignature) return;

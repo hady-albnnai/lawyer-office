@@ -368,6 +368,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     return Uri(path: '/archive-intake', queryParameters: {
       'status': status,
       if (kind != null) 'kind': kind,
+      'seed': DateTime.now().millisecondsSinceEpoch.toString(),
     }).toString();
   }
 
