@@ -205,6 +205,16 @@ class ArchiveIntakeRepository {
 
 
 
+
+  Future<List<ArchiveItemRecord>> getItemsByStatus(String status) async {
+    await ensureReady();
+    final rows = await _db.customSelect(
+      'SELECT * FROM archive_items WHERE status = ? ORDER BY created_at DESC',
+      variables: [Variable.withString(status)],
+    ).get();
+    return rows.map(_mapItem).toList();
+  }
+
   Future<List<ArchiveItemRecord>> getItemsByReviewStatus(String reviewStatus) async {
     await ensureReady();
     final rows = await _db.customSelect(
