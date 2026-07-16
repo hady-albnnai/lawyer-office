@@ -584,6 +584,9 @@ class _AddWorkButton extends ConsumerWidget {
           case 'work_order':
             showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
             break;
+          case 'archive_running':
+            context.push('/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}');
+            break;
           case 'manual':
             showDialog(context: context, builder: (_) => const _ManualTaskDialog());
             break;
@@ -595,6 +598,7 @@ class _AddWorkButton extends ConsumerWidget {
         if (permissions.can(PermissionKeys.companiesCreate)) const PopupMenuItem(value: 'company', child: Text('شركة')),
         if (permissions.can(PermissionKeys.contractsCreate)) const PopupMenuItem(value: 'contract', child: Text('عقد')),
         if (permissions.can(PermissionKeys.workOrdersCreate)) const PopupMenuItem(value: 'work_order', child: Text('أمر عمل')),
+        if (permissions.can(PermissionKeys.archiveIntakeView)) const PopupMenuItem(value: 'archive_running', child: Text('إدخال أرشيف جارٍ')),
         if (permissions.can(PermissionKeys.tasksCreate)) const PopupMenuItem(value: 'manual', child: Text('مهمة مخصصة')),
       ],
       child: Padding(
