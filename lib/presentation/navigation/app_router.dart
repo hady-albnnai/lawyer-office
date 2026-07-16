@@ -36,6 +36,7 @@ import '../screens/admin_procedures/procedures_list_screen.dart';
 import '../screens/admin_procedures/procedure_detail_screen.dart';
 import '../screens/admin_procedures/create_procedure_screen.dart';
 import '../screens/tasks/daily_tasks_screen.dart';
+import '../screens/templates/legal_templates_screen.dart';
 import '../screens/reports/legal_printing_screen.dart';
 import '../screens/archive/archive_screen.dart';
 import '../screens/auth/login_screen.dart';
@@ -83,6 +84,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/legal-library', name: 'legal-library', builder: (_, __) => const LegalLibraryScreen()),
           GoRoute(path: '/search-reports', name: 'search-reports', builder: (_, __) => const SearchReportsScreen()),
           GoRoute(path: '/settings', name: 'settings', builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: '/templates', name: 'legal-templates', builder: (_, __) => const LegalTemplatesScreen()),
           
           GoRoute(path: '/cases', name: 'cases', builder: (_, __) => const CasesScreen()),
           // New discovered routes:
@@ -118,6 +120,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 String? _requiredPermissionForLocation(String loc) {
+  if (loc.startsWith('/templates')) return PermissionKeys.templatesView;
   if (loc.startsWith('/settings')) return PermissionKeys.settingsView;
   if (loc.startsWith('/finance')) return PermissionKeys.financeView;
   if (loc.startsWith('/work-orders')) return PermissionKeys.workOrdersView;

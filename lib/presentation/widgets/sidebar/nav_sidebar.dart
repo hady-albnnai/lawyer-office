@@ -344,7 +344,7 @@ List<SidebarItemModel> getDefaultSidebarItems() {
       id: 'legal_templates',
       label: 'النماذج القانونية',
       icon: Icons.article_outlined,
-      route: '/contracts/templates',
+      route: '/templates',
     ),
     const SidebarItemModel(
       id: 'finance',

@@ -52,7 +52,7 @@ class MainShellScreen extends ConsumerWidget {
     
     // نحدد المسار للـ Sidebar بناءً على بداية الرابط (مثلاً /cases/1 تقع ضمن الشؤون القانونية)
     String selectedRoute = '/today';
-    if (location.startsWith('/contracts/templates')) selectedRoute = '/contracts/templates';
+    if (location.startsWith('/templates') || location.startsWith('/contracts/templates')) selectedRoute = '/templates';
     else if (location.startsWith('/files') || location.startsWith('/cases') || location.startsWith('/companies') || location.startsWith('/contracts') || location.startsWith('/procedures') || location.startsWith('/poa') || location.startsWith('/persons') || location.startsWith('/archive')) selectedRoute = '/files';
     else if (location.startsWith('/work-orders') || location.startsWith('/tasks')) selectedRoute = '/work-orders';
     else if (location.startsWith('/agenda')) selectedRoute = '/agenda';
@@ -531,7 +531,8 @@ List<SidebarItemModel> _filterSidebarItems(List<SidebarItemModel> items, WidgetR
     if (route.startsWith('/settings')) return perms.can(PermissionKeys.settingsView);
     if (route.startsWith('/cases')) return perms.can(PermissionKeys.casesView);
     if (route.startsWith('/companies')) return perms.can(PermissionKeys.companiesView);
-    if (route.startsWith('/contracts/templates')) return perms.can(PermissionKeys.contractsView);
+    if (route.startsWith('/templates')) return perms.can(PermissionKeys.templatesView);
+    if (route.startsWith('/contracts/templates')) return perms.can(PermissionKeys.templatesView);
     if (route.startsWith('/contracts')) return perms.can(PermissionKeys.contractsView);
     if (route.startsWith('/procedures')) return perms.can(PermissionKeys.proceduresView);
     if (route.startsWith('/poa')) return perms.can(PermissionKeys.poaView);

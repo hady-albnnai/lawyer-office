@@ -104,6 +104,13 @@ class PermissionKeys {
   static const libraryEdit = 'library.edit';
   static const libraryDelete = 'library.delete';
   static const libraryLink = 'library.link';
+
+  static const templatesView = 'templates.view';
+  static const templatesImport = 'templates.import';
+  static const templatesCreate = 'templates.create';
+  static const templatesEdit = 'templates.edit';
+  static const templatesDisable = 'templates.disable';
+  static const templatesGenerateDocument = 'templates.generate_document';
 }
 
 class PermissionCatalog {
@@ -120,6 +127,7 @@ class PermissionCatalog {
     PermissionGroup('work_orders', 'أوامر العمل'),
     PermissionGroup('reports', 'التقارير والبحث'),
     PermissionGroup('library', 'المكتبة القانونية'),
+    PermissionGroup('templates', 'النماذج القانونية'),
   ];
 
   static const permissions = <PermissionDefinition>[
@@ -207,6 +215,13 @@ class PermissionCatalog {
     PermissionDefinition(key: PermissionKeys.libraryEdit, label: 'تعديل المكتبة', group: 'library', description: 'تعديل مادة'),
     PermissionDefinition(key: PermissionKeys.libraryDelete, label: 'حذف من المكتبة', group: 'library', description: 'حذف مادة', sensitive: true),
     PermissionDefinition(key: PermissionKeys.libraryLink, label: 'ربط المكتبة بالملفات', group: 'library', description: 'ربط مادة بملف'),
+
+    PermissionDefinition(key: PermissionKeys.templatesView, label: 'عرض النماذج القانونية', group: 'templates', description: 'عرض مكتبة النماذج القانونية'),
+    PermissionDefinition(key: PermissionKeys.templatesImport, label: 'استيراد نموذج', group: 'templates', description: 'استيراد قالب Word/RTF/TXT/PDF'),
+    PermissionDefinition(key: PermissionKeys.templatesCreate, label: 'إنشاء نموذج', group: 'templates', description: 'إنشاء قالب قانوني من داخل التطبيق'),
+    PermissionDefinition(key: PermissionKeys.templatesEdit, label: 'تعديل نموذج', group: 'templates', description: 'تعديل بيانات النموذج القانوني'),
+    PermissionDefinition(key: PermissionKeys.templatesDisable, label: 'تعطيل نموذج', group: 'templates', description: 'تعطيل نموذج قانوني'),
+    PermissionDefinition(key: PermissionKeys.templatesGenerateDocument, label: 'إنشاء مستند من نموذج', group: 'templates', description: 'استخدام نموذج لإنشاء مستند وربطه بملف'),
   ];
 
   static List<String> get allKeys => permissions.map((p) => p.key).toList(growable: false);
