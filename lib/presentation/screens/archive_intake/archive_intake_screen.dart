@@ -93,7 +93,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   runSpacing: 12,
                   children: [
                     _statusTile('دفعات الإدخال', 'متابعة دفعات الاستيراد وحالاتها.', Icons.inventory_2, AppColors.primaryNavy),
-                    _statusTile('صندوق غير مصنف', 'ملفات تحتاج ربطاً أو تصنيفاً.', Icons.inbox, AppColors.warning),
+                    _statusTile('صندوق غير مصنف', 'ملفات تحتاج ربطاً أو تصنيفاً.', Icons.inbox, AppColors.warning, onTap: () => _showUnclassifiedInbox(context, ref)),
                     _statusTile('ملفات جارية تحتاج استكمال', 'دعاوى وإجراءات مستوردة ناقصة بيانات تشغيلية.', Icons.pending_actions, AppColors.error),
                     _statusTile('المكررات', 'ملفات كشفها النظام كنسخ مكررة.', Icons.copy_all, AppColors.info),
                     _statusTile('تقارير الجودة', 'نتائج الاستيراد والأخطاء والعينات المطلوبة للمراجعة.', Icons.fact_check, AppColors.success),
@@ -176,14 +176,16 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _statusTile(String title, String subtitle, IconData icon, Color color) {
+  Widget _statusTile(String title, String subtitle, IconData icon, Color color, {VoidCallback? onTap}) {
     return SizedBox(
       width: 300,
       child: Card(
         child: ListTile(
+          onTap: onTap,
           leading: CircleAvatar(backgroundColor: color.withOpacity(0.12), child: Icon(icon, color: color)),
           title: Text(title, style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
           subtitle: Text(subtitle, style: AppTextStyles.bodySmallSecondary),
+          trailing: onTap == null ? null : const Icon(Icons.arrow_forward_ios, size: 16),
         ),
       ),
     );

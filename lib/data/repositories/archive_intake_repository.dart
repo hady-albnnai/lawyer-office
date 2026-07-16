@@ -204,33 +204,45 @@ class ArchiveIntakeRepository {
   }
 
 
+
+  Future<List<ArchiveItemRecord>> getItemsByReviewStatus(String reviewStatus) async {
+    await ensureReady();
+    final rows = await _db.customSelect(
+      'SELECT * FROM archive_items WHERE review_status = ? ORDER BY created_at DESC',
+      variables: [Variable.withString(reviewStatus)],
+    ).get();
+    return rows.map(_mapItem).toList();
+  }
+
+  ArchiveItemRecord _mapItem(QueryRow row) {
+    final d = row.data;
+    DateTime parseDate(Object? value) => DateTime.tryParse('${value ?? ''}') ?? DateTime.now();
+    return ArchiveItemRecord(
+      id: d['id'] as int,
+      batchId: d['batch_id'] as int,
+      originalFileName: d['original_file_name'] as String,
+      sourcePath: d['source_path'] as String?,
+      storedPath: d['stored_path'] as String?,
+      fileType: d['file_type'] as String?,
+      fileSize: (d['file_size'] as int?) ?? 0,
+      sha256: d['sha256'] as String?,
+      status: d['status'] as String,
+      reviewStatus: d['review_status'] as String,
+      errorMessage: d['error_message'] as String?,
+      confirmedDocumentType: d['confirmed_document_type'] as String?,
+      confirmedEntityType: d['confirmed_entity_type'] as int?,
+      confirmedEntityId: d['confirmed_entity_id'] as int?,
+      createdAt: parseDate(d['created_at']),
+    );
+  }
+
   Future<List<ArchiveItemRecord>> getItemsForBatch(int batchId) async {
     await ensureReady();
     final rows = await _db.customSelect(
       'SELECT * FROM archive_items WHERE batch_id = ? ORDER BY created_at DESC',
       variables: [Variable.withInt(batchId)],
     ).get();
-    return rows.map((row) {
-      final d = row.data;
-      DateTime parseDate(Object? value) => DateTime.tryParse('${value ?? ''}') ?? DateTime.now();
-      return ArchiveItemRecord(
-        id: d['id'] as int,
-        batchId: d['batch_id'] as int,
-        originalFileName: d['original_file_name'] as String,
-        sourcePath: d['source_path'] as String?,
-        storedPath: d['stored_path'] as String?,
-        fileType: d['file_type'] as String?,
-        fileSize: (d['file_size'] as int?) ?? 0,
-        sha256: d['sha256'] as String?,
-        status: d['status'] as String,
-        reviewStatus: d['review_status'] as String,
-        errorMessage: d['error_message'] as String?,
-        confirmedDocumentType: d['confirmed_document_type'] as String?,
-        confirmedEntityType: d['confirmed_entity_type'] as int?,
-        confirmedEntityId: d['confirmed_entity_id'] as int?,
-        createdAt: parseDate(d['created_at']),
-      );
-    }).toList();
+    return rows.map(_mapItem).toList();
   }
 
   Future<void> updateItemReview({
