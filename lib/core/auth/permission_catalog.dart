@@ -111,6 +111,20 @@ class PermissionKeys {
   static const templatesEdit = 'templates.edit';
   static const templatesDisable = 'templates.disable';
   static const templatesGenerateDocument = 'templates.generate_document';
+
+  static const archiveIntakeView = 'archive.intake.view';
+  static const archiveIntakeCreate = 'archive.intake.create';
+  static const archiveIntakeImportFiles = 'archive.intake.import_files';
+  static const archiveIntakeImportExcel = 'archive.intake.import_excel';
+  static const archiveIntakeReview = 'archive.intake.review';
+  static const archiveIntakeApprove = 'archive.intake.approve';
+  static const archiveInboxView = 'archive.inbox.view';
+  static const archiveInboxLink = 'archive.inbox.link';
+  static const archiveInboxReject = 'archive.inbox.reject';
+  static const archiveDuplicatesView = 'archive.duplicates.view';
+  static const archiveDuplicatesResolve = 'archive.duplicates.resolve';
+  static const archiveQualityView = 'archive.quality.view';
+  static const archiveQualityExport = 'archive.quality.export';
 }
 
 class PermissionCatalog {
@@ -128,6 +142,7 @@ class PermissionCatalog {
     PermissionGroup('reports', 'التقارير والبحث'),
     PermissionGroup('library', 'المكتبة القانونية'),
     PermissionGroup('templates', 'النماذج القانونية'),
+    PermissionGroup('archive', 'مركز إدخال الأرشيف'),
   ];
 
   static const permissions = <PermissionDefinition>[
@@ -222,6 +237,20 @@ class PermissionCatalog {
     PermissionDefinition(key: PermissionKeys.templatesEdit, label: 'تعديل نموذج', group: 'templates', description: 'تعديل بيانات النموذج القانوني'),
     PermissionDefinition(key: PermissionKeys.templatesDisable, label: 'تعطيل نموذج', group: 'templates', description: 'تعطيل نموذج قانوني'),
     PermissionDefinition(key: PermissionKeys.templatesGenerateDocument, label: 'إنشاء مستند من نموذج', group: 'templates', description: 'استخدام نموذج لإنشاء مستند وربطه بملف'),
+
+    PermissionDefinition(key: PermissionKeys.archiveIntakeView, label: 'عرض مركز إدخال الأرشيف', group: 'archive', description: 'الدخول إلى مركز إدخال الأرشيف القديم'),
+    PermissionDefinition(key: PermissionKeys.archiveIntakeCreate, label: 'إنشاء دفعة أرشيف', group: 'archive', description: 'إنشاء دفعة إدخال أرشيف جديدة'),
+    PermissionDefinition(key: PermissionKeys.archiveIntakeImportFiles, label: 'استيراد ملفات أرشيف', group: 'archive', description: 'استيراد ملفات أو مجلدات إلكترونية'),
+    PermissionDefinition(key: PermissionKeys.archiveIntakeImportExcel, label: 'استيراد Excel / CSV', group: 'archive', description: 'استيراد بيانات قديمة من جداول'),
+    PermissionDefinition(key: PermissionKeys.archiveIntakeReview, label: 'مراجعة دفعات الأرشيف', group: 'archive', description: 'مراجعة نتائج الاستيراد والتصنيف'),
+    PermissionDefinition(key: PermissionKeys.archiveIntakeApprove, label: 'اعتماد دفعات الأرشيف', group: 'archive', description: 'اعتماد الدفعة وتحويلها إلى ملفات فعلية', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.archiveInboxView, label: 'عرض صندوق غير مصنف', group: 'archive', description: 'عرض عناصر الأرشيف غير المصنفة'),
+    PermissionDefinition(key: PermissionKeys.archiveInboxLink, label: 'ربط عناصر غير مصنفة', group: 'archive', description: 'ربط العناصر غير المصنفة بملفات المكتب'),
+    PermissionDefinition(key: PermissionKeys.archiveInboxReject, label: 'رفض عنصر أرشيف', group: 'archive', description: 'رفض أو تجاهل عنصر من الأرشيف', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.archiveDuplicatesView, label: 'عرض المكررات', group: 'archive', description: 'عرض الملفات المكررة'),
+    PermissionDefinition(key: PermissionKeys.archiveDuplicatesResolve, label: 'حل المكررات', group: 'archive', description: 'تحديد كيفية التعامل مع الملفات المكررة'),
+    PermissionDefinition(key: PermissionKeys.archiveQualityView, label: 'عرض تقارير جودة الأرشيف', group: 'archive', description: 'عرض نتائج جودة الاستيراد'),
+    PermissionDefinition(key: PermissionKeys.archiveQualityExport, label: 'تصدير تقارير جودة الأرشيف', group: 'archive', description: 'تصدير تقارير الجودة', sensitive: true),
   ];
 
   static List<String> get allKeys => permissions.map((p) => p.key).toList(growable: false);

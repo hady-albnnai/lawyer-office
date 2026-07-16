@@ -1949,3 +1949,30 @@ needs_status_review
 9. تحديث الصلاحيات حسب الهيكل الجديد
 10. تحديث المساعد الذكي لاحقاً وفق هذا الهيكل
 ```
+
+---
+
+## سجل تنفيذ فعلي — تأسيس مركز إدخال الأرشيف القديم 2026-07-15
+
+تم تنفيذ خطوة تأسيسية من خطة الأرشفة القانونية الذكية:
+
+- إنشاء شاشة جديدة `ArchiveIntakeScreen` عبر المسار `/archive-intake`.
+- إضافة مدخل `إدخال الأرشيف القديم` داخل `ملفات المكتب` في الشريط الجانبي.
+- إضافة صلاحيات الأرشفة الجديدة إلى كتالوج الصلاحيات:
+  - `archive.intake.view`
+  - `archive.intake.create`
+  - `archive.intake.import_files`
+  - `archive.intake.import_excel`
+  - `archive.intake.review`
+  - `archive.intake.approve`
+  - `archive.inbox.view`
+  - `archive.inbox.link`
+  - `archive.inbox.reject`
+  - `archive.duplicates.view`
+  - `archive.duplicates.resolve`
+  - `archive.quality.view`
+  - `archive.quality.export`
+- حماية مسار مركز الأرشيف بصلاحية `archive.intake.view`.
+- تثبيت واجهة أولية تعرض مسارات الأرشيف الورقي والإلكتروني وExcel/CSV والأرشيف المختلط، وصناديق المراجعة والمكررات والجودة.
+
+> هذه شاشة تأسيسية للهيكل وليست معالجة فعلية للملفات بعد. معالجة الدفعات، كشف التكرار، الاستيراد، وصندوق غير المصنف سيتم تنفيذها في المراحل التالية حسب الخطة.

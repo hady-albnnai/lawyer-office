@@ -327,6 +327,7 @@ List<SidebarItemModel> getDefaultSidebarItems() {
       route: '/files',
       children: [
         SidebarItemModel(id: 'of_all', label: 'كل الملفات', icon: Icons.folder_copy, route: '/files'),
+        SidebarItemModel(id: 'of_archive_intake', label: 'إدخال الأرشيف القديم', icon: Icons.archive_outlined, route: '/archive-intake'),
         SidebarItemModel(id: 'of_cases', label: 'الدعاوى', icon: Icons.gavel, route: '/cases'),
         SidebarItemModel(id: 'of_procedures', label: 'الإجراءات والمعاملات', icon: Icons.assignment, route: '/procedures'),
         SidebarItemModel(id: 'of_contracts', label: 'العقود', icon: Icons.description, route: '/contracts'),

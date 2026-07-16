@@ -38,6 +38,7 @@ import '../screens/tasks/daily_tasks_screen.dart';
 import '../screens/templates/legal_templates_screen.dart';
 import '../screens/reports/legal_printing_screen.dart';
 import '../screens/archive/archive_screen.dart';
+import '../screens/archive_intake/archive_intake_screen.dart';
 import '../screens/auth/login_screen.dart';
 
 
@@ -92,6 +93,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/procedures', name: 'procedures', builder: (_, __) => const ProceduresListScreen()),
           GoRoute(path: '/tasks', name: 'tasks', builder: (_, __) => const DailyTasksScreen()),
           GoRoute(path: '/printing', name: 'printing', builder: (_, __) => const LegalPrintingScreen()),
+          GoRoute(path: '/archive-intake', name: 'archive-intake', builder: (_, __) => const ArchiveIntakeScreen()),
           GoRoute(path: '/archive', name: 'archive', builder: (_, __) => const ArchiveScreen()),
 
           // Detail Routes inside ShellRoute
@@ -119,6 +121,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 String? _requiredPermissionForLocation(String loc) {
+  if (loc.startsWith('/archive-intake')) return PermissionKeys.archiveIntakeView;
   if (loc.startsWith('/templates') || loc.startsWith('/contracts/templates')) return PermissionKeys.templatesView;
   if (loc.startsWith('/settings')) return PermissionKeys.settingsView;
   if (loc.startsWith('/finance')) return PermissionKeys.financeView;
