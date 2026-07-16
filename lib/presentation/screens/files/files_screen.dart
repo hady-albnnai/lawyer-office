@@ -363,7 +363,29 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   }
 
   String _archiveIntakeRouteForCurrentTab() {
-    return _statusFilter == 'completed' ? '/archive-intake?status=closed' : '/archive-intake?status=running';
+    final status = _statusFilter == 'completed' ? 'closed' : 'running';
+    final kind = _archiveKindForType(_typeFilter);
+    return Uri(path: '/archive-intake', queryParameters: {
+      'status': status,
+      if (kind != null) 'kind': kind,
+    }).toString();
+  }
+
+  String? _archiveKindForType(FileType? type) {
+    switch (type) {
+      case FileType.caseFile:
+        return 'case';
+      case FileType.contract:
+        return 'contract';
+      case FileType.company:
+        return 'company';
+      case FileType.adminProcedure:
+        return 'procedure';
+      case FileType.agency:
+        return 'poa';
+      case null:
+        return null;
+    }
   }
 
   Widget _buildOfficeFilesList(List<FileItem> files) {

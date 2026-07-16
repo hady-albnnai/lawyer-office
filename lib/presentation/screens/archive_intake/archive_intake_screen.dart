@@ -187,14 +187,19 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(permissionServiceProvider);
-    final requestedStatus = GoRouterState.of(context).uri.queryParameters['status'];
-    if (requestedStatus == 'closed' || requestedStatus == 'running') {
+    final query = GoRouterState.of(context).uri.queryParameters;
+    final requestedStatus = query['status'];
+    final requestedKind = query['kind'];
+    final validKind = _archiveFileKindOptions.containsKey(requestedKind) ? requestedKind : null;
+    if (requestedStatus == 'closed' || requestedStatus == 'running' || validKind != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final current = ref.read(_archiveWizardProvider);
-        if (current.archiveStatus != requestedStatus) {
+        final statusChanged = requestedStatus == 'closed' || requestedStatus == 'running' ? current.archiveStatus != requestedStatus : false;
+        final kindChanged = validKind != null && current.fileKind != validKind;
+        if (statusChanged || kindChanged) {
           ref.read(_archiveWizardProvider.notifier).state = current.copyWith(
-            archiveStatus: requestedStatus,
-            fileKind: null,
+            archiveStatus: (requestedStatus == 'closed' || requestedStatus == 'running') ? requestedStatus : current.archiveStatus,
+            fileKind: validKind ?? (statusChanged ? null : current.fileKind),
             caseType: null,
             courtLevel: null,
             companyGroup: null,
