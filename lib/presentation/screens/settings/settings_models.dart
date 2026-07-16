@@ -80,6 +80,34 @@ class SettingsCourtItem {
   }
 }
 
+
+/// عنصر قائمة مرجعية عام.
+class SettingsLookupItem {
+  final String id;
+  final String name;
+  final String category;
+  final String notes;
+  final bool isActive;
+
+  const SettingsLookupItem({
+    required this.id,
+    required this.name,
+    this.category = '',
+    this.notes = '',
+    this.isActive = true,
+  });
+
+  SettingsLookupItem copyWith({String? name, String? category, String? notes, bool? isActive}) {
+    return SettingsLookupItem(
+      id: id,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      notes: notes ?? this.notes,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+}
+
 /// إعدادات الأمان المحلية.
 class SecuritySettings {
   final String passwordHash;
@@ -191,6 +219,7 @@ class SettingsHubState {
   final List<ActivityLogEntry> activityLog;
   final List<BackupRecord> backups;
   final List<SettingsCourtItem> courts;
+  final Map<String, List<SettingsLookupItem>> referenceLists;
   final String activityFilter;
   final bool isBusy;
   final String? lastMessage;
@@ -201,6 +230,7 @@ class SettingsHubState {
     required this.activityLog,
     required this.backups,
     required this.courts,
+    this.referenceLists = const {},
     this.activityFilter = '',
     this.isBusy = false,
     this.lastMessage,
@@ -232,6 +262,7 @@ class SettingsHubState {
     List<ActivityLogEntry>? activityLog,
     List<BackupRecord>? backups,
     List<SettingsCourtItem>? courts,
+    Map<String, List<SettingsLookupItem>>? referenceLists,
     String? activityFilter,
     bool? isBusy,
     String? lastMessage,
@@ -243,6 +274,7 @@ class SettingsHubState {
       activityLog: activityLog ?? this.activityLog,
       backups: backups ?? this.backups,
       courts: courts ?? this.courts,
+      referenceLists: referenceLists ?? this.referenceLists,
       activityFilter: activityFilter ?? this.activityFilter,
       isBusy: isBusy ?? this.isBusy,
       lastMessage: clearMessage ? null : lastMessage ?? this.lastMessage,
@@ -469,6 +501,54 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
           city: 'السويداء',
         ),
       ],
+      referenceLists: const {
+        'case_types': [
+          SettingsLookupItem(id: 'case_civil', name: 'مدني'),
+          SettingsLookupItem(id: 'case_criminal', name: 'جزائي'),
+          SettingsLookupItem(id: 'case_sharia', name: 'شرعي'),
+          SettingsLookupItem(id: 'case_commercial', name: 'تجاري'),
+          SettingsLookupItem(id: 'case_admin', name: 'إداري'),
+        ],
+        'party_roles': [
+          SettingsLookupItem(id: 'party_claimant', name: 'مدعي'),
+          SettingsLookupItem(id: 'party_defendant', name: 'مدعى عليه'),
+          SettingsLookupItem(id: 'party_appellant', name: 'مستأنف'),
+          SettingsLookupItem(id: 'party_respondent', name: 'مستأنف عليه'),
+        ],
+        'contract_types': [
+          SettingsLookupItem(id: 'contract_sale', name: 'بيع'),
+          SettingsLookupItem(id: 'contract_lease', name: 'إيجار'),
+          SettingsLookupItem(id: 'contract_work', name: 'عمل / خدمات'),
+          SettingsLookupItem(id: 'contract_partnership', name: 'شراكة'),
+          SettingsLookupItem(id: 'contract_settlement', name: 'صلح / تسوية'),
+        ],
+        'company_types': [
+          SettingsLookupItem(id: 'company_llc', name: 'محدودة المسؤولية'),
+          SettingsLookupItem(id: 'company_one_person', name: 'شخص واحد محدودة المسؤولية'),
+          SettingsLookupItem(id: 'company_joint_stock', name: 'مساهمة مغفلة'),
+          SettingsLookupItem(id: 'company_partnership', name: 'تضامن'),
+        ],
+        'procedure_types': [
+          SettingsLookupItem(id: 'proc_personal', name: 'أحوال شخصية'),
+          SettingsLookupItem(id: 'proc_real_estate', name: 'عقاري'),
+          SettingsLookupItem(id: 'proc_commercial', name: 'تجاري'),
+          SettingsLookupItem(id: 'proc_civil', name: 'مدني'),
+        ],
+        'bar_branches': [
+          SettingsLookupItem(id: 'bar_damascus', name: 'دمشق'),
+          SettingsLookupItem(id: 'bar_rif_damascus', name: 'ريف دمشق'),
+          SettingsLookupItem(id: 'bar_suwayda', name: 'السويداء'),
+          SettingsLookupItem(id: 'bar_daraa', name: 'درعا'),
+          SettingsLookupItem(id: 'bar_aleppo', name: 'حلب'),
+        ],
+        'expense_types': [
+          SettingsLookupItem(id: 'expense_court_fee', name: 'رسم محكمة'),
+          SettingsLookupItem(id: 'expense_stamps', name: 'طوابع'),
+          SettingsLookupItem(id: 'expense_photocopy', name: 'تصوير'),
+          SettingsLookupItem(id: 'expense_expert', name: 'خبرة'),
+          SettingsLookupItem(id: 'expense_expediter', name: 'معقب'),
+        ],
+      },
     );
   }
 
@@ -733,6 +813,43 @@ class SettingsHubNotifier extends StateNotifier<SettingsHubState> {
       lastMessage: 'تم حذف المحكمة من القائمة المرجعية',
     );
     _log('delete', 'courts', 'حذف محكمة غير مستخدمة: ${court.name}');
+  }
+
+
+  void upsertLookup(String listKey, SettingsLookupItem item) {
+    final current = [...(state.referenceLists[listKey] ?? const <SettingsLookupItem>[])];
+    final index = current.indexWhere((e) => e.id == item.id);
+    if (index == -1) {
+      current.insert(0, item);
+      _log('insert', listKey, 'إضافة عنصر مرجعي: ${item.name}');
+    } else {
+      current[index] = item;
+      _log('update', listKey, 'تعديل عنصر مرجعي: ${item.name}');
+    }
+    state = state.copyWith(
+      referenceLists: {...state.referenceLists, listKey: current},
+      lastMessage: 'تم حفظ القائمة المرجعية',
+    );
+  }
+
+  void setLookupActive(String listKey, String id, bool active) {
+    final current = [...(state.referenceLists[listKey] ?? const <SettingsLookupItem>[])];
+    final index = current.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    current[index] = current[index].copyWith(isActive: active);
+    state = state.copyWith(referenceLists: {...state.referenceLists, listKey: current});
+    _log(active ? 'enable' : 'disable', listKey, '${active ? 'تفعيل' : 'تعطيل'} عنصر مرجعي: ${current[index].name}');
+  }
+
+  void deleteLookup(String listKey, String id) {
+    final current = [...(state.referenceLists[listKey] ?? const <SettingsLookupItem>[])];
+    final item = current.where((e) => e.id == id).firstOrNull;
+    if (item == null) return;
+    state = state.copyWith(
+      referenceLists: {...state.referenceLists, listKey: current.where((e) => e.id != id).toList()},
+      lastMessage: 'تم حذف العنصر المرجعي',
+    );
+    _log('delete', listKey, 'حذف عنصر مرجعي غير مستخدم: ${item.name}');
   }
 
   void clearMessage() {

@@ -640,71 +640,216 @@ class _BackupTab extends ConsumerWidget {
   }
 }
 
-class _LookupsTab extends ConsumerWidget {
+class _LookupsTab extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final courts = ref.watch(settingsHubProvider).courts;
+  ConsumerState<_LookupsTab> createState() => _LookupsTabState();
+}
+
+class _LookupsTabState extends ConsumerState<_LookupsTab> {
+  String _selected = 'courts';
+  String _query = '';
+
+  static const _labels = {
+    'courts': 'المحاكم',
+    'case_types': 'أنواع الدعاوى',
+    'party_roles': 'صفات الأطراف',
+    'contract_types': 'أنواع العقود',
+    'company_types': 'أنواع الشركات',
+    'procedure_types': 'أنواع الإجراءات',
+    'bar_branches': 'فروع النقابة',
+    'expense_types': 'أنواع المصاريف',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(settingsHubProvider);
     final canManage = ref.watch(permissionServiceProvider).can(PermissionKeys.settingsLookupsManage);
-    return Column(
+    return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: AppColors.cardBackground,
-          child: Row(
+        SizedBox(
+          width: 260,
+          child: Container(
+            color: AppColors.cardBackground,
+            child: ListView(
+              padding: const EdgeInsets.all(12),
+              children: _labels.entries.map((entry) {
+                final selected = _selected == entry.key;
+                return Card(
+                  color: selected ? AppColors.primaryNavy.withOpacity(0.08) : null,
+                  child: ListTile(
+                    selected: selected,
+                    leading: Icon(entry.key == 'courts' ? Icons.account_balance : Icons.list_alt, color: selected ? AppColors.primaryNavy : AppColors.textSecondary),
+                    title: Text(entry.value),
+                    onTap: () => setState(() {
+                      _selected = entry.key;
+                      _query = '';
+                    }),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(
+          child: Column(
             children: [
-              Expanded(
-                child: Text('القوائم المرجعية السورية — المحاكم', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
-              ),
-              if (canManage)
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('إضافة محكمة'),
-                  onPressed: () => _showCourtDialog(context, ref),
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.white,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: 'بحث في ${_labels[_selected]}',
+                          prefixIcon: const Icon(Icons.search),
+                        ),
+                        onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    if (canManage)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: Text(_selected == 'courts' ? 'إضافة محكمة' : 'إضافة عنصر'),
+                        onPressed: () => _selected == 'courts' ? _showCourtDialog(context, ref) : _showLookupDialog(context, ref, _selected),
+                      ),
+                  ],
                 ),
+              ),
+              Expanded(
+                child: _selected == 'courts'
+                    ? _courtsList(state.courts, canManage)
+                    : _lookupList(_selected, state.referenceLists[_selected] ?? const [], canManage),
+              ),
             ],
           ),
         ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: courts.length,
-            itemBuilder: (context, index) {
-              final c = courts[index];
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primaryNavy,
-                    child: Icon(Icons.account_balance, color: AppColors.secondaryGold),
-                  ),
-                  title: Text(c.name, style: AppTextStyles.labelLarge),
-                  subtitle: Text('${c.type} • ${c.city}', style: AppTextStyles.bodySmallSecondary),
-                  trailing: canManage
-                      ? Wrap(
-                          spacing: 6,
-                          children: [
-                            IconButton(
-                              tooltip: 'تعديل',
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _showCourtDialog(context, ref, court: c),
-                            ),
-                            Switch(
-                              value: c.isActive,
-                              onChanged: (v) => ref.read(settingsHubProvider.notifier).setCourtActive(c.id, v),
-                            ),
-                            IconButton(
-                              tooltip: 'حذف آمن',
-                              icon: Icon(Icons.delete_outline, color: AppColors.error),
-                              onPressed: () => _confirmDeleteCourt(context, ref, c),
-                            ),
-                          ],
-                        )
-                      : Icon(Icons.check_circle, color: c.isActive ? AppColors.success : AppColors.textSecondary),
-                ),
-              );
-            },
-          ),
-        ),
       ],
+    );
+  }
+
+  Widget _courtsList(List<SettingsCourtItem> courts, bool canManage) {
+    final list = courts.where((c) => _query.isEmpty || c.name.toLowerCase().contains(_query) || c.type.toLowerCase().contains(_query) || c.city.toLowerCase().contains(_query)).toList();
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: list.length,
+      itemBuilder: (context, index) {
+        final c = list[index];
+        return Card(
+          child: ListTile(
+            leading: CircleAvatar(backgroundColor: AppColors.primaryNavy, child: Icon(Icons.account_balance, color: AppColors.secondaryGold)),
+            title: Text(c.name, style: AppTextStyles.labelLarge),
+            subtitle: Text('${c.type} • ${c.city} • ${c.isActive ? 'فعال' : 'معطل'}', style: AppTextStyles.bodySmallSecondary),
+            trailing: canManage
+                ? Wrap(
+                    spacing: 6,
+                    children: [
+                      IconButton(tooltip: 'تعديل', icon: const Icon(Icons.edit), onPressed: () => _showCourtDialog(context, ref, court: c)),
+                      Switch(value: c.isActive, onChanged: (v) => ref.read(settingsHubProvider.notifier).setCourtActive(c.id, v)),
+                      IconButton(tooltip: 'حذف آمن', icon: Icon(Icons.delete_outline, color: AppColors.error), onPressed: () => _confirmDeleteCourt(context, ref, c)),
+                    ],
+                  )
+                : Icon(Icons.check_circle, color: c.isActive ? AppColors.success : AppColors.textSecondary),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _lookupList(String key, List<SettingsLookupItem> items, bool canManage) {
+    final list = items.where((i) => _query.isEmpty || i.name.toLowerCase().contains(_query) || i.category.toLowerCase().contains(_query) || i.notes.toLowerCase().contains(_query)).toList();
+    if (list.isEmpty) {
+      return Center(child: Text('لا توجد عناصر في ${_labels[key]}', style: AppTextStyles.bodyMediumSecondary));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: list.length,
+      itemBuilder: (context, index) {
+        final item = list[index];
+        return Card(
+          child: ListTile(
+            leading: CircleAvatar(backgroundColor: (item.isActive ? AppColors.primaryNavy : AppColors.textSecondary).withOpacity(0.12), child: Icon(Icons.label, color: item.isActive ? AppColors.primaryNavy : AppColors.textSecondary)),
+            title: Text(item.name, style: AppTextStyles.labelLarge),
+            subtitle: Text([if (item.category.isNotEmpty) item.category, if (item.notes.isNotEmpty) item.notes, item.isActive ? 'فعال' : 'معطل'].join(' • '), style: AppTextStyles.bodySmallSecondary),
+            trailing: canManage
+                ? Wrap(
+                    spacing: 6,
+                    children: [
+                      IconButton(tooltip: 'تعديل', icon: const Icon(Icons.edit), onPressed: () => _showLookupDialog(context, ref, key, item: item)),
+                      Switch(value: item.isActive, onChanged: (v) => ref.read(settingsHubProvider.notifier).setLookupActive(key, item.id, v)),
+                      IconButton(tooltip: 'حذف آمن', icon: Icon(Icons.delete_outline, color: AppColors.error), onPressed: () => _confirmDeleteLookup(context, ref, key, item)),
+                    ],
+                  )
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLookupDialog(BuildContext context, WidgetRef ref, String key, {SettingsLookupItem? item}) {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.settingsLookupsManage)) return;
+    final name = TextEditingController(text: item?.name ?? '');
+    final category = TextEditingController(text: item?.category ?? '');
+    final notes = TextEditingController(text: item?.notes ?? '');
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(item == null ? 'إضافة عنصر مرجعي' : 'تعديل عنصر مرجعي'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم *')),
+            const SizedBox(height: 12),
+            TextField(controller: category, decoration: const InputDecoration(labelText: 'تصنيف فرعي / مجموعة')),
+            const SizedBox(height: 12),
+            TextField(controller: notes, decoration: const InputDecoration(labelText: 'ملاحظات')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () async {
+              if (name.text.trim().isEmpty) return;
+              final next = SettingsLookupItem(
+                id: item?.id ?? '${key}_${DateTime.now().microsecondsSinceEpoch}',
+                name: name.text.trim(),
+                category: category.text.trim(),
+                notes: notes.text.trim(),
+                isActive: item?.isActive ?? true,
+              );
+              ref.read(settingsHubProvider.notifier).upsertLookup(key, next);
+              await ref.read(auditServiceProvider).log(action: item == null ? 'create' : 'update', category: 'lookups', entityType: key, entityId: next.id, entityTitle: next.name, description: '${item == null ? 'إضافة' : 'تعديل'} عنصر في ${_labels[key]}', severity: 'warning');
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteLookup(BuildContext context, WidgetRef ref, String key, SettingsLookupItem item) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف عنصر مرجعي'),
+        content: const Text('استخدم الحذف فقط إذا كان العنصر غير مستخدم. إذا كان مستخدماً في ملفات سابقة، عطّله بدلاً من حذفه.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () async {
+              ref.read(settingsHubProvider.notifier).deleteLookup(key, item.id);
+              await ref.read(auditServiceProvider).log(action: 'delete', category: 'lookups', entityType: key, entityId: item.id, entityTitle: item.name, description: 'حذف عنصر مرجعي من ${_labels[key]}', severity: 'critical');
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -793,7 +938,6 @@ class _LookupsTab extends ConsumerWidget {
     );
   }
 }
-
 
 class _ActivityTab extends ConsumerWidget {
   @override
