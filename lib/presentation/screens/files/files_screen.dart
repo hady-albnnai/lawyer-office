@@ -80,11 +80,20 @@ final filesProvider = Provider<List<FileItem>>((ref) {
 });
 
 
-class FilesScreen extends ConsumerWidget {
+class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FilesScreen> createState() => _FilesScreenState();
+}
+
+class _FilesScreenState extends ConsumerState<FilesScreen> {
+  String _statusFilter = 'active';
+  FileType? _typeFilter;
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
     final canCreate = ref.watch(permissionServiceProvider).canAny(const [
       PermissionKeys.casesCreateNew,
       PermissionKeys.contractsCreate,
@@ -95,71 +104,178 @@ class FilesScreen extends ConsumerWidget {
       PermissionKeys.poaCreate,
       PermissionKeys.documentsUpload,
     ]);
+    final files = _filteredFiles(ref.watch(filesProvider));
+
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: DefaultTabController(
-        length: 8,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('ملفات المكتب'),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: Container(
-                height: 48,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                child: TabBar(
-                  isScrollable: true,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  indicator: const UnderlineTabIndicator(
-                    borderSide: BorderSide(color: AppColors.secondaryGold, width: 3),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('ملفات المكتب'),
+          actions: [
+            IconButton(icon: const Icon(Icons.search), onPressed: () => context.go('/search-reports'), tooltip: 'بحث'),
+            if (canCreate)
+              IconButton(icon: const Icon(Icons.add), onPressed: () => context.go('/new-work'), tooltip: 'جديد'),
+          ],
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildFilters(),
+            _buildSummary(ref.watch(filesProvider), files),
+            Expanded(child: _buildOfficeFilesList(files)),
+          ],
+        ),
+        floatingActionButton: canCreate
+            ? FloatingActionButton.extended(
+                onPressed: () => context.go('/new-work'),
+                tooltip: 'عمل جديد',
+                icon: const Icon(Icons.add),
+                label: const Text('إضافة ملف / عمل'),
+              )
+            : null,
+      ),
+    );
+  }
+
+  List<FileItem> _filteredFiles(List<FileItem> all) {
+    final q = _query.trim().toLowerCase();
+    return all.where((file) {
+      final statusOk = switch (_statusFilter) {
+        'all' => true,
+        'active' => file.status == FileStatus.active,
+        'completed' => file.status == FileStatus.completed || file.status == FileStatus.archived,
+        'needs_completion' => file.hasDeficiencies || file.hasMissingDocuments || !file.hasBaseNumber,
+        _ => true,
+      };
+      final typeOk = _typeFilter == null || file.type == _typeFilter;
+      final queryOk = q.isEmpty ||
+          file.fileNumber.toLowerCase().contains(q) ||
+          file.title.toLowerCase().contains(q) ||
+          file.court.toLowerCase().contains(q) ||
+          (file.baseNumber ?? '').toLowerCase().contains(q);
+      return statusOk && typeOk && queryOk;
+    }).toList()
+      ..sort((a, b) => (a.nextSessionDate ?? DateTime(9999)).compareTo(b.nextSessionDate ?? DateTime(9999)));
+  }
+
+  Widget _buildFilters() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        border: Border(bottom: BorderSide(color: AppColors.cardBorder, width: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'بحث برقم الملف، الاسم، المحكمة/الجهة، رقم الأساس أو القيد...',
+                    prefixIcon: Icon(Icons.search),
                   ),
-                  labelStyle: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.bold),
-                  unselectedLabelStyle: AppTextStyles.labelMedium,
-                  tabs: const [
-                    Tab(text: 'الكل'),
-                    Tab(text: 'جارية'),
-                    Tab(text: 'ناقصة'),
-                    Tab(text: 'متأخرة'),
-                    Tab(text: 'منتهية'),
-                    Tab(text: 'جلسة قريب'),
-                    Tab(text: 'بانتظار رقم/قيد'),
-                    Tab(text: 'بانتظار مستند'),
-                  ],
+                  onChanged: (value) => setState(() => _query = value),
                 ),
               ),
-            ),
-            actions: [
-              IconButton(icon: const Icon(Icons.search), onPressed: () => context.go('/search-reports'), tooltip: 'بحث'),
-              IconButton(
-                icon: const Icon(Icons.filter_alt),
-                onPressed: () => showDialog<void>(context: context, builder: (context) => const FilesFilterDialog()),
-                tooltip: 'فلترة',
+              const SizedBox(width: 12),
+              DropdownButton<FileType?>(
+                value: _typeFilter,
+                items: [
+                  const DropdownMenuItem<FileType?>(value: null, child: Text('كل الأنواع')),
+                  ...FileType.values.map((type) => DropdownMenuItem<FileType?>(value: type, child: Text(type.displayName))),
+                ],
+                onChanged: (value) => setState(() => _typeFilter = value),
               ),
-              if (canCreate)
-                IconButton(icon: const Icon(Icons.add), onPressed: () => context.go('/new-work'), tooltip: 'جديد'),
             ],
           ),
-          body: const TabBarView(
-            children: [
-              AllFilesTab(),
-              ActiveFilesTab(),
-              DeficientFilesTab(),
-              OverdueFilesTab(),
-              CompletedFilesTab(),
-              NearSessionFilesTab(),
-              WaitingBaseFilesTab(),
-              WaitingDocFilesTab(),
-            ],
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _statusChip('active', 'الملفات الجارية'),
+                _statusChip('completed', 'الملفات المنتهية'),
+                _statusChip('needs_completion', 'تحتاج استكمال'),
+                _statusChip('all', 'كل ملفات المكتب'),
+              ],
+            ),
           ),
-          floatingActionButton: canCreate
-              ? FloatingActionButton(
-                  onPressed: () => context.go('/new-work'),
-                  tooltip: 'عمل جديد',
-                  child: const Icon(Icons.add),
-                )
-              : null,
-        ),
+        ],
       ),
+    );
+  }
+
+  Widget _statusChip(String value, String label) {
+    final selected = _statusFilter == value;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: ChoiceChip(
+        selected: selected,
+        label: Text(label),
+        selectedColor: AppColors.primaryNavy.withOpacity(0.12),
+        labelStyle: TextStyle(color: selected ? AppColors.primaryNavy : AppColors.textSecondary, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+        onSelected: (_) => setState(() => _statusFilter = value),
+      ),
+    );
+  }
+
+  Widget _buildSummary(List<FileItem> all, List<FileItem> filtered) {
+    final active = all.where((f) => f.status == FileStatus.active).length;
+    final completed = all.where((f) => f.status == FileStatus.completed || f.status == FileStatus.archived).length;
+    final needs = all.where((f) => f.hasDeficiencies || f.hasMissingDocuments || !f.hasBaseNumber).length;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: Colors.white,
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          _metric('المعروض', filtered.length, Icons.folder_open, AppColors.primaryNavy),
+          _metric('جارية', active, Icons.play_circle_outline, AppColors.info),
+          _metric('منتهية', completed, Icons.check_circle_outline, AppColors.success),
+          _metric('تحتاج استكمال', needs, Icons.warning_amber, AppColors.warning),
+        ],
+      ),
+    );
+  }
+
+  Widget _metric(String label, int count, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(999), border: Border.all(color: color.withOpacity(0.22))),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text('$label: ', style: AppTextStyles.labelSmall),
+          Text('$count', style: AppTextStyles.labelMedium.copyWith(color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfficeFilesList(List<FileItem> files) {
+    if (files.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.folder_off, size: 72, color: AppColors.textSecondary),
+            const SizedBox(height: 16),
+            Text('لا توجد ملفات ضمن الفلتر الحالي', style: AppTextStyles.headline6),
+            const SizedBox(height: 8),
+            Text('غيّر حالة الملف أو النوع أو البحث.', style: AppTextStyles.bodySmallSecondary),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: files.length,
+      itemBuilder: (context, index) => FileCard(file: files[index]),
     );
   }
 }
