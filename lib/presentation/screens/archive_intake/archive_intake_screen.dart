@@ -1360,6 +1360,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     int? selectedId;
     String selectedTitle = '';
     final search = TextEditingController();
+    final customDocumentType = TextEditingController();
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1392,6 +1393,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
+                TextField(controller: customDocumentType, decoration: const InputDecoration(labelText: 'نوع مستند آخر / غير موجود بالقائمة')),
+                const SizedBox(height: 12),
                 TextField(controller: search, decoration: InputDecoration(labelText: 'بحث في ${target.label}', prefixIcon: const Icon(Icons.search)), onChanged: (_) => setDialog(() {})),
                 const SizedBox(height: 8),
                 Expanded(child: _linkChoices(ref, target, search.text, selectedId, (id, title) => setDialog(() { selectedId = id; selectedTitle = title; }))),
@@ -1406,14 +1409,15 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   ? null
                   : () async {
                       try {
+                        final effectiveDocumentType = customDocumentType.text.trim().isNotEmpty ? customDocumentType.text.trim() : documentType;
                         final docId = await ref.read(archiveIntakeRepositoryProvider).promoteItemToDocument(
                           itemId: item.id,
-                          documentType: documentType,
+                          documentType: effectiveDocumentType,
                           entityType: target.entityType,
                           entityId: selectedId!,
                           userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
                         );
-                        await ref.read(auditServiceProvider).log(action: 'link', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'ربط عنصر أرشيف بملف وإنشاء مستند رقم $docId', after: {'target': target.label, 'targetId': selectedId, 'documentType': documentType}, severity: 'info');
+                        await ref.read(auditServiceProvider).log(action: 'link', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'ربط عنصر أرشيف بملف وإنشاء مستند رقم $docId', after: {'target': target.label, 'targetId': selectedId, 'documentType': effectiveDocumentType}, severity: 'info');
                         ref.read(_archiveIntakeRefreshProvider.notifier).state++;
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
