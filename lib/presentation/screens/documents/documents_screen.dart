@@ -365,10 +365,20 @@ class _SmartExplorerViewState extends ConsumerState<_SmartExplorerView> {
 
   String _paperSummary(DocumentItem doc) {
     final lines = doc.notes.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    String pick(String prefix, [String fallback = '']) {
+      final line = lines.firstWhere((item) => item.startsWith(prefix), orElse: () => '');
+      final value = line.replaceFirst(prefix, '').trim();
+      return value.isEmpty ? fallback : value;
+    }
+
     final saved = lines.firstWhere((line) => line.startsWith('الأصل الورقي محفوظ'), orElse: () => 'الأصل الورقي محفوظ: غير محدد');
-    final place = lines.firstWhere((line) => line.startsWith('مكان الأصل'), orElse: () => doc.physicalLocation);
-    final box = lines.firstWhere((line) => line.startsWith('الصندوق'), orElse: () => '');
-    return [saved, place, box].where((v) => v.trim().isNotEmpty).join(' • ');
+    final location = [
+      pick('مكان الأصل:', doc.physicalLocation),
+      if (pick('الصندوق:').isNotEmpty) 'صندوق ${pick('الصندوق:')}',
+      if (pick('الرف:').isNotEmpty) 'رف ${pick('الرف:')}',
+      if (pick('المجلد الورقي:').isNotEmpty) 'مجلد ${pick('المجلد الورقي:')}',
+    ].where((v) => v.trim().isNotEmpty).join(' • ');
+    return [saved, location].where((v) => v.trim().isNotEmpty).join(' • ');
   }
 
   String _formatDate(DateTime date) {

@@ -104,6 +104,22 @@ class DocumentViewerScreen extends ConsumerWidget {
 
   Widget _paperArchiveBox(String notes) {
     final lines = notes.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    String pick(String prefix) {
+      final line = lines.firstWhere((item) => item.startsWith(prefix), orElse: () => '');
+      return line.replaceFirst(prefix, '').trim();
+    }
+
+    final locationParts = [
+      pick('مكان الأصل:'),
+      if (pick('الصندوق:').isNotEmpty) 'صندوق ${pick('الصندوق:')}',
+      if (pick('الرف:').isNotEmpty) 'رف ${pick('الرف:')}',
+      if (pick('المجلد الورقي:').isNotEmpty) 'مجلد ${pick('المجلد الورقي:')}',
+    ].where((value) => value.isNotEmpty).toList();
+    final extraLines = lines.where((line) =>
+        !line.startsWith('مكان الأصل:') &&
+        !line.startsWith('الصندوق:') &&
+        !line.startsWith('الرف:') &&
+        !line.startsWith('المجلد الورقي:'));
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -116,7 +132,10 @@ class DocumentViewerScreen extends ConsumerWidget {
         children: [
           Text('بيانات الأصل الورقي', style: AppTextStyles.labelLarge.copyWith(color: AppColors.info, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          ...lines.map((line) => Padding(
+          if (locationParts.isNotEmpty)
+            Text('الموقع الكامل: ${locationParts.join(' • ')}', style: AppTextStyles.bodySmallSecondary.copyWith(fontWeight: FontWeight.bold)),
+          if (locationParts.isNotEmpty) const SizedBox(height: 6),
+          ...extraLines.map((line) => Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(line, style: AppTextStyles.bodySmallSecondary),
               )),
