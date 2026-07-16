@@ -27,7 +27,7 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
     final canPrint = ref.watch(permissionServiceProvider).can(PermissionKeys.reportsExport);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('الطباعة القانونية الرسمية وتصدير تقارير PDF')),
+      appBar: AppBar(title: const Text('الطباعة والتصدير')),
       body: Row(
         children: [
           // شريط اختيار نوع التقرير
@@ -38,7 +38,7 @@ class _LegalPrintingScreenState extends ConsumerState<LegalPrintingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('اختيار نوع التقرير للطباعة:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                const Text('اختيار الكشف أو التقرير للطباعة:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
                 const Divider(height: 24),
                 _reportOption('summary_report', 'تقرير كشف الدعاوى القضائية', Icons.gavel, 'قائمة بالملفات، أرقام الأساس، والمحاكم المختصة.'),
                 _reportOption('agenda_report', 'تقرير أجندة وجلسات المكتب', Icons.calendar_month, 'جدول مواعيد الجلسات والمراجعات القادمة.'),

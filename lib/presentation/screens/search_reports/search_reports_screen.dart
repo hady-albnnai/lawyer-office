@@ -60,7 +60,7 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
         textDirection: TextDirection.rtl,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('البحث والتقارير'),
+            title: const Text('التقارير والكشوف'),
             bottom: TabBar(
               controller: _tabController,
               indicatorColor: AppColors.secondaryGold,
@@ -69,7 +69,7 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
               labelStyle: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.bold),
               tabs: const [
                 Tab(text: 'البحث الشامل'),
-                Tab(text: 'التقارير'),
+                Tab(text: 'الكشوف والتقارير'),
               ],
             ),
           ),
@@ -182,7 +182,7 @@ class _SearchReportsScreenState extends ConsumerState<SearchReportsScreen>
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                Text('اختر التقرير', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
+                Text('اختر الكشف أو التقرير', style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy)),
                 const SizedBox(height: 8),
                 ...ReportKind.values.map((kind) {
                   final isSel = selected == kind;
