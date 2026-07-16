@@ -185,6 +185,9 @@ class _TopBar extends ConsumerWidget {
       case "work_order":
         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
         break;
+      case "archive_intake":
+        GoRouter.of(context).push("/archive-intake");
+        break;
     }
   }
 
@@ -307,6 +310,15 @@ class _TopBar extends ConsumerWidget {
                       child: ListTile(
                         leading: Icon(Icons.assignment_ind, color: AppColors.success),
                         title: Text("أمر عمل لمعقب"),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  if (permissions.can(PermissionKeys.archiveIntakeView))
+                    const PopupMenuItem<String>(
+                      value: "archive_intake",
+                      child: ListTile(
+                        leading: Icon(Icons.archive_outlined, color: AppColors.primaryNavy),
+                        title: Text("إدخال الأرشيف القديم"),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
