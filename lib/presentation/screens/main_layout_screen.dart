@@ -427,8 +427,8 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
   @override
   void dispose() {
     _debounce?.cancel();
-    // controller.dispose();
-    // super.dispose();
+    _controller.dispose();
+    super.dispose();
   }
 
   void _search(String query) {
@@ -440,6 +440,8 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
         {"title": "إنشاء دعوى", "cmd": "/دعوى", "route": "create_case"},
         {"title": "تأسيس شركة", "cmd": "/شركة", "route": "create_company"},
         {"title": "إضافة أمر عمل", "cmd": "/امر", "route": "create_wo"},
+        {"title": "إدخال أرشيف جارٍ", "cmd": "/ارشيف جاري", "route": "archive_running"},
+        {"title": "إدخال أرشيف منتهٍ", "cmd": "/ارشيف منتهي", "route": "archive_closed"},
       ];
       setState(() {
         _hits = commands.where((c) => c["cmd"]!.contains(query)).toList();
@@ -526,6 +528,10 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
                         GoRouter.of(context).push("/companies/create");
                       } else if (hit["route"] == "create_wo") {
                         showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
+                      } else if (hit["route"] == "archive_running") {
+                        GoRouter.of(context).push("/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}");
+                      } else if (hit["route"] == "archive_closed") {
+                        GoRouter.of(context).push("/archive-intake?status=closed&seed=${DateTime.now().millisecondsSinceEpoch}");
                       }
                     },
                   );
