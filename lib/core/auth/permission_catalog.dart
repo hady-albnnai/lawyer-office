@@ -125,6 +125,17 @@ class PermissionKeys {
   static const archiveDuplicatesResolve = 'archive.duplicates.resolve';
   static const archiveQualityView = 'archive.quality.view';
   static const archiveQualityExport = 'archive.quality.export';
+
+  static const tasksView = 'tasks.view';
+  static const tasksCreate = 'tasks.create';
+  static const tasksEdit = 'tasks.edit';
+  static const tasksResultEnter = 'tasks.result.enter';
+  static const tasksTemplatesManage = 'tasks.templates.manage';
+  static const tasksAssign = 'tasks.assign';
+  static const tasksDelete = 'tasks.delete';
+  static const tasksPrint = 'tasks.print';
+  static const calendarView = 'calendar.view';
+  static const calendarManage = 'calendar.manage';
 }
 
 class PermissionCatalog {
@@ -143,6 +154,7 @@ class PermissionCatalog {
     PermissionGroup('library', 'المكتبة القانونية'),
     PermissionGroup('templates', 'النماذج القانونية'),
     PermissionGroup('archive', 'مركز إدخال الأرشيف'),
+    PermissionGroup('tasks', 'مكتب العمل والمهام'),
   ];
 
   static const permissions = <PermissionDefinition>[
@@ -251,6 +263,17 @@ class PermissionCatalog {
     PermissionDefinition(key: PermissionKeys.archiveDuplicatesResolve, label: 'حل المكررات', group: 'archive', description: 'تحديد كيفية التعامل مع الملفات المكررة'),
     PermissionDefinition(key: PermissionKeys.archiveQualityView, label: 'عرض تقارير جودة الأرشيف', group: 'archive', description: 'عرض نتائج جودة الاستيراد'),
     PermissionDefinition(key: PermissionKeys.archiveQualityExport, label: 'تصدير تقارير جودة الأرشيف', group: 'archive', description: 'تصدير تقارير الجودة', sensitive: true),
+
+    PermissionDefinition(key: PermissionKeys.tasksView, label: 'عرض المهام', group: 'tasks', description: 'عرض المهام المخصصة وعناصر مكتب العمل'),
+    PermissionDefinition(key: PermissionKeys.tasksCreate, label: 'إضافة مهمة مخصصة', group: 'tasks', description: 'إنشاء مهمة يدوية أو مكتبية'),
+    PermissionDefinition(key: PermissionKeys.tasksEdit, label: 'تعديل مهمة', group: 'tasks', description: 'تعديل بيانات مهمة مخصصة'),
+    PermissionDefinition(key: PermissionKeys.tasksResultEnter, label: 'إدخال نتيجة مهمة', group: 'tasks', description: 'إكمال أو تأجيل أو إلغاء مهمة'),
+    PermissionDefinition(key: PermissionKeys.tasksTemplatesManage, label: 'إدارة قوالب المهام', group: 'tasks', description: 'إنشاء وتعديل قوالب المهام ونتائجها'),
+    PermissionDefinition(key: PermissionKeys.tasksAssign, label: 'توزيع المهام', group: 'tasks', description: 'تعيين مكلف داخلي أو خارجي للمهام'),
+    PermissionDefinition(key: PermissionKeys.tasksDelete, label: 'حذف مهمة', group: 'tasks', description: 'حذف مهمة مخصصة', sensitive: true),
+    PermissionDefinition(key: PermissionKeys.tasksPrint, label: 'طباعة لوائح العمل', group: 'tasks', description: 'طباعة لائحة اليوم أو الغد أو الأسبوع'),
+    PermissionDefinition(key: PermissionKeys.calendarView, label: 'عرض التقويم', group: 'tasks', description: 'عرض تقويم الأعمال'),
+    PermissionDefinition(key: PermissionKeys.calendarManage, label: 'إدارة التقويم', group: 'tasks', description: 'إضافة وتعديل عناصر التقويم'),
   ];
 
   static List<String> get allKeys => permissions.map((p) => p.key).toList(growable: false);
