@@ -132,12 +132,16 @@ class CaseRepository {
       }
 
       // 8. فحص النواقص التلقائي وتدقيق الملف
-      await _deficiencyService.auditCaseDeficiencies(
-        caseId: caseId,
-        caseData: finalCompanion,
-        hasPoa: poaId != null,
-        hasRepresentativeDoc: false,
-      );
+      // لا يتم توليد نواقص للأرشيف المنتهي/الدعاوى المغلقة لأنها للحفظ والبحث فقط.
+      final isClosedArchive = finalCompanion.status.present && finalCompanion.status.value == 'closed';
+      if (!isClosedArchive) {
+        await _deficiencyService.auditCaseDeficiencies(
+          caseId: caseId,
+          caseData: finalCompanion,
+          hasPoa: poaId != null,
+          hasRepresentativeDoc: false,
+        );
+      }
 
       // 9. تسجيل الحدث في الخط الزمني
       await _caseDao.into(_caseDao.db.timelineEvents).insert(
