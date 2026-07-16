@@ -379,6 +379,24 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
   DocumentType _type = DocumentType.caseDocument;
   fp.PlatformFile? _file;
   bool _saving = false;
+  bool _paperOriginalSaved = false;
+  bool _canDestroyOriginal = false;
+  final _paperLocation = TextEditingController();
+  final _box = TextEditingController();
+  final _shelf = TextEditingController();
+  final _paperFolder = TextEditingController();
+  final _reviewedBy = TextEditingController();
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _paperLocation.dispose();
+    _box.dispose();
+    _shelf.dispose();
+    _paperFolder.dispose();
+    _reviewedBy.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickFile() async {
     final res = await fp.FilePicker.platform.pickFiles();
@@ -411,11 +429,22 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
     }
     setState(() => _saving = true);
     try {
+      final paperNotes = [
+        'الأصل الورقي محفوظ: ${_paperOriginalSaved ? 'نعم' : 'لا'}',
+        if (_paperLocation.text.trim().isNotEmpty) 'مكان الأصل: ${_paperLocation.text.trim()}',
+        if (_box.text.trim().isNotEmpty) 'الصندوق: ${_box.text.trim()}',
+        if (_shelf.text.trim().isNotEmpty) 'الرف: ${_shelf.text.trim()}',
+        if (_paperFolder.text.trim().isNotEmpty) 'المجلد الورقي: ${_paperFolder.text.trim()}',
+        'يجوز إتلاف الأصل: ${_canDestroyOriginal ? 'نعم' : 'لا'}',
+        if (_reviewedBy.text.trim().isNotEmpty) 'راجع النسخة الرقمية: ${_reviewedBy.text.trim()}',
+      ].join('\n');
       final docId = await ref.read(documentRepositoryProvider).addDocument(
             docName: _title.text.trim(),
             docType: _type.name,
             fileType: _file!.extension,
             sourceFile: File(_file!.path!),
+            physicalLocation: _paperOriginalSaved ? 0 : 1,
+            notes: paperNotes,
             entityType: 99,
             entityId: 0,
             userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
@@ -427,6 +456,7 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
         entityId: '$docId',
         entityTitle: _title.text.trim(),
         description: 'رفع مستند إلى الأرشيف العام',
+        after: {'paperOriginalSaved': _paperOriginalSaved, 'paperLocation': _paperLocation.text.trim(), 'box': _box.text.trim(), 'shelf': _shelf.text.trim(), 'paperFolder': _paperFolder.text.trim(), 'canDestroyOriginal': _canDestroyOriginal, 'reviewedBy': _reviewedBy.text.trim()},
         severity: 'info',
       );
       ref.invalidate(documentsFutureProvider);
@@ -446,9 +476,10 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
       title: const Text('رفع مستند'),
       content: SizedBox(
         width: 520,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             TextField(controller: _title, decoration: const InputDecoration(labelText: 'عنوان المستند *')),
             const SizedBox(height: 12),
             DropdownButtonFormField<DocumentType>(
@@ -460,7 +491,33 @@ class _UploadDocDialogState extends ConsumerState<UploadDocDialog> {
             const SizedBox(height: 12),
             OutlinedButton.icon(onPressed: _pickFile, icon: const Icon(Icons.attach_file), label: const Text('اختيار ملف')),
             if (_file != null) Text(_file!.name, style: AppTextStyles.bodySmallSecondary),
+            const SizedBox(height: 16),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _paperOriginalSaved,
+              title: const Text('هل الأصل الورقي محفوظ؟'),
+              onChanged: (v) => setState(() => _paperOriginalSaved = v ?? false),
+            ),
+            if (_paperOriginalSaved) ...[
+              TextField(controller: _paperLocation, decoration: const InputDecoration(labelText: 'مكان الأصل')),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: TextField(controller: _box, decoration: const InputDecoration(labelText: 'الصندوق'))),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: _shelf, decoration: const InputDecoration(labelText: 'الرف'))),
+              ]),
+              const SizedBox(height: 8),
+              TextField(controller: _paperFolder, decoration: const InputDecoration(labelText: 'المجلد الورقي')),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _canDestroyOriginal,
+                title: const Text('هل يجوز إتلاف الأصل لاحقاً؟'),
+                onChanged: (v) => setState(() => _canDestroyOriginal = v ?? false),
+              ),
+            ],
+            TextField(controller: _reviewedBy, decoration: const InputDecoration(labelText: 'من راجع النسخة الرقمية؟')),
           ],
+          ),
         ),
       ),
       actions: [

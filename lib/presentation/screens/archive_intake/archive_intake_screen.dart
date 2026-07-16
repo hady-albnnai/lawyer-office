@@ -575,7 +575,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     await ref.read(auditServiceProvider).log(action: 'start_entry', category: 'archive', entityType: 'archive_wizard', entityTitle: _archiveSummary(s), description: 'بدء إدخال أرشيف قديم من المعالج الهرمي', after: {'status': s.archiveStatus, 'kind': s.fileKind, 'summary': _archiveSummary(s)}, severity: 'info');
     if (!context.mounted) return;
     if (route == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تجهيز مسار أرشيف غير محدد: ${_archiveSummary(s)}. أضف ملفاته من دفعات رفع الملفات ثم صنّفها لاحقاً.'), backgroundColor: AppColors.info));
+      await _showMiscArchiveEntry(context, ref, s);
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('سيتم فتح شاشة الإدخال الرسمية. الاختيار: ${_archiveSummary(s)}'), backgroundColor: AppColors.success));
@@ -596,6 +596,86 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       if (s.poaType != null) 'poaType': s.poaType!,
     });
     return uri.toString();
+  }
+
+  Future<void> _showMiscArchiveEntry(BuildContext context, WidgetRef ref, _ArchiveWizardSelection s) async {
+    final titleController = TextEditingController(text: 'أرشيف غير محدد - ${DateTime.now().toString().substring(0, 10)}');
+    final notesController = TextEditingController();
+    final customDocs = <String>[...s.customDocumentTypes];
+    final files = <File>[];
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text('إدخال ${_archiveSummary(s)}'),
+          content: SizedBox(
+            width: 680,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('هذا المسار مخصص لأي أرشيف لا يطابق الأنواع المعروفة. يمكن تسمية الوثائق ورفع الملفات الآن ثم تصنيفها لاحقاً من صندوق غير مصنف.', style: AppTextStyles.bodySmallSecondary),
+                  const SizedBox(height: 12),
+                  TextField(controller: titleController, decoration: const InputDecoration(labelText: 'اسم دفعة الأرشيف *')),
+                  const SizedBox(height: 12),
+                  TextField(controller: notesController, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات / وصف الأرشيف')),
+                  const SizedBox(height: 12),
+                  Text('أسماء الوثائق المطلوبة', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    ..._defaultDocumentsFor(s).map((d) => Chip(label: Text(d), avatar: const Icon(Icons.description, size: 16))),
+                    ...customDocs.map((d) => Chip(label: Text(d), avatar: const Icon(Icons.description, size: 16))),
+                    ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة اسم وثيقة'), onPressed: () => _addCustomValue(ctx, 'اسم الوثيقة', (value) => setDialog(() => customDocs.add(value)))),
+                  ]),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.upload_file),
+                    label: Text(files.isEmpty ? 'اختيار ملفات' : 'الملفات المختارة: ${files.length}'),
+                    onPressed: () async {
+                      final result = await fp.FilePicker.platform.pickFiles(allowMultiple: true);
+                      if (result == null) return;
+                      setDialog(() {
+                        files
+                          ..clear()
+                          ..addAll(result.paths.whereType<String>().map(File.new));
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              label: const Text('حفظ كأرشيف غير مصنف'),
+              onPressed: titleController.text.trim().isEmpty
+                  ? null
+                  : () async {
+                      final batchId = await ref.read(archiveIntakeRepositoryProvider).createBatch(
+                            name: titleController.text.trim(),
+                            sourceType: 'mixed',
+                            createdBy: ref.read(authControllerProvider).user?.fullName,
+                            notes: [
+                              _archiveSummary(s),
+                              if (customDocs.isNotEmpty) 'وثائق مخصصة: ${customDocs.join('، ')}',
+                              if (notesController.text.trim().isNotEmpty) notesController.text.trim(),
+                            ].join('\n'),
+                          );
+                      if (files.isNotEmpty) {
+                        await ref.read(archiveIntakeRepositoryProvider).importFilesToBatch(batchId, files);
+                      }
+                      await ref.read(auditServiceProvider).log(action: 'create_misc', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', entityTitle: titleController.text.trim(), description: 'إنشاء أرشيف غير محدد من المعالج', after: {'files': files.length, 'summary': _archiveSummary(s)}, severity: 'info');
+                      ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String? _permissionForArchiveKind(String kind) {

@@ -10,13 +10,15 @@ import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/archive_context_banner.dart';
 import '../documents/document_viewer.dart';
 import '../persons/person_models.dart';
 import 'poa_detail_screen.dart';
 
 /// شاشة إدارة الوكالات القضائية والقانونية في المرحلة 6.
 class PoaListScreen extends ConsumerStatefulWidget {
-  const PoaListScreen({super.key});
+  final ArchiveEntryContext? archiveContext;
+  const PoaListScreen({super.key, this.archiveContext});
 
   @override
   ConsumerState<PoaListScreen> createState() => _PoaListScreenState();
@@ -56,13 +58,18 @@ class _PoaListScreenState extends ConsumerState<PoaListScreen> {
                   icon: const Icon(Icons.add),
                   onPressed: () => showDialog<void>(
                     context: context,
-                    builder: (context) => const AddAgencyDialog(),
+                    builder: (context) => AddAgencyDialog(archiveContext: widget.archiveContext),
                   ),
                 ),
             ],
           ),
           body: Column(
             children: [
+              if (widget.archiveContext != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: ArchiveContextBanner(contextInfo: widget.archiveContext),
+                ),
               _toolbar(),
               Expanded(
                 child: agencies.isEmpty
@@ -278,7 +285,8 @@ class _AgencyCard extends ConsumerWidget {
 }
 
 class AddAgencyDialog extends ConsumerStatefulWidget {
-  const AddAgencyDialog({super.key});
+  final ArchiveEntryContext? archiveContext;
+  const AddAgencyDialog({super.key, this.archiveContext});
 
   @override
   ConsumerState<AddAgencyDialog> createState() => _AddAgencyDialogState();
@@ -294,6 +302,19 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
   AgencySource _source = AgencySource.barDelegate;
   String? _principalPersonId;
   DateTime _issuedAt = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    final archive = widget.archiveContext;
+    if (archive != null) {
+      final poaType = archive.poaType ?? '';
+      if (poaType.contains('خاص') || poaType.contains('بيع')) _type = AgencyType.special;
+      if (poaType.contains('شرع')) _type = AgencyType.sharia;
+      if (poaType.contains('نقابة') || poaType.contains('قضائية')) _source = AgencySource.barDelegate;
+      _scopeController.text = archive.isClosed ? 'أرشفة وكالة منتهية - $poaType' : 'إدخال وكالة جارية - $poaType';
+    }
+  }
 
   @override
   void dispose() {
@@ -318,6 +339,7 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              ArchiveContextBanner(contextInfo: widget.archiveContext),
               TextField(controller: _numberController, decoration: const InputDecoration(labelText: 'رقم الوكالة / التوثيق')),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
