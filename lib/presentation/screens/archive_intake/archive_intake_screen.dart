@@ -61,8 +61,8 @@ const _documentTypeOptions = <String, String>{
 
 /// مركز إدخال الأرشيف القديم.
 ///
-/// هذه شاشة تأسيسية آمنة للمرحلة القادمة من إعادة الهيكلة. لا تحفظ بيانات بعد،
-/// لكنها تثبت بنية المسارات والأقسام المتفق عليها قبل بناء جداول الدفعات.
+/// يدير دفعات إدخال الأرشيف الورقي والإلكتروني، يحفظ الملفات المستوردة، يكشف
+/// المكررات، ويسمح بمراجعة العناصر وربطها بملفات المكتب دون تجاوز مسارات العمل الرسمية.
 class ArchiveIntakeScreen extends ConsumerWidget {
   const ArchiveIntakeScreen({super.key});
 
@@ -239,6 +239,202 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _importTemplatesPanel(BuildContext context, WidgetRef ref) {
+    final canExport = ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportExcel);
+    final templates = const [
+      (key: 'contacts', title: 'الأشخاص والجهات', file: 'contacts_template.csv', icon: Icons.people_alt),
+      (key: 'cases', title: 'الدعاوى', file: 'cases_template.csv', icon: Icons.gavel),
+      (key: 'poa', title: 'الوكالات', file: 'poa_template.csv', icon: Icons.assignment_ind),
+      (key: 'documents', title: 'المستندات', file: 'documents_template.csv', icon: Icons.description),
+      (key: 'opening_balances', title: 'الأرصدة الافتتاحية', file: 'opening_balances_template.csv', icon: Icons.account_balance_wallet),
+    ];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'صدّر القالب المناسب، املأه من الأرشيف القديم، ثم استورده لاحقاً ضمن دفعة Excel / CSV بعد تثبيت حقول المطابقة النهائية.',
+              style: AppTextStyles.bodyMediumSecondary,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: templates
+                  .map(
+                    (t) => OutlinedButton.icon(
+                      icon: Icon(t.icon, size: 18),
+                      label: Text(t.title),
+                      onPressed: canExport ? () => _exportImportTemplate(context, ref, t.key, t.file) : null,
+                    ),
+                  )
+                  .toList(),
+            ),
+            if (!canExport) ...[
+              const SizedBox(height: 8),
+              Text('لا تملك صلاحية تصدير/استيراد قوالب الأرشيف.', style: AppTextStyles.bodySmallSecondary.copyWith(color: AppColors.error)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportImportTemplate(BuildContext context, WidgetRef ref, String templateKey, String fileName) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportExcel)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'archive',
+        entityType: 'archive_template',
+        entityTitle: fileName,
+        description: 'محاولة تصدير قالب استيراد أرشيف دون صلاحية',
+        severity: 'warning',
+      );
+      return;
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'import_templates'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = File(path.join(dir.path, fileName));
+    await file.writeAsString(_templateContent(templateKey));
+    await ref.read(auditServiceProvider).log(
+      action: 'export_template',
+      category: 'archive',
+      entityType: 'archive_template',
+      entityTitle: file.path,
+      description: 'تصدير قالب استيراد للأرشيف القديم',
+      after: {'template': templateKey},
+      severity: 'info',
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ القالب: ${file.path}'), backgroundColor: AppColors.success));
+    }
+  }
+
+  String _templateContent(String key) {
+    switch (key) {
+      case 'contacts':
+        return 'full_name,person_type,phone,email,national_id,address,notes\n"أحمد محمد","موكل","09xxxxxxxx","","","دمشق","مثال"\n';
+      case 'cases':
+        return 'internal_number,case_type,subject,court,base_number,status,client_name,opponent_name,next_session_date,notes\n"C-2026-001","مدني","مطالبة مالية","بداية مدني دمشق","123/2026","active","","","2026-01-01",""\n';
+      case 'poa':
+        return 'poa_number,poa_type,issued_at,delegate_name,bar_branch,principal_name,agent_name,notes\n"","عامة","2026-01-01","","دمشق","","",""\n';
+      case 'documents':
+        return 'file_name,document_type,related_file_type,related_file_number,paper_original_saved,paper_location,box,shelf,paper_folder,can_destroy_original,reviewed_by,notes\n"example.pdf","مستند أرشيف","دعوى","C-2026-001","yes","الخزانة 1","A-01","2","ملف ورقي 5","no","",""\n';
+      case 'opening_balances':
+        return 'client_name,file_number,fee_agreement_total,paid_amount,office_expenses,client_expenses,notes\n"","","0","0","0","0",""\n';
+      default:
+        return 'field_1,field_2,notes\n"","",""\n';
+    }
+  }
+
+  Future<void> _showActiveNeedsCompletion(BuildContext context, WidgetRef ref) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.archiveInboxView)) {
+      await ref.read(auditServiceProvider).log(
+        action: 'access_denied',
+        category: 'archive',
+        entityType: 'archive_completion',
+        description: 'محاولة فتح ملفات الأرشيف التي تحتاج استكمال دون صلاحية',
+        severity: 'warning',
+      );
+      return;
+    }
+    final files = ref.read(filesProvider)
+        .where((file) => file.status == FileStatus.active && (file.hasDeficiencies || file.hasMissingDocuments || !file.hasBaseNumber))
+        .toList()
+      ..sort((a, b) => b.deficiencyCount.compareTo(a.deficiencyCount));
+    await ref.read(auditServiceProvider).log(
+      action: 'view',
+      category: 'archive',
+      entityType: 'archive_completion',
+      description: 'عرض الملفات الجارية التي تحتاج استكمال',
+      after: {'count': files.length},
+      severity: 'info',
+    );
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ملفات جارية تحتاج استكمال'),
+        content: SizedBox(
+          width: 900,
+          height: 560,
+          child: files.isEmpty
+              ? const Center(child: Text('لا توجد ملفات جارية ناقصة حالياً.'))
+              : ListView.builder(
+                  itemCount: files.length,
+                  itemBuilder: (_, index) {
+                    final file = files[index];
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(backgroundColor: AppColors.error.withOpacity(0.12), child: Icon(_fileTypeIcon(file.type), color: AppColors.error)),
+                        title: Text('${file.fileNumber} — ${file.title}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(_completionReasons(file).join(' • ')),
+                        trailing: OutlinedButton.icon(
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('فتح الملف'),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _openOfficeFile(context, file);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      ),
+    );
+  }
+
+  List<String> _completionReasons(FileItem file) {
+    return [
+      if (!file.hasBaseNumber) 'بانتظار رقم أساس/مرجع',
+      if (file.hasDeficiencies) 'نواقص: ${file.deficiencyCount}',
+      if (file.hasMissingDocuments) 'مستندات ناقصة',
+      if (file.documentCount == 0) 'لا توجد مستندات رقمية',
+    ];
+  }
+
+  IconData _fileTypeIcon(FileType type) {
+    switch (type) {
+      case FileType.caseFile:
+        return Icons.gavel;
+      case FileType.contract:
+        return Icons.description;
+      case FileType.company:
+        return Icons.business;
+      case FileType.adminProcedure:
+        return Icons.assignment;
+      case FileType.agency:
+        return Icons.assignment_ind;
+    }
+  }
+
+  void _openOfficeFile(BuildContext context, FileItem file) {
+    switch (file.type) {
+      case FileType.caseFile:
+        context.go('/cases/${file.id}');
+        return;
+      case FileType.contract:
+        context.go('/contracts/${file.id}');
+        return;
+      case FileType.company:
+        context.go('/companies/${file.id}');
+        return;
+      case FileType.adminProcedure:
+        context.go('/procedures/${file.id}');
+        return;
+      case FileType.agency:
+        context.go('/poa/${file.id}');
+        return;
+    }
   }
 
   Widget _batchesList(WidgetRef ref) {
@@ -779,7 +975,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'يمكنك الآن إنشاء دفعات وإضافة ملفات إليها. الربط والتصنيف والاعتماد النهائي ستُستكمل في المراحل التالية وفق الخطة.',
+                'يمكنك الآن إنشاء دفعات، إضافة ملفات، كشف المكررات، ربط العناصر بملفات المكتب، وتصدير قوالب CSV وتقارير الجودة. استيراد CSV المباشر سيُنفذ لاحقاً بحذر بعد تثبيت حقول المطابقة النهائية.',
               ),
             ),
           ],
