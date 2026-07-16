@@ -160,14 +160,21 @@ ui_doc.FileType _mapFileType(String? raw) {
 
 String _paperArchiveLocation(String? notes, int physicalLocation) {
   final raw = notes ?? '';
-  if (raw.contains('مكان الأصل:')) {
+  String pick(String prefix) {
     final line = raw.split('\n').firstWhere(
-          (item) => item.startsWith('مكان الأصل:'),
+          (item) => item.startsWith(prefix),
           orElse: () => '',
         );
-    final value = line.replaceFirst('مكان الأصل:', '').trim();
-    if (value.isNotEmpty) return value;
+    return line.replaceFirst(prefix, '').trim();
   }
+
+  final parts = <String>[
+    pick('مكان الأصل:'),
+    if (pick('الصندوق:').isNotEmpty) 'صندوق ${pick('الصندوق:')}',
+    if (pick('الرف:').isNotEmpty) 'رف ${pick('الرف:')}',
+    if (pick('المجلد الورقي:').isNotEmpty) 'مجلد ${pick('المجلد الورقي:')}',
+  ].where((value) => value.isNotEmpty).toList();
+  if (parts.isNotEmpty) return parts.join(' • ');
   return physicalLocation == 0 ? 'مكتب المحامي' : 'خارج المكتب';
 }
 
