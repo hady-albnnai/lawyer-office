@@ -195,35 +195,52 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                const Text('3. ★ الموعد القادم للمراجعة (إلزامي وفقاً للدستور V6.2) ★:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                Text(widget.archiveContext?.isClosed == true ? '3. أثر الأرشيف المنتهي:' : '3. ★ الموعد القادم للمراجعة (إلزامي وفقاً للدستور V6.2) ★:', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
                 const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: _nextDate != null ? AppConstants.statusSuccess.withOpacity(0.1) : AppConstants.statusDanger.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _nextDate != null ? AppConstants.statusSuccess : AppConstants.statusDanger),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(_nextDate != null ? Icons.check_circle : Icons.warning_amber, color: _nextDate != null ? AppConstants.statusSuccess : AppConstants.statusDanger),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _nextDate != null ? 'موعد المراجعة القادم: ${_nextDate!.toString().substring(0, 10)}' : 'لم يتم تحديد موعد (سيولد إشعار نقص في تبويب النواقص)',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: _nextDate != null ? AppConstants.statusSuccess : AppConstants.statusDanger),
+                if (widget.archiveContext?.isClosed == true)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppConstants.primaryNavy.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppConstants.primaryNavy.withOpacity(0.25)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.inventory_2, color: AppConstants.primaryNavy),
+                        SizedBox(width: 12),
+                        Expanded(child: Text('هذا الإجراء محفوظ للأرشيف والبحث فقط، ولن يتم تسجيل موعد مراجعة قادم أو توليد مهمة في مكتب العمل.')),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _nextDate != null ? AppConstants.statusSuccess.withOpacity(0.1) : AppConstants.statusDanger.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _nextDate != null ? AppConstants.statusSuccess : AppConstants.statusDanger),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_nextDate != null ? Icons.check_circle : Icons.warning_amber, color: _nextDate != null ? AppConstants.statusSuccess : AppConstants.statusDanger),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _nextDate != null ? 'موعد المراجعة القادم: ${_nextDate!.toString().substring(0, 10)}' : 'لم يتم تحديد موعد (سيولد إشعار نقص في تبويب النواقص)',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: _nextDate != null ? AppConstants.statusSuccess : AppConstants.statusDanger),
+                          ),
                         ),
-                      ),
-                      ElevatedButton(
-                        child: const Text('تحديد التاريخ'),
-                        onPressed: () async {
-                          final p = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 3)), firstDate: DateTime.now(), lastDate: DateTime(2030));
-                          if (p != null) setState(() => _nextDate = p);
-                        },
-                      ),
-                    ],
+                        ElevatedButton(
+                          child: const Text('تحديد التاريخ'),
+                          onPressed: () async {
+                            final p = await showDatePicker(context: context, initialDate: DateTime.now().add(const Duration(days: 3)), firstDate: DateTime.now(), lastDate: DateTime(2030));
+                            if (p != null) setState(() => _nextDate = p);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 const SizedBox(height: 32),
 
                 SizedBox(
@@ -278,7 +295,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
         transactionNumber: drift.Value(_transNumController.text.trim()),
         currentStep: drift.Value(widget.archiveContext == null ? null : 'سياق الأرشيف: ${widget.archiveContext!.summary}'),
         startDate: drift.Value(_startDate),
-        nextDate: drift.Value(_nextDate),
+        nextDate: drift.Value(widget.archiveContext?.isClosed == true ? null : _nextDate),
       );
 
       final List<AdminStepsCompanion> initialSteps = [

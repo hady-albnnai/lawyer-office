@@ -206,49 +206,64 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                const Text('4. التذكيرات والمتابعة الزمنية (الأتمتة مع جدول الأعمال اليومية):', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
+                Text(widget.archiveContext?.isClosed == true ? '4. أثر الأرشيف المنتهي:' : '4. التذكيرات والمتابعة الزمنية (الأتمتة مع جدول الأعمال اليومية):', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
                 const SizedBox(height: 12),
-                Card(
-                  color: AppConstants.primaryNavy.withOpacity(0.04),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        CheckboxListTile(
-                          value: _needsFollowup,
-                          title: const Text('هذا العقد يحتاج متابعة وتذكير بموعد انتهائه أو تجديده ⏰', style: TextStyle(fontWeight: FontWeight.bold)),
-                          onChanged: (val) => setState(() => _needsFollowup = val ?? false),
-                        ),
-                        if (_needsFollowup) ...[
-                          Row(
-                            children: [
-                              const Text('التذكير قبل: '),
-                              const SizedBox(width: 12),
-                              DropdownButton<int>(
-                                value: _expiryDaysBefore,
-                                items: [7, 15, 30, 60, 90].map((d) => DropdownMenuItem(value: d, child: Text('$d يوماً من الانتهاء'))).toList(),
-                                onChanged: (val) => setState(() => _expiryDaysBefore = val!),
-                              ),
-                              const SizedBox(width: 24),
-                              Checkbox(value: _isRenewable, onChanged: (val) => setState(() => _isRenewable = val ?? false)),
-                              const Text('العقد قابل للتجديد (إضافة تنبيه تجديد أيضاً)'),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _reminderPhoneController,
-                            decoration: const InputDecoration(labelText: 'رقم هاتف التواصل عند التذكير', prefixIcon: Icon(Icons.phone_in_talk)),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _reminderNoteController,
-                            decoration: const InputDecoration(labelText: 'ملاحظة التذكير (ستظهر في مهام اليوم عندما يحين الموعد)'),
-                          ),
+                if (widget.archiveContext?.isClosed == true)
+                  Card(
+                    color: AppConstants.primaryNavy.withOpacity(0.04),
+                    child: const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2, color: AppConstants.primaryNavy),
+                          SizedBox(width: 12),
+                          Expanded(child: Text('هذا العقد محفوظ للأرشيف والبحث فقط، لذلك لن يتم إنشاء تذكير انتهاء أو تجديد في مكتب العمل.')),
                         ],
-                      ],
+                      ),
+                    ),
+                  )
+                else
+                  Card(
+                    color: AppConstants.primaryNavy.withOpacity(0.04),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          CheckboxListTile(
+                            value: _needsFollowup,
+                            title: const Text('هذا العقد يحتاج متابعة وتذكير بموعد انتهائه أو تجديده ⏰', style: TextStyle(fontWeight: FontWeight.bold)),
+                            onChanged: (val) => setState(() => _needsFollowup = val ?? false),
+                          ),
+                          if (_needsFollowup) ...[
+                            Row(
+                              children: [
+                                const Text('التذكير قبل: '),
+                                const SizedBox(width: 12),
+                                DropdownButton<int>(
+                                  value: _expiryDaysBefore,
+                                  items: [7, 15, 30, 60, 90].map((d) => DropdownMenuItem(value: d, child: Text('$d يوماً من الانتهاء'))).toList(),
+                                  onChanged: (val) => setState(() => _expiryDaysBefore = val!),
+                                ),
+                                const SizedBox(width: 24),
+                                Checkbox(value: _isRenewable, onChanged: (val) => setState(() => _isRenewable = val ?? false)),
+                                const Text('العقد قابل للتجديد (إضافة تنبيه تجديد أيضاً)'),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _reminderPhoneController,
+                              decoration: const InputDecoration(labelText: 'رقم هاتف التواصل عند التذكير', prefixIcon: Icon(Icons.phone_in_talk)),
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _reminderNoteController,
+                              decoration: const InputDecoration(labelText: 'ملاحظة التذكير (ستظهر في مهام اليوم عندما يحين الموعد)'),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 24),
 
                 const Text('5. إرفاق ملف العقد (نموذج Word أو PDF):', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
