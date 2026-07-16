@@ -431,20 +431,38 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
     super.dispose();
   }
 
+  String _normalizeCommand(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ة', 'ه');
+  }
+
+  bool _commandMatches(String command, String query) {
+    final normalizedCommand = _normalizeCommand(command);
+    final normalizedQuery = _normalizeCommand(query);
+    return normalizedCommand.contains(normalizedQuery);
+  }
+
   void _search(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     
     // الأوامر السريعة لا تحتاج تأخير زمني لأنها تعمل بالذاكرة فورا
     if (query.startsWith("/")) {
       final commands = [
-        {"title": "إنشاء دعوى", "cmd": "/دعوى", "route": "create_case"},
-        {"title": "تأسيس شركة", "cmd": "/شركة", "route": "create_company"},
-        {"title": "إضافة أمر عمل", "cmd": "/امر", "route": "create_wo"},
-        {"title": "إدخال أرشيف جارٍ", "cmd": "/ارشيف جاري", "route": "archive_running"},
-        {"title": "إدخال أرشيف منتهٍ", "cmd": "/ارشيف منتهي", "route": "archive_closed"},
+        {"title": "إنشاء دعوى", "cmd": "/دعوى", "route": "create_case", "subtitle": "فتح شاشة إنشاء دعوى"},
+        {"title": "تأسيس شركة", "cmd": "/شركة", "route": "create_company", "subtitle": "فتح معالج الشركة"},
+        {"title": "إضافة أمر عمل", "cmd": "/امر", "route": "create_wo", "subtitle": "إنشاء أمر عمل للمتابعة"},
+        {"title": "إدخال أرشيف جارٍ", "cmd": "/ارشيف جاري", "route": "archive_running", "subtitle": "ملف قديم حي ينعكس على مكتب العمل"},
+        {"title": "إدخال أرشيف منتهٍ", "cmd": "/ارشيف منتهي", "route": "archive_closed", "subtitle": "ملف قديم للحفظ والبحث فقط"},
+        {"title": "فتح الملفات الجارية", "cmd": "/ملفات جارية", "route": "files_running", "subtitle": "عرض الملفات الحية"},
+        {"title": "فتح الملفات المنتهية", "cmd": "/ملفات منتهية", "route": "files_closed", "subtitle": "عرض ملفات الأرشيف المنتهي"},
       ];
       setState(() {
-        _hits = commands.where((c) => c["cmd"]!.contains(query)).toList();
+        _hits = commands.where((c) => _commandMatches(c["cmd"]!, query)).toList();
       });
       return;
     }
@@ -532,6 +550,10 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
                         GoRouter.of(context).push("/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}");
                       } else if (hit["route"] == "archive_closed") {
                         GoRouter.of(context).push("/archive-intake?status=closed&seed=${DateTime.now().millisecondsSinceEpoch}");
+                      } else if (hit["route"] == "files_running") {
+                        context.go("/files?status=active");
+                      } else if (hit["route"] == "files_closed") {
+                        context.go("/files?status=completed");
                       }
                     },
                   );
