@@ -36,7 +36,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -114,6 +114,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 Tab(text: 'المصاريف'),
                 Tab(text: 'الأرصدة'),
                 Tab(text: 'ذمم الموكلين'),
+                Tab(text: 'صندوق المكتب'),
                 Tab(text: 'التقارير'),
               ],
             ),
@@ -131,6 +132,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                     _expensesTab(state),
                     _balancesTab(state),
                     _clientsTab(state),
+                    _cashboxTab(state),
                     _reportsTab(state),
                   ],
                 ),
