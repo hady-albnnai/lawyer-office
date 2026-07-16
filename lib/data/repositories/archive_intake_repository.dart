@@ -1,6 +1,10 @@
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 
 import '../database/database.dart';
+import '../services/file_storage_service.dart';
 
 class ArchiveBatchRecord {
   final int id;
@@ -36,9 +40,23 @@ class ArchiveBatchRecord {
   });
 }
 
+class ArchiveImportSummary {
+  final int imported;
+  final int duplicates;
+  final int failed;
+
+  const ArchiveImportSummary({
+    required this.imported,
+    required this.duplicates,
+    required this.failed,
+  });
+}
+
 class ArchiveIntakeRepository {
   final AppDatabase _db;
-  ArchiveIntakeRepository(this._db);
+  final FileStorageService _storage;
+
+  ArchiveIntakeRepository(this._db, this._storage);
 
   Future<void> ensureReady() => _db.ensureArchiveTables();
 
@@ -64,6 +82,87 @@ class ArchiveIntakeRepository {
       "UPDATE archive_batches SET status = ?, started_at = CASE WHEN ? = 'processing' THEN CURRENT_TIMESTAMP ELSE started_at END, completed_at = CASE WHEN ? LIKE 'completed%' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id = ?",
       [status, status, status, id],
     );
+  }
+
+  Future<ArchiveImportSummary> importFilesToBatch(int batchId, List<File> files) async {
+    await ensureReady();
+    await updateBatchStatus(batchId, 'processing');
+    var imported = 0;
+    var duplicates = 0;
+    var failed = 0;
+
+    for (final file in files) {
+      try {
+        final bytes = await file.readAsBytes();
+        final hash = sha256.convert(bytes).toString();
+        final duplicateRows = await _db.customSelect(
+          'SELECT id FROM archive_items WHERE sha256 = ? LIMIT 1',
+          variables: [Variable.withString(hash)],
+        ).get();
+        final isDuplicate = duplicateRows.isNotEmpty;
+        String? storedPath;
+        if (isDuplicate) {
+          duplicates++;
+        } else {
+          storedPath = await _storage.saveAttachment(
+            sourceFile: file,
+            folderType: 'archive_intake',
+            entityId: batchId,
+          );
+          imported++;
+        }
+
+        await _db.customStatement('''
+          INSERT INTO archive_items(
+            batch_id, original_file_name, source_path, stored_path, file_type, file_size, sha256,
+            status, review_status, error_message
+          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', [
+          batchId,
+          file.path.split(Platform.pathSeparator).last,
+          file.path,
+          storedPath,
+          _extension(file.path),
+          bytes.length,
+          hash,
+          isDuplicate ? 'duplicate' : 'imported',
+          'needs_review',
+          isDuplicate ? 'ملف مكرر محتمل' : null,
+        ]);
+      } catch (e) {
+        failed++;
+        await _db.customStatement('''
+          INSERT INTO archive_items(batch_id, original_file_name, source_path, status, review_status, error_message)
+          VALUES(?, ?, ?, 'failed', 'needs_review', ?)
+        ''', [
+          batchId,
+          file.path.split(Platform.pathSeparator).last,
+          file.path,
+          '$e',
+        ]);
+      }
+    }
+
+    await _db.customStatement('''
+      UPDATE archive_batches
+      SET total_files = total_files + ?,
+          processed_files = processed_files + ?,
+          failed_files = failed_files + ?,
+          duplicate_files = duplicate_files + ?,
+          unclassified_files = unclassified_files + ?,
+          status = ?
+      WHERE id = ?
+    ''', [
+      files.length,
+      imported + duplicates + failed,
+      failed,
+      duplicates,
+      imported + duplicates,
+      failed > 0 ? 'completed_with_errors' : 'waiting_review',
+      batchId,
+    ]);
+
+    return ArchiveImportSummary(imported: imported, duplicates: duplicates, failed: failed);
   }
 
   Future<List<ArchiveBatchRecord>> getBatches() async {
@@ -93,5 +192,11 @@ class ArchiveIntakeRepository {
 
   Stream<List<ArchiveBatchRecord>> watchBatches() {
     return Stream.fromFuture(getBatches());
+  }
+
+  String _extension(String path) {
+    final name = path.split(Platform.pathSeparator).last;
+    final dot = name.lastIndexOf('.');
+    return dot == -1 ? 'file' : name.substring(dot + 1).toLowerCase();
   }
 }

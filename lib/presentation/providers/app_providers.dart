@@ -130,7 +130,7 @@ final lookupRepositoryProvider = Provider<LookupRepository>((ref) {
 
 
 final archiveIntakeRepositoryProvider = Provider<ArchiveIntakeRepository>((ref) {
-  return ArchiveIntakeRepository(ref.watch(databaseProvider));
+  return ArchiveIntakeRepository(ref.watch(databaseProvider), ref.watch(fileStorageServiceProvider));
 });
 
 // =============================================================================

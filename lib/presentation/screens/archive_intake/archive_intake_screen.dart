@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart' as fp;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +10,8 @@ import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../theme/app_theme.dart';
+
+final _archiveIntakeRefreshProvider = StateProvider<int>((ref) => 0);
 
 /// مركز إدخال الأرشيف القديم.
 ///
@@ -18,6 +23,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(permissionServiceProvider);
+    ref.watch(_archiveIntakeRefreshProvider);
     return Theme(
       data: AppTheme.lightTheme,
       child: Directionality(
@@ -183,6 +189,161 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
+  Widget _batchesList(WidgetRef ref) {
+    final repo = ref.watch(archiveIntakeRepositoryProvider);
+    return FutureBuilder(
+      future: repo.getBatches(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final batches = snapshot.data!;
+        if (batches.isEmpty) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Text('لا توجد دفعات إدخال بعد. ابدأ بإنشاء دفعة من المسارات أعلاه.', style: AppTextStyles.bodyMediumSecondary),
+            ),
+          );
+        }
+        return Column(
+          children: batches.map((b) {
+            final canImport = ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportFiles);
+            return Card(
+              child: ListTile(
+                leading: CircleAvatar(backgroundColor: AppColors.primaryNavy.withOpacity(0.12), child: Icon(_sourceIcon(b.sourceType), color: AppColors.primaryNavy)),
+                title: Text(b.name, style: AppTextStyles.labelLarge),
+                subtitle: Text('${_sourceLabel(b.sourceType)} • ${_statusLabel(b.status)} • ${b.createdAt.toString().substring(0, 16)}'),
+                trailing: Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _mini('ملفات', b.totalFiles),
+                    _mini('غير مصنف', b.unclassifiedFiles),
+                    _mini('مكرر', b.duplicateFiles),
+                    if (canImport)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.upload_file, size: 16),
+                        label: const Text('إضافة ملفات'),
+                        onPressed: () => _importFiles(context, ref, b.id),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _mini(String label, int value) => Chip(label: Text('$label: $value'));
+
+  IconData _sourceIcon(String source) {
+    switch (source) {
+      case 'paper': return Icons.document_scanner;
+      case 'electronic': return Icons.folder_copy;
+      case 'excel': return Icons.table_chart;
+      case 'mixed': return Icons.all_inbox;
+      default: return Icons.archive;
+    }
+  }
+
+  String _sourceLabel(String source) {
+    switch (source) {
+      case 'paper': return 'أرشيف ورقي';
+      case 'electronic': return 'أرشيف إلكتروني';
+      case 'excel': return 'Excel / CSV';
+      case 'mixed': return 'أرشيف مختلط';
+      default: return source;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'new': return 'جديدة';
+      case 'processing': return 'قيد المعالجة';
+      case 'waiting_review': return 'بانتظار المراجعة';
+      case 'completed': return 'مكتملة';
+      case 'completed_with_errors': return 'مكتملة مع أخطاء';
+      case 'cancelled': return 'ملغاة';
+      default: return status;
+    }
+  }
+
+  Future<void> _showCreateBatch(BuildContext context, WidgetRef ref, String sourceType) async {
+    final name = TextEditingController(text: '${_sourceLabel(sourceType)} - ${DateTime.now().toString().substring(0, 10)}');
+    final notes = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('إنشاء دفعة ${_sourceLabel(sourceType)}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الدفعة *')),
+            const SizedBox(height: 12),
+            TextField(controller: notes, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إنشاء')),
+        ],
+      ),
+    ) ?? false;
+    if (!ok || name.text.trim().isEmpty) return;
+    final user = ref.read(authControllerProvider).user;
+    final id = await ref.read(archiveIntakeRepositoryProvider).createBatch(
+      name: name.text.trim(),
+      sourceType: sourceType,
+      createdBy: user?.fullName,
+      notes: notes.text.trim().isEmpty ? null : notes.text.trim(),
+    );
+    await ref.read(auditServiceProvider).log(
+      action: 'create',
+      category: 'archive',
+      entityType: 'archive_batch',
+      entityId: '$id',
+      entityTitle: name.text.trim(),
+      description: 'إنشاء دفعة إدخال أرشيف',
+      after: {'sourceType': sourceType},
+      severity: 'info',
+    );
+    ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إنشاء دفعة الأرشيف: ${name.text.trim()}'), backgroundColor: AppColors.success));
+    }
+  }
+
+  Future<void> _importFiles(BuildContext context, WidgetRef ref, int batchId) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportFiles)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'محاولة استيراد ملفات أرشيف دون صلاحية', severity: 'warning');
+      return;
+    }
+    final result = await fp.FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null) return;
+    final files = result.paths.whereType<String>().map(File.new).toList();
+    if (files.isEmpty) return;
+    final summary = await ref.read(archiveIntakeRepositoryProvider).importFilesToBatch(batchId, files);
+    await ref.read(auditServiceProvider).log(
+      action: 'import_files',
+      category: 'archive',
+      entityType: 'archive_batch',
+      entityId: '$batchId',
+      description: 'استيراد ملفات إلى دفعة أرشيف',
+      after: {'files': files.length, 'imported': summary.imported, 'duplicates': summary.duplicates, 'failed': summary.failed},
+      severity: 'info',
+    );
+    ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تمت المعالجة: ${summary.imported} جديد، ${summary.duplicates} مكرر، ${summary.failed} فشل'),
+          backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
+        ),
+      );
+    }
+  }
+
   Widget _notice() {
     return Card(
       color: AppColors.warning.withOpacity(0.08),
@@ -194,7 +355,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'هذه الشاشة تثبت هيكل مركز الأرشيف. معالجة الملفات الفعلية والدفعات وقواعد الكشف عن التكرار ستُنفذ في المراحل التالية وفق الخطة.',
+                'يمكنك الآن إنشاء دفعات وإضافة ملفات إليها. الربط والتصنيف والاعتماد النهائي ستُستكمل في المراحل التالية وفق الخطة.',
               ),
             ),
           ],
