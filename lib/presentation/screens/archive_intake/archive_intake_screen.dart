@@ -460,9 +460,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   Widget _archiveCurrentPathCard(_ArchiveWizardSelection s) {
     final summary = _archiveSummary(s);
     final color = s.isRunning ? AppColors.success : AppColors.primaryNavy;
-    final effect = s.isRunning
-        ? 'هذا المسار سيُدخل ملفاً حياً: المواعيد القادمة ستظهر في مكتب العمل والتقويم.'
-        : 'هذا المسار للحفظ والبحث فقط: لن تظهر مواعيده ضمن العمل القادم.';
+    final effect = s.archiveStatus == null
+        ? 'حدد هل الأرشيف جارٍ أو منتهٍ حتى يعرف النظام أثر الملف على مكتب العمل.'
+        : s.isRunning
+            ? 'هذا المسار سيُدخل ملفاً حياً: المواعيد القادمة ستظهر في مكتب العمل والتقويم.'
+            : 'هذا المسار للحفظ والبحث فقط: لن تظهر مواعيده ضمن العمل القادم.';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -472,7 +474,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Icon(s.isRunning ? Icons.route : Icons.inventory_2, color: color),
+          Icon(s.archiveStatus == null ? Icons.help_outline : (s.isRunning ? Icons.route : Icons.inventory_2), color: color),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -763,7 +765,17 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   String _archiveSummary(_ArchiveWizardSelection s) {
-    final parts = <String>[s.isRunning ? 'جارٍ' : 'منتهٍ', _archiveFileKindOptions[s.fileKind] ?? s.fileKind ?? '', if (s.caseType != null) s.caseType!, if (s.courtLevel != null) s.courtLevel!, if (s.companyGroup != null) s.companyGroup!, if (s.companyType != null) s.companyType!, if (s.procedureType != null) s.procedureType!, if (s.contractType != null) s.contractType!, if (s.poaType != null) s.poaType!].where((p) => p.trim().isNotEmpty).toList();
+    final parts = <String>[
+      if (s.archiveStatus != null) (s.isRunning ? 'جارٍ' : 'منتهٍ'),
+      _archiveFileKindOptions[s.fileKind] ?? s.fileKind ?? '',
+      if (s.caseType != null) s.caseType!,
+      if (s.courtLevel != null) s.courtLevel!,
+      if (s.companyGroup != null) s.companyGroup!,
+      if (s.companyType != null) s.companyType!,
+      if (s.procedureType != null) s.procedureType!,
+      if (s.contractType != null) s.contractType!,
+      if (s.poaType != null) s.poaType!,
+    ].where((p) => p.trim().isNotEmpty).toList();
     return parts.join(' > ');
   }
 
