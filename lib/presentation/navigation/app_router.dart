@@ -9,7 +9,7 @@ import '../screens/agenda/agenda_screen.dart';
 import '../screens/cases/case_detail_screen.dart';
 import '../screens/cases/cases_screen.dart';
 import '../screens/cases/create_case_wizard.dart';
-import '../screens/dashboard/today_dashboard_screen.dart';
+import '../screens/work_center/daily_work_center_screen.dart';
 import '../screens/documents/documents_screen.dart';
 import '../screens/documents/document_viewer.dart';
 import '../screens/files/files_screen.dart';
@@ -72,7 +72,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => MainShellScreen(child: child),
         routes: [
-          GoRoute(path: '/today', name: 'today', builder: (_, __) => const TodayDashboardScreen()),
+          GoRoute(path: '/today', name: 'today', builder: (_, __) => const DailyWorkCenterScreen()),
           GoRoute(path: '/agenda', name: 'agenda', builder: (_, __) => const AgendaScreen()),
           GoRoute(path: '/new-work', name: 'new-work', builder: (_, __) => const NewWorkScreen()),
           GoRoute(path: '/files', name: 'files', builder: (_, __) => const FilesScreen()),
