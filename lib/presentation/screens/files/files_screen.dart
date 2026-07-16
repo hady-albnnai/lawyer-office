@@ -97,6 +97,15 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     super.initState();
     _statusFilter = widget.initialStatus == 'completed' ? 'completed' : 'active';
   }
+
+  @override
+  void didUpdateWidget(covariant FilesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.initialStatus == 'completed' ? 'completed' : 'active';
+    if (oldWidget.initialStatus != widget.initialStatus && _statusFilter != next) {
+      _statusFilter = next;
+    }
+  }
   FileType? _typeFilter;
   String? _subCategoryFilter;
   String _query = '';
@@ -123,6 +132,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           title: const Text('ملفات المكتب'),
           actions: [
             IconButton(icon: const Icon(Icons.search), onPressed: () => context.go('/search-reports'), tooltip: 'بحث'),
+            if (ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeView))
+              IconButton(icon: const Icon(Icons.archive_outlined), onPressed: () => context.go('/archive-intake'), tooltip: 'إدخال الأرشيف القديم'),
             if (canCreate)
               IconButton(icon: const Icon(Icons.add), onPressed: () => context.go('/new-work'), tooltip: 'جديد'),
           ],
