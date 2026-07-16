@@ -43,6 +43,7 @@ class MainShellScreen extends ConsumerWidget {
     '/tasks',
     '/printing',
     '/archive',
+    '/archive-intake',
   };
 
   @override

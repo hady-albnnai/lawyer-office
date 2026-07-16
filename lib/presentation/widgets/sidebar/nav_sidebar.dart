@@ -329,11 +329,6 @@ List<SidebarItemModel> getDefaultSidebarItems() {
         SidebarItemModel(id: 'of_active', label: 'الملفات الجارية', icon: Icons.pending_actions, route: '/files?status=active'),
         SidebarItemModel(id: 'of_completed', label: 'الملفات المنتهية', icon: Icons.inventory_2_outlined, route: '/files?status=completed'),
         SidebarItemModel(id: 'of_archive_intake', label: 'إدخال الأرشيف القديم', icon: Icons.archive_outlined, route: '/archive-intake'),
-        SidebarItemModel(id: 'of_cases', label: 'الدعاوى', icon: Icons.gavel, route: '/cases'),
-        SidebarItemModel(id: 'of_procedures', label: 'الإجراءات والمعاملات', icon: Icons.assignment, route: '/procedures'),
-        SidebarItemModel(id: 'of_contracts', label: 'العقود', icon: Icons.description, route: '/contracts'),
-        SidebarItemModel(id: 'of_companies', label: 'الشركات', icon: Icons.business, route: '/companies'),
-        SidebarItemModel(id: 'of_poa', label: 'الوكالات', icon: Icons.verified_user_outlined, route: '/poa'),
       ],
     ),
     const SidebarItemModel(
