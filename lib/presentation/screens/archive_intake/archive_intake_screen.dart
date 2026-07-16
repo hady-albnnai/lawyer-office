@@ -579,7 +579,23 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('سيتم فتح شاشة الإدخال الرسمية. الاختيار: ${_archiveSummary(s)}'), backgroundColor: AppColors.success));
-    context.go(route);
+    context.go(_routeWithArchiveQuery(route, s));
+  }
+
+  String _routeWithArchiveQuery(String route, _ArchiveWizardSelection s) {
+    final uri = Uri(path: route, queryParameters: {
+      'archiveStatus': s.archiveStatus ?? '',
+      'archiveKind': s.fileKind ?? '',
+      'archiveSummary': _archiveSummary(s),
+      if (s.caseType != null) 'caseType': s.caseType!,
+      if (s.courtLevel != null) 'courtLevel': s.courtLevel!,
+      if (s.companyGroup != null) 'companyGroup': s.companyGroup!,
+      if (s.companyType != null) 'companyType': s.companyType!,
+      if (s.procedureType != null) 'procedureType': s.procedureType!,
+      if (s.contractType != null) 'contractType': s.contractType!,
+      if (s.poaType != null) 'poaType': s.poaType!,
+    });
+    return uri.toString();
   }
 
   String? _permissionForArchiveKind(String kind) {

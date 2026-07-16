@@ -10,11 +10,13 @@ import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
+import '../../widgets/archive_context_banner.dart';
 import 'contract_detail_screen.dart';
 
 /// شاشة تنظيم وإبرام عقد جديد أو رفع عقد سابق للتحرير والربط (CreateContractScreen V6.2)
 class CreateContractScreen extends ConsumerStatefulWidget {
-  const CreateContractScreen({super.key});
+  final ArchiveEntryContext? archiveContext;
+  const CreateContractScreen({super.key, this.archiveContext});
 
   @override
   ConsumerState<CreateContractScreen> createState() => _CreateContractScreenState();
@@ -55,6 +57,20 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final archive = widget.archiveContext;
+    if (archive != null) {
+      if ((archive.contractType ?? '').isNotEmpty) {
+        _contractType = archive.contractType!;
+        if (!_types.contains(_contractType)) _types.add(_contractType);
+      }
+      _titleController.text = archive.isClosed ? 'أرشفة عقد منتهٍ - $_contractType' : 'إدخال عقد جارٍ - $_contractType';
+      if (archive.isClosed) _needsFollowup = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final personsAsync = ref.watch(allPersonsProvider(null));
 
@@ -71,6 +87,7 @@ class _CreateContractScreenState extends ConsumerState<CreateContractScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                ArchiveContextBanner(contextInfo: widget.archiveContext),
                 const Text('1. تصنيف العقد والعنوان:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
                 const SizedBox(height: 12),
                 Row(

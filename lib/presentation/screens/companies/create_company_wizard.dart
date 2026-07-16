@@ -7,11 +7,13 @@ import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
+import '../../widgets/archive_context_banner.dart';
 import 'company_detail_screen.dart';
 
 /// معالج تأسيس شركة جديدة أو أرشفة شركة قائمة (CreateCompanyWizard V6.2)
 class CreateCompanyWizard extends ConsumerStatefulWidget {
-  const CreateCompanyWizard({super.key});
+  final ArchiveEntryContext? archiveContext;
+  const CreateCompanyWizard({super.key, this.archiveContext});
 
   @override
   ConsumerState<CreateCompanyWizard> createState() => _CreateCompanyWizardState();
@@ -60,12 +62,32 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final archive = widget.archiveContext;
+    if (archive != null) {
+      _isNewEstablishment = false;
+      if ((archive.companyType ?? '').isNotEmpty) {
+        _companyType = archive.companyType!;
+        if (!_companyTypes.contains(_companyType)) _companyTypes.add(_companyType);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('معالج تأسيس شركة تجارية أو أرشفة شركة قائمة (V6.2)'),
       ),
-      body: Stepper(
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: ArchiveContextBanner(contextInfo: widget.archiveContext),
+          ),
+          Expanded(
+            child: Stepper(
         currentStep: _currentStep,
         onStepContinue: _onContinue,
         onStepCancel: _onCancel,
@@ -126,6 +148,9 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
             isActive: _currentStep >= 4,
             state: _currentStep == 4 ? StepState.editing : StepState.indexed,
             content: _buildDirectorsStep(),
+          ),
+        ],
+            ),
           ),
         ],
       ),

@@ -40,6 +40,7 @@ import '../screens/reports/legal_printing_screen.dart';
 import '../screens/archive/archive_screen.dart';
 import '../screens/archive_intake/archive_intake_screen.dart';
 import '../screens/auth/login_screen.dart';
+import '../widgets/archive_context_banner.dart';
 
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -100,14 +101,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // Detail Routes inside ShellRoute
           GoRoute(path: '/persons/:personId', name: 'person-detail', builder: (_, state) => PersonDetailScreen(personId: state.pathParameters['personId'] ?? '')),
           GoRoute(path: '/poa/:agencyId', name: 'poa-detail', builder: (_, state) => PoaDetailScreen(agencyId: state.pathParameters['agencyId'] ?? '')),
-          GoRoute(path: '/cases/create', name: 'case-create', builder: (_, __) => const CreateCaseWizard()),
+          GoRoute(path: '/cases/create', name: 'case-create', builder: (_, state) => CreateCaseWizard(archiveContext: ArchiveEntryContext.fromQuery(state.uri.queryParameters))),
           GoRoute(path: '/cases/:caseId', name: 'case-detail', builder: (_, state) { final caseId = int.tryParse(state.pathParameters['caseId'] ?? '0') ?? 0; return CaseDetailScreen(caseId: caseId); }),
-          GoRoute(path: '/companies/create', name: 'company-create', builder: (_, __) => const CreateCompanyWizard()),
+          GoRoute(path: '/companies/create', name: 'company-create', builder: (_, state) => CreateCompanyWizard(archiveContext: ArchiveEntryContext.fromQuery(state.uri.queryParameters))),
           GoRoute(path: '/companies/:companyId', name: 'company-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['companyId'] ?? '0') ?? 0; return CompanyDetailScreen(companyId: id); }),
           GoRoute(path: '/contracts/templates', redirect: (_, __) => '/templates'),
-          GoRoute(path: '/contracts/create', name: 'contract-create', builder: (_, __) => const CreateContractScreen()),
+          GoRoute(path: '/contracts/create', name: 'contract-create', builder: (_, state) => CreateContractScreen(archiveContext: ArchiveEntryContext.fromQuery(state.uri.queryParameters))),
           GoRoute(path: '/contracts/:contractId', name: 'contract-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['contractId'] ?? '0') ?? 0; return ContractDetailScreen(contractId: id); }),
-          GoRoute(path: '/procedures/create', name: 'procedure-create', builder: (_, __) => const CreateProcedureScreen()),
+          GoRoute(path: '/procedures/create', name: 'procedure-create', builder: (_, state) => CreateProcedureScreen(archiveContext: ArchiveEntryContext.fromQuery(state.uri.queryParameters))),
           GoRoute(path: '/procedures/:procedureId', name: 'procedure-detail', builder: (_, state) { final id = int.tryParse(state.pathParameters['procedureId'] ?? '0') ?? 0; return ProcedureDetailScreen(procedureId: id); }),
 
         ],

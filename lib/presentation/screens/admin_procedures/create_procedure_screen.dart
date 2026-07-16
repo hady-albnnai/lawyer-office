@@ -7,11 +7,13 @@ import '../../../core/constants/app_constants.dart';
 import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
+import '../../widgets/archive_context_banner.dart';
 import 'procedure_detail_screen.dart';
 
 /// شاشة تسجيل معاملة وإجراء إداري جديد مع توليد الـ Checklist التلقائي (CreateProcedureScreen V6.2)
 class CreateProcedureScreen extends ConsumerStatefulWidget {
-  const CreateProcedureScreen({super.key});
+  final ArchiveEntryContext? archiveContext;
+  const CreateProcedureScreen({super.key, this.archiveContext});
 
   @override
   ConsumerState<CreateProcedureScreen> createState() => _CreateProcedureScreenState();
@@ -42,6 +44,17 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
   void initState() {
     super.initState();
     _titleController.text = 'معاملة حصر إرث وتصحيح قيد';
+    final archive = widget.archiveContext;
+    if (archive != null && (archive.procedureType ?? '').isNotEmpty) {
+      final type = archive.procedureType!;
+      if (!_subTypesMap.containsKey(type)) {
+        _subTypesMap[type] = [type];
+      }
+      _category = type;
+      _subType = _subTypesMap[type]!.first;
+      _titleController.text = archive.isClosed ? 'أرشفة إجراء منتهٍ - $type' : 'إدخال إجراء جارٍ - $type';
+      if (archive.isClosed) _nextDate = null;
+    }
   }
 
   @override
@@ -61,6 +74,7 @@ class _CreateProcedureScreenState extends ConsumerState<CreateProcedureScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                ArchiveContextBanner(contextInfo: widget.archiveContext),
                 const Text('1. تصنيف الإجراء والنوع الفرعي:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppConstants.primaryNavy)),
                 const SizedBox(height: 12),
                 Row(

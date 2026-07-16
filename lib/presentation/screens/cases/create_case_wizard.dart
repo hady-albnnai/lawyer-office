@@ -20,11 +20,13 @@ import '../../providers/auth_providers.dart';
 import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../widgets/archive_context_banner.dart';
 import 'case_models.dart';
 
 /// معالج إنشاء دعوى جديدة
 class CreateCaseWizard extends ConsumerStatefulWidget {
-  const CreateCaseWizard({super.key});
+  final ArchiveEntryContext? archiveContext;
+  const CreateCaseWizard({super.key, this.archiveContext});
 
   @override
   ConsumerState<CreateCaseWizard> createState() => _CreateCaseWizardState();
@@ -113,6 +115,33 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final archive = widget.archiveContext;
+    if (archive != null) {
+      final caseType = archive.caseType ?? '';
+      if (caseType.contains('جزائ')) _caseType = CaseType.criminal;
+      if (caseType.contains('تجار')) _caseType = CaseType.commercial;
+      if (caseType.contains('شرع')) _caseType = CaseType.personalStatus;
+      if (caseType.contains('إدار') || caseType.contains('ادار')) _caseType = CaseType.administrative;
+      if ((archive.courtLevel ?? '').isNotEmpty && !_caseSubTypes.contains(archive.courtLevel)) {
+        _caseSubTypes.add(archive.courtLevel!);
+      }
+      if ((archive.courtLevel ?? '').isNotEmpty && !_courtNames.contains(archive.courtLevel)) {
+        _courtNames.add(archive.courtLevel!);
+      }
+      if ((archive.courtLevel ?? '').isNotEmpty) {
+        _caseSubType = archive.courtLevel!;
+        _selectedCourtId = _courtNames.indexOf(archive.courtLevel!) + 1;
+      }
+      if (archive.isClosed) {
+        _nextSessionDate = null;
+        _nextActionController.text = 'ملف أرشيف منتهٍ - لا يوجد موعد قادم';
+      }
+    }
+  }
+
+  @override
   void dispose() {    // notaryController.dispose();
     // numberController.dispose();
     // phoneController.dispose();
@@ -154,6 +183,10 @@ class _CreateCaseWizardState extends ConsumerState<CreateCaseWizard> {
           children: [
             // شريط التقدم
             _buildProgressBar(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: ArchiveContextBanner(contextInfo: widget.archiveContext),
+            ),
             
             // المحتوى
             Padding(
