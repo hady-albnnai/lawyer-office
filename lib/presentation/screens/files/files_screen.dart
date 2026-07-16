@@ -37,6 +37,7 @@ class FileItem {
   final String fileNumber;
   final String title;
   final String court;
+  final String subCategory;
   final FileType type;
   final FileStatus status;
   final bool hasDeficiencies;
@@ -57,6 +58,7 @@ class FileItem {
     required this.title,
     required this.type,
     required this.court,
+    this.subCategory = '',
     required this.status,
     this.hasDeficiencies = false,
     this.deficiencyCount = 0,
@@ -90,6 +92,7 @@ class FilesScreen extends ConsumerStatefulWidget {
 class _FilesScreenState extends ConsumerState<FilesScreen> {
   String _statusFilter = 'active';
   FileType? _typeFilter;
+  String? _subCategoryFilter;
   String _query = '';
 
   @override
@@ -104,7 +107,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       PermissionKeys.poaCreate,
       PermissionKeys.documentsUpload,
     ]);
-    final files = _filteredFiles(ref.watch(filesProvider));
+    final allFiles = ref.watch(filesProvider);
+    final files = _filteredFiles(allFiles);
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -120,8 +124,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildFilters(),
-            _buildSummary(ref.watch(filesProvider), files),
+            _buildFilters(allFiles),
+            _buildSummary(allFiles, files),
             Expanded(child: _buildOfficeFilesList(files)),
           ],
         ),
@@ -148,17 +152,28 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         _ => true,
       };
       final typeOk = _typeFilter == null || file.type == _typeFilter;
+      final subCategoryOk = _subCategoryFilter == null || file.subCategory == _subCategoryFilter;
       final queryOk = q.isEmpty ||
           file.fileNumber.toLowerCase().contains(q) ||
           file.title.toLowerCase().contains(q) ||
           file.court.toLowerCase().contains(q) ||
           (file.baseNumber ?? '').toLowerCase().contains(q);
-      return statusOk && typeOk && queryOk;
+      return statusOk && typeOk && subCategoryOk && queryOk;
     }).toList()
       ..sort((a, b) => (a.nextSessionDate ?? DateTime(9999)).compareTo(b.nextSessionDate ?? DateTime(9999)));
   }
 
-  Widget _buildFilters() {
+  Widget _buildFilters(List<FileItem> allFiles) {
+    final subCategories = allFiles
+        .where((f) => _typeFilter == null || f.type == _typeFilter)
+        .map((f) => f.subCategory)
+        .where((s) => s.trim().isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    if (_subCategoryFilter != null && !subCategories.contains(_subCategoryFilter)) {
+      _subCategoryFilter = null;
+    }
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -186,7 +201,19 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                   const DropdownMenuItem<FileType?>(value: null, child: Text('كل الأنواع')),
                   ...FileType.values.map((type) => DropdownMenuItem<FileType?>(value: type, child: Text(type.displayName))),
                 ],
-                onChanged: (value) => setState(() => _typeFilter = value),
+                onChanged: (value) => setState(() {
+                  _typeFilter = value;
+                  _subCategoryFilter = null;
+                }),
+              ),
+              const SizedBox(width: 12),
+              DropdownButton<String?>(
+                value: _subCategoryFilter,
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('كل التصنيفات')),
+                  ...subCategories.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c))),
+                ],
+                onChanged: (value) => setState(() => _subCategoryFilter = value),
               ),
             ],
           ),
@@ -413,6 +440,10 @@ class FileCard extends StatelessWidget {
                     ),
                   ),
                   _tag(file.type.displayName, AppColors.primaryNavy),
+                  if (file.subCategory.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    _tag(file.subCategory, AppColors.info),
+                  ],
                   const SizedBox(width: 8),
                   _tag(file.status.displayName, file.statusColor),
                 ],
