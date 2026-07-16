@@ -438,6 +438,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _documentsHint(context, ref, selection),
             ],
+            if (selection.archiveStatus != null || selection.fileKind != null) ...[
+              const SizedBox(height: 16),
+              _archiveCurrentPathCard(selection),
+            ],
             const SizedBox(height: 18),
             Align(
               alignment: Alignment.centerLeft,
@@ -449,6 +453,38 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _archiveCurrentPathCard(_ArchiveWizardSelection s) {
+    final summary = _archiveSummary(s);
+    final color = s.isRunning ? AppColors.success : AppColors.primaryNavy;
+    final effect = s.isRunning
+        ? 'هذا المسار سيُدخل ملفاً حياً: المواعيد القادمة ستظهر في مكتب العمل والتقويم.'
+        : 'هذا المسار للحفظ والبحث فقط: لن تظهر مواعيده ضمن العمل القادم.';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(s.isRunning ? Icons.route : Icons.inventory_2, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(summary.isEmpty ? 'لم يكتمل مسار الأرشيف بعد' : summary, style: AppTextStyles.labelLarge.copyWith(color: color, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(effect, style: AppTextStyles.bodySmallSecondary),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
