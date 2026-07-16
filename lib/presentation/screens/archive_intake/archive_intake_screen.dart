@@ -130,6 +130,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   },
                 ),
                 const SizedBox(height: 24),
+                _sectionTitle('قوالب الاستيراد'),
+                const SizedBox(height: 12),
+                _importTemplatesPanel(context, ref),
+                const SizedBox(height: 24),
                 _sectionTitle('مراجعة الأرشيف'),
                 const SizedBox(height: 12),
                 Wrap(
