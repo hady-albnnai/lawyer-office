@@ -158,6 +158,24 @@ ui_doc.FileType _mapFileType(String? raw) {
   }
 }
 
+String _paperArchiveLocation(String? notes, int physicalLocation) {
+  final raw = notes ?? '';
+  if (raw.contains('مكان الأصل:')) {
+    final line = raw.split('\n').firstWhere(
+          (item) => item.startsWith('مكان الأصل:'),
+          orElse: () => '',
+        );
+    final value = line.replaceFirst('مكان الأصل:', '').trim();
+    if (value.isNotEmpty) return value;
+  }
+  return physicalLocation == 0 ? 'مكتب المحامي' : 'خارج المكتب';
+}
+
+bool _isPaperOriginalMissing(String? notes, int status) {
+  final raw = notes ?? '';
+  return status != 0 || raw.contains('الأصل الورقي محفوظ: لا');
+}
+
 final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) async {
   await ref.watch(coreDataBootstrapProvider.future);
   final repo = ref.watch(documentRepositoryProvider);
@@ -172,6 +190,7 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
     final link = byDoc[d.id];
     final entityType = link?.entityType ?? 0;
     final entityId = link?.entityId ?? 0;
+    final originalMissing = _isPaperOriginalMissing(d.notes, d.status);
     return ui_doc.DocumentItem(
       id: '${d.id}',
       title: d.docName,
@@ -185,8 +204,9 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
       fileType: _mapFileType(d.fileType),
       uploadDate: d.dateAdded,
       uploadedBy: 'المكتب',
-      physicalLocation: d.physicalLocation == 0 ? 'مكتب المحامي' : 'خارج المكتب',
-      isMissingOriginal: d.status != 0,
+      physicalLocation: _paperArchiveLocation(d.notes, d.physicalLocation),
+      hasOriginal: !originalMissing,
+      isMissingOriginal: originalMissing,
       notes: d.notes ?? '',
     );
   }).toList();
