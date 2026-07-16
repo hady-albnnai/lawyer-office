@@ -101,7 +101,7 @@ class FilesScreen extends ConsumerWidget {
         length: 8,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('الملفات'),
+            title: const Text('ملفات المكتب'),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(48),
               child: Container(
@@ -117,12 +117,12 @@ class FilesScreen extends ConsumerWidget {
                   unselectedLabelStyle: AppTextStyles.labelMedium,
                   tabs: const [
                     Tab(text: 'الكل'),
-                    Tab(text: 'عاملة'),
+                    Tab(text: 'جارية'),
                     Tab(text: 'ناقصة'),
                     Tab(text: 'متأخرة'),
                     Tab(text: 'منتهية'),
                     Tab(text: 'جلسة قريب'),
-                    Tab(text: 'بانتظار رقم أساس'),
+                    Tab(text: 'بانتظار رقم/قيد'),
                     Tab(text: 'بانتظار مستند'),
                   ],
                 ),
@@ -178,7 +178,7 @@ class ActiveFilesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => _buildList(
         ref.watch(filesProvider).where((file) => file.status == FileStatus.active).toList(),
         context,
-        'لا يوجد ملفات تعمل',
+        'لا يوجد ملفات جارية',
       );
 }
 
@@ -281,7 +281,7 @@ class FileCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () => _showMsg(context, 'فتح الملف: ${file.fileNumber}'),
+        onTap: () => _openFile(context),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -328,6 +328,26 @@ class FileCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _openFile(BuildContext context) {
+    switch (file.type) {
+      case FileType.caseFile:
+        context.go('/cases/${file.id}');
+        return;
+      case FileType.contract:
+        context.go('/contracts/${file.id}');
+        return;
+      case FileType.company:
+        context.go('/companies/${file.id}');
+        return;
+      case FileType.adminProcedure:
+        context.go('/procedures/${file.id}');
+        return;
+      case FileType.agency:
+        context.go('/poa/${file.id}');
+        return;
+    }
   }
 
   Widget _line(IconData icon, String text) {

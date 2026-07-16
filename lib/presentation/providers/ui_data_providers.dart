@@ -197,15 +197,18 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
 // =============================================================================
 
 final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
-  final cases = await ref.watch(uiCasesProvider.future);
+  await ref.watch(coreDataBootstrapProvider.future);
   final docs = await ref.watch(uiDocumentsProvider.future);
-  return cases.map((c) {
-    final relatedDocs = docs.where((d) => d.entityId == c.id).toList();
+  final result = <ui_files.FileItem>[];
+
+  final cases = await ref.watch(uiCasesProvider.future);
+  for (final c in cases) {
+    final relatedDocs = docs.where((d) => d.entityType == 'case' && d.entityId == c.id).toList();
     final next = c.nextSession?.sessionDate ?? c.sessions.where((s) => s.sessionDate.isAfter(DateTime.now())).map((s) => s.sessionDate).fold<DateTime?>(null, (a, b) => a == null || b.isBefore(a) ? b : a);
     final hasBase = (c.baseNumber ?? '').isNotEmpty;
     final deficient = c.openDeficienciesCount > 0 || !hasBase;
     final overdue = next != null && next.isBefore(DateTime.now());
-    return ui_files.FileItem(
+    result.add(ui_files.FileItem(
       id: c.id,
       fileNumber: c.caseNumber,
       title: c.title,
@@ -223,8 +226,92 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
       documentCount: relatedDocs.length,
       documentIds: relatedDocs.map((d) => d.id).toList(),
       hasMissingDocuments: relatedDocs.any((d) => d.isMissingOriginal),
-    );
-  }).toList();
+    ));
+  }
+
+  final contracts = await ref.watch(allContractsProvider.future);
+  for (final c in contracts) {
+    final end = c.dateEnd;
+    final isCompleted = c.status != 'active' || (end != null && end.isBefore(DateTime.now()));
+    result.add(ui_files.FileItem(
+      id: '${c.id}',
+      fileNumber: c.internalNumber,
+      title: c.title,
+      type: ui_files.FileType.contract,
+      court: c.contractType,
+      status: isCompleted ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      nextSessionDate: c.needsFollowup ? end : null,
+      hasBaseNumber: true,
+      isOverdue: end != null && end.isBefore(DateTime.now()) && !isCompleted,
+      createdAt: c.createdAt,
+      lastUpdated: c.updatedAt,
+    ));
+  }
+
+  final companies = await ref.watch(allCompaniesProvider.future);
+  for (final c in companies) {
+    final completed = c.isArchived || c.legalStatus == 'dissolved';
+    final deficient = (c.registrationNumber ?? '').isEmpty && !completed;
+    result.add(ui_files.FileItem(
+      id: '${c.id}',
+      fileNumber: c.internalNumber,
+      title: c.name,
+      type: ui_files.FileType.company,
+      court: c.companyType,
+      status: completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      hasDeficiencies: deficient,
+      deficiencyCount: deficient ? 1 : 0,
+      hasBaseNumber: (c.registrationNumber ?? '').isNotEmpty,
+      baseNumber: c.registrationNumber,
+      createdAt: c.createdAt,
+      lastUpdated: c.createdAt,
+      hasMissingDocuments: deficient,
+    ));
+  }
+
+  final procedures = await ref.watch(allProceduresProvider.future);
+  for (final p in procedures) {
+    final completed = p.status == 2;
+    final next = p.nextDate;
+    result.add(ui_files.FileItem(
+      id: '${p.id}',
+      fileNumber: p.internalNumber,
+      title: p.title,
+      type: ui_files.FileType.adminProcedure,
+      court: p.department ?? p.procedureType,
+      status: completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      nextSessionDate: next,
+      hasBaseNumber: (p.transactionNumber ?? '').isNotEmpty,
+      baseNumber: p.transactionNumber,
+      isOverdue: next != null && next.isBefore(DateTime.now()) && !completed,
+      createdAt: p.createdAt,
+      lastUpdated: p.createdAt,
+    ));
+  }
+
+  final directory = await ref.watch(uiPersonsDirectoryProvider.future);
+  for (final a in directory.agencies) {
+    final completed = a.isExpired;
+    result.add(ui_files.FileItem(
+      id: a.id,
+      fileNumber: a.number,
+      title: 'وكالة ${a.type.displayName} — ${directory.personById(a.principalPersonId)?.fullName ?? 'غير محدد'}',
+      type: ui_files.FileType.agency,
+      court: '${a.source.displayName} - ${a.branch}',
+      status: completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      nextSessionDate: a.expiresAt,
+      hasBaseNumber: a.number.isNotEmpty,
+      baseNumber: a.number,
+      hasMissingDocuments: !a.hasDocument,
+      createdAt: a.issuedAt,
+      lastUpdated: a.issuedAt,
+      documentCount: a.hasDocument ? 1 : 0,
+      documentIds: a.hasDocument ? [a.documentId] : const [],
+    ));
+  }
+
+  result.sort((a, b) => (a.nextSessionDate ?? DateTime(9999)).compareTo(b.nextSessionDate ?? DateTime(9999)));
+  return result;
 });
 
 // =============================================================================
