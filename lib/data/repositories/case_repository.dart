@@ -123,6 +123,8 @@ class CaseRepository {
             sessionDate: finalCompanion.nextSessionDate.value!,
             sessionType: const Value('مرافعة أولى'),
             status: const Value(0),
+            nextSessionDate: Value(finalCompanion.nextSessionDate.value!),
+            nextAction: const Value('مرافعة أولى / متابعة ملف جارٍ'),
           ),
           caseTitle: '$internalNum - ${finalCompanion.subject.value ?? ""}',
           userRef: userRef,
