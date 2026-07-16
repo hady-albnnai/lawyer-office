@@ -329,7 +329,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   Widget _buildSummary(List<FileItem> all, List<FileItem> filtered) {
     final active = all.where((f) => f.status == FileStatus.active).length;
     final completed = all.where((f) => f.status == FileStatus.completed || f.status == FileStatus.archived).length;
-    final needs = all.where((f) => f.hasDeficiencies || f.hasMissingDocuments || !f.hasBaseNumber).length;
+    final needs = all.where((f) => f.status == FileStatus.active && (f.hasDeficiencies || f.hasMissingDocuments || !f.hasBaseNumber)).length;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       color: Colors.white,
@@ -575,11 +575,12 @@ class FileCard extends StatelessWidget {
               if (file.type == FileType.caseFile && file.court.isNotEmpty) _line(Icons.balance, file.court),
               if (file.hasBaseNumber && file.baseNumber != null)
                 _line(Icons.confirmation_number, 'رقم الأساس: ${file.baseNumber}')
-              else
+              else if (file.status == FileStatus.active)
                 _tagLine('بانتظار رقم أساس', AppColors.warning),
-              if (file.nextSessionDate != null) _line(Icons.calendar_today, 'الجلسة: ${_formatDate(file.nextSessionDate!)}'),
-              if (file.hasDeficiencies) _tagLine('نواقص: ${file.deficiencyCount}', AppColors.error),
-              if (file.hasMissingDocuments) _tagLine('مستندات ناقصة', AppColors.warning),
+              if (file.nextSessionDate != null) _line(Icons.calendar_today, 'الموعد القادم: ${_formatDate(file.nextSessionDate!)}'),
+              if (file.status == FileStatus.active && file.hasDeficiencies) _tagLine('نواقص: ${file.deficiencyCount}', AppColors.error),
+              if (file.status == FileStatus.active && file.hasMissingDocuments) _tagLine('مستندات ناقصة', AppColors.warning),
+              if (file.status != FileStatus.active) _tagLine('ملف محفوظ للأرشيف والبحث فقط', AppColors.textSecondary),
               const SizedBox(height: 8),
               Row(
                 children: [
