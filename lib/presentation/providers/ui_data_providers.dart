@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/enums/app_enums.dart';
 import '../../data/database/database.dart' as db;
 import '../screens/cases/case_models.dart' as ui_case;
 import '../screens/documents/document_models.dart' as ui_doc;
@@ -183,6 +184,25 @@ bool _isPaperOriginalMissing(String? notes, int status) {
   return status != 0 || raw.contains('الأصل الورقي محفوظ: لا');
 }
 
+String _documentEntityKey(int entityType) {
+  if (entityType == EntityType.contract.index) return 'contract';
+  if (entityType == EntityType.company.index) return 'company';
+  if (entityType == EntityType.adminProcedure.index) return 'adminProcedure';
+  if (entityType == EntityType.person.index) return 'person';
+  if (entityType == EntityType.powerOfAttorney.index) return 'poa';
+  return 'case';
+}
+
+String _documentEntityTitle(int entityType, int entityId) {
+  if (entityType == EntityType.contract.index) return 'عقد #$entityId';
+  if (entityType == EntityType.company.index) return 'شركة #$entityId';
+  if (entityType == EntityType.adminProcedure.index) return 'إجراء #$entityId';
+  if (entityType == EntityType.person.index) return 'شخص / جهة #$entityId';
+  if (entityType == EntityType.powerOfAttorney.index) return 'وكالة #$entityId';
+  if (entityType == 99) return 'أرشيف غير مصنف';
+  return 'دعوى #$entityId';
+}
+
 final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) async {
   await ref.watch(coreDataBootstrapProvider.future);
   final repo = ref.watch(documentRepositoryProvider);
@@ -202,9 +222,9 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
       id: '${d.id}',
       title: d.docName,
       documentType: _mapDocType(d.docType),
-      entityType: entityType == 1 ? 'contract' : 'case',
+      entityType: _documentEntityKey(entityType),
       entityId: '$entityId',
-      entityTitle: entityType == 1 ? 'عقد #$entityId' : 'دعوى #$entityId',
+      entityTitle: _documentEntityTitle(entityType, entityId),
       filePath: d.filePath ?? '',
       fileName: d.filePath?.split('/').last ?? '${d.docName}.pdf',
       fileSize: 0,
@@ -259,6 +279,7 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
 
   final contracts = await ref.watch(allContractsProvider.future);
   for (final c in contracts) {
+    final relatedDocs = docs.where((d) => d.entityType == 'contract' && d.entityId == '${c.id}').toList();
     final end = c.dateEnd;
     final isCompleted = c.status != 'active' || (end != null && end.isBefore(DateTime.now()));
     result.add(ui_files.FileItem(
@@ -274,12 +295,16 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
       isOverdue: end != null && end.isBefore(DateTime.now()) && !isCompleted,
       createdAt: c.createdAt,
       lastUpdated: c.updatedAt,
+      documentCount: relatedDocs.length,
+      documentIds: relatedDocs.map((d) => d.id).toList(),
+      hasMissingDocuments: relatedDocs.any((d) => d.isMissingOriginal),
     ));
   }
 
   final companies = await ref.watch(allCompaniesProvider.future);
   for (final c in companies) {
-    final completed = c.isArchived || c.legalStatus == 'dissolved';
+    final relatedDocs = docs.where((d) => d.entityType == 'company' && d.entityId == '${c.id}').toList();
+    final completed = c.isArchived || c.legalStatus == 'dissolved' || c.legalStatus == 'archived';
     final deficient = (c.registrationNumber ?? '').isEmpty && !completed;
     result.add(ui_files.FileItem(
       id: '${c.id}',
@@ -295,12 +320,15 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
       baseNumber: c.registrationNumber,
       createdAt: c.createdAt,
       lastUpdated: c.createdAt,
-      hasMissingDocuments: deficient,
+      documentCount: relatedDocs.length,
+      documentIds: relatedDocs.map((d) => d.id).toList(),
+      hasMissingDocuments: deficient || relatedDocs.any((d) => d.isMissingOriginal),
     ));
   }
 
   final procedures = await ref.watch(allProceduresProvider.future);
   for (final p in procedures) {
+    final relatedDocs = docs.where((d) => d.entityType == 'adminProcedure' && d.entityId == '${p.id}').toList();
     final completed = p.status == 2;
     final next = p.nextDate;
     result.add(ui_files.FileItem(
@@ -317,11 +345,15 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
       isOverdue: next != null && next.isBefore(DateTime.now()) && !completed,
       createdAt: p.createdAt,
       lastUpdated: p.createdAt,
+      documentCount: relatedDocs.length,
+      documentIds: relatedDocs.map((d) => d.id).toList(),
+      hasMissingDocuments: relatedDocs.any((d) => d.isMissingOriginal),
     ));
   }
 
   final directory = await ref.watch(uiPersonsDirectoryProvider.future);
   for (final a in directory.agencies) {
+    final relatedDocs = docs.where((d) => d.entityType == 'poa' && d.entityId == a.id).toList();
     final completed = a.isExpired || a.notes == 'archived' || a.scope.contains('أرشفة وكالة منتهية') || a.scope.contains('أرشيف منته');
     result.add(ui_files.FileItem(
       id: a.id,
@@ -334,11 +366,11 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
       nextSessionDate: a.expiresAt,
       hasBaseNumber: a.number.isNotEmpty,
       baseNumber: a.number,
-      hasMissingDocuments: !a.hasDocument,
+      hasMissingDocuments: !a.hasDocument || relatedDocs.any((d) => d.isMissingOriginal),
       createdAt: a.issuedAt,
       lastUpdated: a.issuedAt,
-      documentCount: a.hasDocument ? 1 : 0,
-      documentIds: a.hasDocument ? [a.documentId] : const [],
+      documentCount: relatedDocs.isNotEmpty ? relatedDocs.length : (a.hasDocument ? 1 : 0),
+      documentIds: relatedDocs.isNotEmpty ? relatedDocs.map((d) => d.id).toList() : (a.hasDocument ? [a.documentId] : const []),
     ));
   }
 
