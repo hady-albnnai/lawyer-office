@@ -232,7 +232,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               children: [
                 _introCard(),
                 const SizedBox(height: 16),
-                _archiveOverviewPanel(ref),
+                _archiveOverviewPanel(context, ref),
                 const SizedBox(height: 16),
                 _archiveGuidedEntryPanel(context, ref),
                 const SizedBox(height: 24),
@@ -347,7 +347,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold),
       );
 
-  Widget _archiveOverviewPanel(WidgetRef ref) {
+  Widget _archiveOverviewPanel(BuildContext context, WidgetRef ref) {
     return FutureBuilder<List<ArchiveBatchRecord>>(
       future: ref.watch(archiveIntakeRepositoryProvider).getBatches(),
       builder: (context, snapshot) {
@@ -367,35 +367,40 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             _overviewMetric('الدفعات', batches.length, Icons.inventory_2, AppColors.primaryNavy),
             _overviewMetric('إجمالي الملفات', totalFiles, Icons.insert_drive_file, AppColors.info),
             _overviewMetric('معتمدة', approved, Icons.check_circle, AppColors.success),
-            _overviewMetric('تحتاج مراجعة', needsReview, Icons.rate_review, AppColors.warning),
-            _overviewMetric('مكررة', duplicates, Icons.copy_all, AppColors.info),
-            _overviewMetric('فاشلة', failed, Icons.error_outline, AppColors.error),
+            _overviewMetric('تحتاج مراجعة', needsReview, Icons.rate_review, AppColors.warning, onTap: needsReview > 0 ? () => _showUnclassifiedInbox(context, ref) : null),
+            _overviewMetric('مكررة', duplicates, Icons.copy_all, AppColors.info, onTap: duplicates > 0 ? () => _showDuplicates(context, ref) : null),
+            _overviewMetric('فاشلة', failed, Icons.error_outline, AppColors.error, onTap: failed > 0 ? () => _showQualityReport(context, ref) : null),
           ],
         );
       },
     );
   }
 
-  Widget _overviewMetric(String label, int value, IconData icon, Color color) {
+  Widget _overviewMetric(String label, int value, IconData icon, Color color, {VoidCallback? onTap}) {
     return SizedBox(
       width: 178,
       child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              CircleAvatar(radius: 18, backgroundColor: color.withOpacity(0.10), child: Icon(icon, color: color, size: 18)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: AppTextStyles.bodySmallSecondary, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text('$value', style: AppTextStyles.numberText.copyWith(color: color)),
-                  ],
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                CircleAvatar(radius: 18, backgroundColor: color.withOpacity(0.10), child: Icon(icon, color: color, size: 18)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: AppTextStyles.bodySmallSecondary, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text('$value', style: AppTextStyles.numberText.copyWith(color: color)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                if (onTap != null) Icon(Icons.arrow_forward_ios, size: 14, color: color),
+              ],
+            ),
           ),
         ),
       ),
