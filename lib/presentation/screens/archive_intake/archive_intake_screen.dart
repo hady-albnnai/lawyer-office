@@ -2114,7 +2114,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final result = await fp.FilePicker.platform.pickFiles(type: fp.FileType.custom, allowedExtensions: const ['csv']);
     final pathValue = result?.files.single.path;
     if (pathValue == null) return;
-    final summary = await ref.read(archiveIntakeRepositoryProvider).importCsvRowsToBatch(batchId, File(pathValue));
+    final csvFile = File(pathValue);
+    final preview = await ref.read(archiveIntakeRepositoryProvider).previewCsvFile(csvFile);
+    if (!context.mounted) return;
+    final confirmed = await _confirmCsvImport(context, preview);
+    if (!confirmed) return;
+    final summary = await ref.read(archiveIntakeRepositoryProvider).importCsvRowsToBatch(batchId, csvFile);
     await ref.read(auditServiceProvider).log(action: 'import_csv', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'استيراد صفوف CSV إلى دفعة أرشيف للمراجعة الآمنة', after: {'imported': summary.imported, 'failed': summary.failed}, severity: 'info');
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
     if (context.mounted) {
@@ -2130,6 +2135,47 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  Future<bool> _confirmCsvImport(BuildContext context, ArchiveCsvPreview preview) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('معاينة CSV: ${preview.fileName}'),
+            content: SizedBox(
+              width: 760,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('الفاصل: ${preview.delimiter} • عدد الصفوف: ${preview.rowCount}', style: AppTextStyles.bodySmallSecondary),
+                    const SizedBox(height: 10),
+                    Text('الأعمدة', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 6, runSpacing: 6, children: preview.headers.map((h) => Chip(label: Text(h))).toList()),
+                    const SizedBox(height: 12),
+                    Text('عينة من أول الصفوف', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
+                    const SizedBox(height: 6),
+                    ...preview.sampleRows.map((row) => Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(row.entries.take(6).map((e) => '${e.key}: ${e.value}').join(' • '), style: AppTextStyles.bodySmallSecondary),
+                          ),
+                        )),
+                    const SizedBox(height: 8),
+                    Text('سيتم استيراد الصفوف كعناصر أرشيف تحتاج مراجعة، ولن يتم إنشاء سجلات تشغيلية مباشرة.', style: AppTextStyles.bodySmallSecondary.copyWith(color: AppColors.warning)),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('استيراد كعناصر مراجعة')),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<void> _showDuplicates(BuildContext context, WidgetRef ref) async {

@@ -119,6 +119,22 @@ class ArchiveImportSummary {
   });
 }
 
+class ArchiveCsvPreview {
+  final String fileName;
+  final String delimiter;
+  final List<String> headers;
+  final int rowCount;
+  final List<Map<String, String>> sampleRows;
+
+  const ArchiveCsvPreview({
+    required this.fileName,
+    required this.delimiter,
+    required this.headers,
+    required this.rowCount,
+    required this.sampleRows,
+  });
+}
+
 class ArchiveIntakeRepository {
   final AppDatabase _db;
   final FileStorageService _storage;
@@ -307,6 +323,30 @@ class ArchiveIntakeRepository {
     return ArchiveImportSummary(imported: imported, duplicates: duplicates, failed: failed);
   }
 
+
+  Future<ArchiveCsvPreview> previewCsvFile(File csvFile) async {
+    final content = _stripBom(await csvFile.readAsString(encoding: utf8));
+    final rows = _parseCsv(content);
+    if (rows.isEmpty) throw StateError('ملف CSV فارغ');
+    final headers = rows.first.map((value) => value.trim()).toList();
+    final dataRows = rows.skip(1).where((row) => row.any((cell) => cell.trim().isNotEmpty)).toList();
+    Map<String, String> mapRow(List<String> row) {
+      final mapped = <String, String>{};
+      for (var c = 0; c < headers.length; c++) {
+        mapped[headers[c]] = c < row.length ? row[c] : '';
+      }
+      return mapped;
+    }
+
+    final delimiter = _detectCsvDelimiter(content);
+    return ArchiveCsvPreview(
+      fileName: csvFile.path.split(Platform.pathSeparator).last,
+      delimiter: delimiter == '\t' ? 'Tab' : delimiter,
+      headers: headers,
+      rowCount: dataRows.length,
+      sampleRows: dataRows.take(5).map(mapRow).toList(),
+    );
+  }
 
   Future<ArchiveImportSummary> importCsvRowsToBatch(int batchId, File csvFile) async {
     await ensureReady();
