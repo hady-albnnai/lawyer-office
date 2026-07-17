@@ -232,6 +232,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               children: [
                 _introCard(),
                 const SizedBox(height: 16),
+                _archiveOverviewPanel(ref),
+                const SizedBox(height: 16),
                 _archiveGuidedEntryPanel(context, ref),
                 const SizedBox(height: 24),
                 _sectionTitle('دفعات رفع الملفات الخام'),
@@ -344,6 +346,61 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         text,
         style: AppTextStyles.headline6.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold),
       );
+
+  Widget _archiveOverviewPanel(WidgetRef ref) {
+    return FutureBuilder<List<ArchiveBatchRecord>>(
+      future: ref.watch(archiveIntakeRepositoryProvider).getBatches(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(height: 64, child: Center(child: CircularProgressIndicator()));
+        }
+        final batches = snapshot.data!;
+        final totalFiles = batches.fold<int>(0, (sum, b) => sum + b.totalFiles);
+        final approved = batches.fold<int>(0, (sum, b) => sum + b.approvedFiles);
+        final needsReview = batches.fold<int>(0, (sum, b) => sum + b.unclassifiedFiles);
+        final duplicates = batches.fold<int>(0, (sum, b) => sum + b.duplicateFiles);
+        final failed = batches.fold<int>(0, (sum, b) => sum + b.failedFiles);
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _overviewMetric('الدفعات', batches.length, Icons.inventory_2, AppColors.primaryNavy),
+            _overviewMetric('إجمالي الملفات', totalFiles, Icons.insert_drive_file, AppColors.info),
+            _overviewMetric('معتمدة', approved, Icons.check_circle, AppColors.success),
+            _overviewMetric('تحتاج مراجعة', needsReview, Icons.rate_review, AppColors.warning),
+            _overviewMetric('مكررة', duplicates, Icons.copy_all, AppColors.info),
+            _overviewMetric('فاشلة', failed, Icons.error_outline, AppColors.error),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _overviewMetric(String label, int value, IconData icon, Color color) {
+    return SizedBox(
+      width: 178,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              CircleAvatar(radius: 18, backgroundColor: color.withOpacity(0.10), child: Icon(icon, color: color, size: 18)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: AppTextStyles.bodySmallSecondary, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text('$value', style: AppTextStyles.numberText.copyWith(color: color)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _actionCard({required IconData icon, required String title, required String subtitle, required bool enabled, VoidCallback? onTap}) {
     return Card(
