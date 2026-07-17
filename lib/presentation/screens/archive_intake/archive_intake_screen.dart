@@ -455,7 +455,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     for (final value in values) {
       grouped.putIfAbsent(value.category, () => []).add(value);
     }
+    final referenceSearch = TextEditingController();
     String query = '';
+    String categoryFilter = 'all';
+    String activeFilter = 'all';
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -463,15 +466,18 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           final filteredGroups = <String, List<ArchiveReferenceValueRecord>>{};
           final q = query.trim().toLowerCase();
           grouped.forEach((category, records) {
-            final filtered = q.isEmpty
-                ? records
-                : records.where((record) {
-                    return _archiveReferenceCategoryLabel(record.category).toLowerCase().contains(q) ||
-                        record.value.toLowerCase().contains(q) ||
-                        (record.parentValue ?? '').toLowerCase().contains(q);
-                  }).toList();
+            final filtered = records.where((record) {
+              final queryOk = q.isEmpty ||
+                  _archiveReferenceCategoryLabel(record.category).toLowerCase().contains(q) ||
+                  record.value.toLowerCase().contains(q) ||
+                  (record.parentValue ?? '').toLowerCase().contains(q);
+              final categoryOk = categoryFilter == 'all' || record.category == categoryFilter;
+              final activeOk = activeFilter == 'all' || (activeFilter == 'active' && record.isActive) || (activeFilter == 'inactive' && !record.isActive);
+              return queryOk && categoryOk && activeOk;
+            }).toList();
             if (filtered.isNotEmpty) filteredGroups[category] = filtered;
           });
+          final visibleValues = filteredGroups.values.expand((list) => list).toList();
           return AlertDialog(
             title: const Text('التصنيفات المخصصة للأرشيف'),
             content: SizedBox(
@@ -482,11 +488,62 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   : Column(
                       children: [
                         TextField(
+                          controller: referenceSearch,
                           decoration: const InputDecoration(labelText: 'بحث في التصنيفات المخصصة', prefixIcon: Icon(Icons.search)),
                           onChanged: (value) => setDialog(() => query = value),
                         ),
                         const SizedBox(height: 10),
-                        Align(alignment: Alignment.centerRight, child: _mini('المعروض', filteredGroups.values.fold<int>(0, (sum, list) => sum + list.length))),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: categoryFilter,
+                                decoration: const InputDecoration(labelText: 'فئة التصنيف'),
+                                items: [
+                                  const DropdownMenuItem(value: 'all', child: Text('كل الفئات')),
+                                  ...grouped.keys.map((category) => DropdownMenuItem(value: category, child: Text(_archiveReferenceCategoryLabel(category)))),
+                                ],
+                                onChanged: (value) => setDialog(() => categoryFilter = value ?? 'all'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: activeFilter,
+                                decoration: const InputDecoration(labelText: 'الحالة'),
+                                items: const [
+                                  DropdownMenuItem(value: 'all', child: Text('كل الحالات')),
+                                  DropdownMenuItem(value: 'active', child: Text('مفعّلة')),
+                                  DropdownMenuItem(value: 'inactive', child: Text('معطّلة')),
+                                ],
+                                onChanged: (value) => setDialog(() => activeFilter = value ?? 'all'),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Wrap(
+                            spacing: 8,
+                            children: [
+                              _mini('المعروض', visibleValues.length),
+                              _mini('مفعّلة', visibleValues.where((value) => value.isActive).length),
+                              _mini('معطّلة', visibleValues.where((value) => !value.isActive).length),
+                              if (query.isNotEmpty || categoryFilter != 'all' || activeFilter != 'all')
+                                TextButton.icon(
+                                  icon: const Icon(Icons.filter_alt_off, size: 16),
+                                  label: const Text('مسح'),
+                                  onPressed: () => setDialog(() {
+                                    referenceSearch.clear();
+                                    query = '';
+                                    categoryFilter = 'all';
+                                    activeFilter = 'all';
+                                  }),
+                                ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Expanded(
                           child: filteredGroups.isEmpty
@@ -548,7 +605,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   label: const Text('تصدير التصنيفات CSV'),
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    await _exportCustomReferences(context, ref, values);
+                    await _exportCustomReferences(context, ref, visibleValues);
                   },
                 ),
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
