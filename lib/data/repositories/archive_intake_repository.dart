@@ -144,6 +144,7 @@ class ArchiveIntakeRepository {
           variables: [Variable.withString(hash)],
         ).get();
         final isDuplicate = duplicateRows.isNotEmpty;
+        final duplicateOfId = isDuplicate ? duplicateRows.first.data['id'] as int? : null;
         String? storedPath;
         if (isDuplicate) {
           duplicates++;
@@ -172,7 +173,7 @@ class ArchiveIntakeRepository {
           isDuplicate ? 'duplicate' : 'imported',
           'needs_review',
           _suggestDocumentType(file.path),
-          isDuplicate ? 'ملف مكرر محتمل' : null,
+          isDuplicate ? 'ملف مكرر محتمل${duplicateOfId == null ? '' : ' للعنصر #$duplicateOfId'}' : null,
         ]);
       } catch (e) {
         failed++;
