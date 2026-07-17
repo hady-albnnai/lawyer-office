@@ -317,7 +317,7 @@ class ArchiveIntakeRepository {
 
     try {
       final content = await csvFile.readAsString(encoding: utf8);
-      final rows = _parseCsv(content);
+      final rows = _parseCsv(_stripBom(content));
       if (rows.isEmpty) {
         throw StateError('ملف CSV فارغ');
       }
@@ -373,7 +373,23 @@ class ArchiveIntakeRepository {
     return ArchiveImportSummary(imported: imported, duplicates: 0, failed: failed);
   }
 
+  String _stripBom(String content) {
+    if (content.startsWith('\uFEFF')) return content.substring(1);
+    return content;
+  }
+
+  String _detectCsvDelimiter(String content) {
+    final firstLine = content.split(RegExp(r'\r?\n')).firstWhere((line) => line.trim().isNotEmpty, orElse: () => '');
+    final comma = ','.allMatches(firstLine).length;
+    final semicolon = ';'.allMatches(firstLine).length;
+    final tab = '\t'.allMatches(firstLine).length;
+    if (semicolon > comma && semicolon >= tab) return ';';
+    if (tab > comma && tab > semicolon) return '\t';
+    return ',';
+  }
+
   List<List<String>> _parseCsv(String content) {
+    final delimiter = _detectCsvDelimiter(content);
     final rows = <List<String>>[];
     final currentRow = <String>[];
     final current = StringBuffer();
@@ -388,7 +404,7 @@ class ArchiveIntakeRepository {
         } else {
           inQuotes = !inQuotes;
         }
-      } else if (char == ',' && !inQuotes) {
+      } else if (char == delimiter && !inQuotes) {
         currentRow.add(current.toString());
         current.clear();
       } else if ((char == '\n' || char == '\r') && !inQuotes) {
