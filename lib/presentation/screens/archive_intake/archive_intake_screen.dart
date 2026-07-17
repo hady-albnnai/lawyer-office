@@ -15,6 +15,7 @@ import '../../../data/repositories/archive_intake_repository.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/ui_data_providers.dart';
+import '../documents/document_models.dart' show documentsFutureProvider;
 import '../files/files_screen.dart' show FileItem, FileStatus, FileType, filesProvider;
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -1380,6 +1381,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
+  void _refreshArchiveDocumentProviders(WidgetRef ref) {
+    ref.invalidate(documentsFutureProvider);
+    ref.invalidate(uiDocumentsProvider);
+    ref.invalidate(uiFilesProvider);
+  }
+
   Future<void> _markPaperArchiveReviewed(BuildContext context, WidgetRef ref, Map<String, Object?> row) async {
     final documentId = row['document_id'] as int?;
     if (documentId == null) return;
@@ -1392,6 +1399,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       WHERE document_id = ?
     ''', [user, documentId]);
     await ref.read(auditServiceProvider).log(action: 'review', category: 'archive', entityType: 'paper_archive', entityId: '$documentId', entityTitle: '${row['doc_name'] ?? ''}', description: 'تعليم الأصل الورقي كمراجع رقمياً', after: {'reviewedBy': user}, severity: 'info');
+    _refreshArchiveDocumentProviders(ref);
     if (context.mounted) {
       Navigator.pop(context);
       await _showPaperArchiveReport(context, ref);
@@ -1478,6 +1486,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       notes.text.trim().isEmpty ? null : notes.text.trim(),
     ]);
     await ref.read(auditServiceProvider).log(action: 'edit', category: 'archive', entityType: 'paper_archive', entityId: '$documentId', entityTitle: '${row['doc_name'] ?? ''}', description: 'تعديل بيانات الأصل الورقي', after: {'paperSaved': paperSaved, 'location': location.text.trim(), 'box': box.text.trim(), 'shelf': shelf.text.trim(), 'folder': folder.text.trim(), 'canDestroy': canDestroy, 'reviewedBy': reviewedBy.text.trim()}, severity: 'info');
+    _refreshArchiveDocumentProviders(ref);
     if (context.mounted) {
       Navigator.pop(context);
       await _showPaperArchiveReport(context, ref);
@@ -3059,6 +3068,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                           reviewedBy: reviewedBy.text.trim().isEmpty ? null : reviewedBy.text.trim(),
                         );
                         await ref.read(auditServiceProvider).log(action: 'link', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'ربط عنصر أرشيف بملف وإنشاء مستند رقم $docId', after: {'target': target.label, 'targetId': selectedId, 'documentType': effectiveDocumentType, 'paperOriginalSaved': paperOriginalSaved, 'paperLocation': paperLocation.text.trim(), 'box': paperBox.text.trim(), 'shelf': paperShelf.text.trim(), 'paperFolder': paperFolder.text.trim(), 'canDestroyOriginal': canDestroyOriginal, 'reviewedBy': reviewedBy.text.trim()}, severity: 'info');
+                        _refreshArchiveDocumentProviders(ref);
                         ref.read(_archiveIntakeRefreshProvider.notifier).state++;
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
