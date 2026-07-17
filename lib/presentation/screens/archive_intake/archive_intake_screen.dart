@@ -1403,6 +1403,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final duplicates = batches.fold<int>(0, (sum, b) => sum + b.duplicateFiles);
     final unclassified = batches.fold<int>(0, (sum, b) => sum + b.unclassifiedFiles);
     final approved = batches.fold<int>(0, (sum, b) => sum + b.approvedFiles);
+    final approvalRate = files == 0 ? 0.0 : approved / files;
+    final reviewRate = files == 0 ? 0.0 : (files - unclassified) / files;
+    final duplicateRate = files == 0 ? 0.0 : duplicates / files;
+    final failureRate = files == 0 ? 0.0 : failed / files;
     if (context.mounted) {
       showDialog<void>(
         context: context,
@@ -1420,6 +1424,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 _qualityRow('غير مصنفة', unclassified),
                 _qualityRow('مكررة', duplicates),
                 _qualityRow('فشلت', failed),
+                const Divider(),
+                _qualityPercentRow('نسبة الاعتماد', approvalRate, AppColors.success),
+                _qualityPercentRow('نسبة المراجعة', reviewRate, AppColors.primaryNavy),
+                _qualityPercentRow('نسبة التكرار', duplicateRate, AppColors.info),
+                _qualityPercentRow('نسبة الفشل', failureRate, AppColors.error),
                 const Divider(),
                 ...batches.take(8).map((b) => ListTile(dense: true, title: Text(b.name), subtitle: Text('${_sourceLabel(b.sourceType)} • ${_statusLabel(b.status)}'), trailing: Text('${b.approvedFiles}/${b.totalFiles}'))),
               ],
@@ -1445,10 +1454,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_quality', description: 'محاولة تصدير تقرير جودة الأرشيف دون صلاحية', severity: 'warning');
       return;
     }
-    final buffer = StringBuffer('id,name,source,status,total,processed,approved,unclassified,duplicates,failed,createdAt\n');
+    final buffer = StringBuffer('id,name,source,status,total,processed,approved,unclassified,duplicates,failed,approvalRate,reviewRate,duplicateRate,failureRate,createdAt\n');
     String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    String rate(int value, int total) => total == 0 ? '0.00' : (value / total * 100).toStringAsFixed(2);
     for (final b in batches) {
-      buffer.writeln([b.id, esc(b.name), esc(_sourceLabel(b.sourceType)), esc(_statusLabel(b.status)), b.totalFiles, b.processedFiles, b.approvedFiles, b.unclassifiedFiles, b.duplicateFiles, b.failedFiles, esc(b.createdAt.toIso8601String())].join(','));
+      final reviewed = b.totalFiles - b.unclassifiedFiles;
+      buffer.writeln([b.id, esc(b.name), esc(_sourceLabel(b.sourceType)), esc(_statusLabel(b.status)), b.totalFiles, b.processedFiles, b.approvedFiles, b.unclassifiedFiles, b.duplicateFiles, b.failedFiles, rate(b.approvedFiles, b.totalFiles), rate(reviewed, b.totalFiles), rate(b.duplicateFiles, b.totalFiles), rate(b.failedFiles, b.totalFiles), esc(b.createdAt.toIso8601String())].join(','));
     }
     final docs = await getApplicationDocumentsDirectory();
     final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_quality_exports'));
@@ -1465,6 +1476,21 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(children: [Expanded(child: Text(label, style: AppTextStyles.bodyMedium)), Text('$value', style: AppTextStyles.numberText.copyWith(color: AppColors.primaryNavy))]),
+    );
+  }
+
+  Widget _qualityPercentRow(String label, double value, Color color) {
+    final percent = (value * 100).clamp(0, 100).toStringAsFixed(1);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [Expanded(child: Text(label, style: AppTextStyles.bodySmallSecondary)), Text('$percent%', style: AppTextStyles.labelMedium.copyWith(color: color))]),
+          const SizedBox(height: 4),
+          LinearProgressIndicator(value: value.clamp(0, 1), color: color, backgroundColor: color.withOpacity(0.12), minHeight: 6),
+        ],
+      ),
     );
   }
 
