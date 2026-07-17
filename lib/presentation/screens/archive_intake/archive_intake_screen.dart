@@ -1230,10 +1230,56 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               ],
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+          actions: [
+            if (permissions.can(PermissionKeys.archiveQualityExport))
+              OutlinedButton.icon(
+                icon: const Icon(Icons.download),
+                label: const Text('تصدير المكررات CSV'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _exportDuplicates(context, ref);
+                },
+              ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _exportDuplicates(BuildContext context, WidgetRef ref) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_duplicates', description: 'محاولة تصدير المكررات دون صلاحية', severity: 'warning');
+      return;
+    }
+    final items = await ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate');
+    final buffer = StringBuffer('id,batchId,fileName,duplicateOf,status,reviewStatus,fileType,fileSize,sha256,error,createdAt,sourcePath\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final item in items) {
+      buffer.writeln([
+        item.id,
+        item.batchId,
+        esc(item.originalFileName),
+        _duplicateSourceItemId(item) ?? '',
+        esc(item.status),
+        esc(item.reviewStatus),
+        esc(item.fileType),
+        item.fileSize,
+        esc(item.sha256),
+        esc(item.errorMessage),
+        esc(item.createdAt.toIso8601String()),
+        esc(item.sourcePath),
+      ].join(','));
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_duplicate_exports'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = File(path.join(dir.path, 'archive_duplicates_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await file.writeAsString(buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_duplicates', entityTitle: file.path, description: 'تصدير قائمة مكررات الأرشيف CSV', after: {'count': items.length}, severity: 'info');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير المكررات: ${file.path}'), backgroundColor: AppColors.success));
+    }
   }
 
   Future<void> _showQualityReport(BuildContext context, WidgetRef ref) async {
