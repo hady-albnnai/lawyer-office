@@ -1500,6 +1500,15 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       _archiveReviewFilterChip('imported', 'مستوردة', statusFilter, (v) => setDialog(() => statusFilter = v)),
                       _archiveReviewFilterChip('duplicate', 'مكررة', statusFilter, (v) => setDialog(() => statusFilter = v)),
                       _archiveReviewFilterChip('failed', 'فاشلة', statusFilter, (v) => setDialog(() => statusFilter = v)),
+                      if (search.text.isNotEmpty || statusFilter != 'all')
+                        TextButton.icon(
+                          icon: const Icon(Icons.filter_alt_off, size: 16),
+                          label: const Text('مسح'),
+                          onPressed: () => setDialog(() {
+                            search.clear();
+                            statusFilter = 'all';
+                          }),
+                        ),
                     ],
                   ),
                 ),
@@ -1606,6 +1615,15 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       _archiveReviewFilterChip('rejected', 'مرفوضة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
                       _archiveReviewFilterChip('duplicate', 'مكررة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
                       _archiveReviewFilterChip('failed', 'فاشلة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
+                      if (search.text.isNotEmpty || reviewFilter != 'all')
+                        TextButton.icon(
+                          icon: const Icon(Icons.filter_alt_off, size: 16),
+                          label: const Text('مسح'),
+                          onPressed: () => setDialog(() {
+                            search.clear();
+                            reviewFilter = 'all';
+                          }),
+                        ),
                     ],
                   ),
                 ),
