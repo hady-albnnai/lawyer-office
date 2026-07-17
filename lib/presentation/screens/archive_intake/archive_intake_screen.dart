@@ -1321,6 +1321,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       return;
     }
     final search = TextEditingController();
+    String statusFilter = 'all';
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1337,13 +1338,25 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   onChanged: (_) => setDialog(() {}),
                 ),
                 const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _archiveReviewFilterChip('all', 'كل غير المصنف', statusFilter, (v) => setDialog(() => statusFilter = v)),
+                      _archiveReviewFilterChip('imported', 'مستوردة', statusFilter, (v) => setDialog(() => statusFilter = v)),
+                      _archiveReviewFilterChip('duplicate', 'مكررة', statusFilter, (v) => setDialog(() => statusFilter = v)),
+                      _archiveReviewFilterChip('failed', 'فاشلة', statusFilter, (v) => setDialog(() => statusFilter = v)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Expanded(
                   child: FutureBuilder<List<ArchiveItemRecord>>(
                     future: ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review'),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                       final searched = _filteredArchiveItems(snapshot.data!, search.text);
-                      final filtered = _filteredArchiveItemsByReview(searched, reviewFilter);
+                      final filtered = _filteredArchiveItemsByStatus(searched, statusFilter);
                       return _itemsList(ctx, ref, filtered);
                     },
                   ),
@@ -1426,6 +1439,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (filter == 'all') return items;
     if (filter == 'duplicate' || filter == 'failed') return items.where((item) => item.status == filter).toList();
     return items.where((item) => item.reviewStatus == filter).toList();
+  }
+
+  List<ArchiveItemRecord> _filteredArchiveItemsByStatus(List<ArchiveItemRecord> items, String filter) {
+    if (filter == 'all') return items;
+    return items.where((item) => item.status == filter).toList();
   }
 
   List<ArchiveItemRecord> _filteredArchiveItems(List<ArchiveItemRecord> items, String rawQuery) {
