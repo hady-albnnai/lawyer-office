@@ -1293,8 +1293,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _mini('ملفات', b.totalFiles),
-                    _mini('غير مصنف', b.unclassifiedFiles),
-                    _mini('مكرر', b.duplicateFiles),
+                    _miniAction('غير مصنف', b.unclassifiedFiles, () => _showBatchDetails(context, ref, b.id, b.name, initialFilter: 'needs_review')),
+                    _miniAction('مكرر', b.duplicateFiles, () => _showBatchDetails(context, ref, b.id, b.name, initialFilter: 'duplicate')),
+                    if (b.failedFiles > 0) _miniAction('فشل', b.failedFiles, () => _showBatchDetails(context, ref, b.id, b.name, initialFilter: 'failed')),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.visibility, size: 16),
                       label: const Text('فتح'),
@@ -1318,6 +1319,14 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   Widget _mini(String label, int value) => Chip(label: Text('$label: $value'));
+
+  Widget _miniAction(String label, int value, VoidCallback onTap) {
+    return ActionChip(
+      label: Text('$label: $value'),
+      avatar: const Icon(Icons.filter_alt, size: 16),
+      onPressed: value > 0 ? onTap : null,
+    );
+  }
 
   Widget _batchSubtitle(ArchiveBatchRecord batch) {
     final total = batch.totalFiles;
@@ -1810,9 +1819,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _showBatchDetails(BuildContext context, WidgetRef ref, int batchId, String batchName) async {
+  Future<void> _showBatchDetails(BuildContext context, WidgetRef ref, int batchId, String batchName, {String initialFilter = 'all'}) async {
     final search = TextEditingController();
-    String reviewFilter = 'all';
+    String reviewFilter = initialFilter;
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
