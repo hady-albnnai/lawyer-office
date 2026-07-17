@@ -933,11 +933,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final search = TextEditingController();
     FileType? typeFilter;
+    String reasonFilter = 'all';
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) {
-          final filtered = _filteredCompletionFiles(files, search.text, typeFilter);
+          final filtered = _filteredCompletionFiles(files, search.text, typeFilter, reasonFilter);
           return AlertDialog(
             title: const Text('ملفات جارية تحتاج استكمال'),
             content: SizedBox(
@@ -957,6 +958,18 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       children: [
                         _completionTypeChip(null, 'كل الأنواع', Icons.folder_copy, typeFilter, (v) => setDialog(() => typeFilter = v)),
                         ...FileType.values.map((type) => _completionTypeChip(type, type.displayName, _fileTypeIcon(type), typeFilter, (v) => setDialog(() => typeFilter = v))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _completionReasonChip('all', 'كل أسباب الاستكمال', reasonFilter, (v) => setDialog(() => reasonFilter = v)),
+                        _completionReasonChip('deficiencies', 'نواقص', reasonFilter, (v) => setDialog(() => reasonFilter = v)),
+                        _completionReasonChip('missing_docs', 'مستندات ناقصة', reasonFilter, (v) => setDialog(() => reasonFilter = v)),
+                        _completionReasonChip('missing_base', 'بلا رقم/مرجع', reasonFilter, (v) => setDialog(() => reasonFilter = v)),
                       ],
                     ),
                   ),
@@ -1009,16 +1022,22 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
-  List<FileItem> _filteredCompletionFiles(List<FileItem> files, String rawQuery, FileType? typeFilter) {
+  List<FileItem> _filteredCompletionFiles(List<FileItem> files, String rawQuery, FileType? typeFilter, String reasonFilter) {
     final query = rawQuery.trim().toLowerCase();
     return files.where((file) {
       final typeOk = typeFilter == null || file.type == typeFilter;
+      final reasonOk = switch (reasonFilter) {
+        'deficiencies' => file.hasDeficiencies,
+        'missing_docs' => file.hasMissingDocuments || file.documentCount == 0,
+        'missing_base' => !file.hasBaseNumber,
+        _ => true,
+      };
       final queryOk = query.isEmpty ||
           file.fileNumber.toLowerCase().contains(query) ||
           file.title.toLowerCase().contains(query) ||
           file.court.toLowerCase().contains(query) ||
           (file.baseNumber ?? '').toLowerCase().contains(query);
-      return typeOk && queryOk;
+      return typeOk && reasonOk && queryOk;
     }).toList();
   }
 
@@ -1032,6 +1051,20 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         label: Text(label),
         selectedColor: AppColors.primaryNavy.withOpacity(0.10),
         labelStyle: TextStyle(color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        onSelected: (_) => onSelected(value),
+      ),
+    );
+  }
+
+  Widget _completionReasonChip(String value, String label, String selected, ValueChanged<String> onSelected) {
+    final isSelected = selected == value;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: ChoiceChip(
+        selected: isSelected,
+        label: Text(label),
+        selectedColor: AppColors.warning.withOpacity(0.12),
+        labelStyle: TextStyle(color: isSelected ? AppColors.warning : AppColors.textSecondary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
         onSelected: (_) => onSelected(value),
       ),
     );
