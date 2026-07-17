@@ -1048,7 +1048,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
+            TextFormField(
+              key: ValueKey('archive-batch-search-${query.isEmpty ? 'empty' : 'active'}'),
+              initialValue: query,
               decoration: const InputDecoration(labelText: 'بحث في دفعات الأرشيف', prefixIcon: Icon(Icons.search)),
               onChanged: (value) => ref.read(_archiveBatchSearchProvider.notifier).state = value,
             ),
