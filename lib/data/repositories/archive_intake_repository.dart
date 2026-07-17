@@ -719,7 +719,7 @@ class ArchiveIntakeRepository {
           confirmed_document_type = COALESCE(?, confirmed_document_type),
           confirmed_entity_type = COALESCE(?, confirmed_entity_type),
           confirmed_entity_id = COALESCE(?, confirmed_entity_id),
-          error_message = ?,
+          error_message = COALESCE(?, error_message),
           reviewed_by = COALESCE(?, reviewed_by),
           reviewed_at = CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE reviewed_at END,
           review_note = COALESCE(?, review_note),

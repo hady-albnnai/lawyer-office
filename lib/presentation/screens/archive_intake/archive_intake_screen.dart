@@ -2848,9 +2848,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 TextButton(onPressed: () => _showArchiveItemDetails(dialogContext, ref, item), child: const Text('تفاصيل')),
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.status != 'duplicate' && item.status != 'failed' && item.reviewStatus != 'approved')
                   TextButton(onPressed: () => _showLinkItemDialog(dialogContext, ref, item), child: const Text('ربط بملف')),
-                if (permissions.can(PermissionKeys.archiveInboxLink) && item.reviewStatus != 'approved')
+                if (permissions.can(PermissionKeys.archiveIntakeReview) && item.reviewStatus == 'rejected')
+                  TextButton(onPressed: () => _restoreArchiveItemReview(dialogContext, ref, item), child: const Text('إعادة للمراجعة')),
+                if (permissions.can(PermissionKeys.archiveInboxLink) && item.reviewStatus != 'approved' && item.reviewStatus != 'rejected')
                   TextButton(onPressed: () => _reviewArchiveItem(dialogContext, ref, item, 'imported', 'approved', actionLabel: 'اعتماد عام', defaultNote: 'اعتماد عام من مركز الأرشيف'), child: const Text('اعتماد عام')),
-                if (permissions.can(PermissionKeys.archiveInboxReject) && item.status != 'rejected')
+                if (permissions.can(PermissionKeys.archiveInboxReject) && item.status != 'rejected' && item.reviewStatus != 'rejected')
                   TextButton(onPressed: () => _reviewArchiveItem(dialogContext, ref, item, 'rejected', 'rejected', actionLabel: 'رفض', defaultNote: 'رفض / تجاهل من مركز الأرشيف'), child: const Text('رفض')),
               ],
             ),
@@ -3108,6 +3110,29 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  }
+
+  Future<void> _restoreArchiveItemReview(BuildContext dialogContext, WidgetRef ref, ArchiveItemRecord item) async {
+    final restoredStatus = (item.errorMessage ?? '').contains('مكرر') ? 'duplicate' : 'imported';
+    await ref.read(archiveIntakeRepositoryProvider).updateItemReview(
+      itemId: item.id,
+      status: restoredStatus,
+      reviewStatus: 'needs_review',
+      reviewedBy: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
+      reviewNote: 'إعادة العنصر إلى المراجعة بعد رفض/تجاهل سابق',
+    );
+    await ref.read(archiveIntakeRepositoryProvider).refreshBatchCounters(item.batchId);
+    await ref.read(auditServiceProvider).log(
+      action: 'restore_review',
+      category: 'archive',
+      entityType: 'archive_item',
+      entityId: '${item.id}',
+      entityTitle: item.originalFileName,
+      description: 'إعادة عنصر أرشيف إلى حالة يحتاج مراجعة',
+      severity: 'info',
+    );
+    ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
   }
 
   Future<void> _reviewArchiveItem(
