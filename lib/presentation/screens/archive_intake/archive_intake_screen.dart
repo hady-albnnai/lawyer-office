@@ -21,6 +21,7 @@ import '../../theme/app_theme.dart';
 
 final _archiveIntakeRefreshProvider = StateProvider<int>((ref) => 0);
 final _archiveWizardQuerySeedProvider = StateProvider<String?>((ref) => null);
+final _archiveBatchSearchProvider = StateProvider<String>((ref) => '');
 
 final _archiveWizardProvider = StateProvider<_ArchiveWizardSelection>((ref) => const _ArchiveWizardSelection());
 
@@ -1010,12 +1011,22 @@ class ArchiveIntakeScreen extends ConsumerWidget {
 
   Widget _batchesList(WidgetRef ref) {
     final repo = ref.watch(archiveIntakeRepositoryProvider);
+    final query = ref.watch(_archiveBatchSearchProvider).trim().toLowerCase();
     return FutureBuilder(
       future: repo.getBatches(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final batches = snapshot.data!;
-        if (batches.isEmpty) {
+        final allBatches = snapshot.data!;
+        final batches = query.isEmpty
+            ? allBatches
+            : allBatches.where((b) {
+                return b.name.toLowerCase().contains(query) ||
+                    _sourceLabel(b.sourceType).toLowerCase().contains(query) ||
+                    _statusLabel(b.status).toLowerCase().contains(query) ||
+                    (b.createdBy ?? '').toLowerCase().contains(query) ||
+                    (b.notes ?? '').toLowerCase().contains(query);
+              }).toList();
+        if (allBatches.isEmpty) {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(18),
@@ -1024,7 +1035,22 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           );
         }
         return Column(
-          children: batches.map((b) {
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              decoration: const InputDecoration(labelText: 'بحث في دفعات الأرشيف', prefixIcon: Icon(Icons.search)),
+              onChanged: (value) => ref.read(_archiveBatchSearchProvider.notifier).state = value,
+            ),
+            const SizedBox(height: 12),
+            if (batches.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Text('لا توجد دفعات مطابقة للبحث الحالي.', style: AppTextStyles.bodyMediumSecondary),
+                ),
+              )
+            else
+              ...batches.map((b) {
             final canImport = ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportFiles);
             return Card(
               child: ListTile(
@@ -1054,6 +1080,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               ),
             );
           }).toList(),
+          ],
         );
       },
     );
