@@ -1911,8 +1911,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               b.name.toLowerCase().contains(query) ||
               _sourceLabel(b.sourceType).toLowerCase().contains(query) ||
               _statusLabel(b.status).toLowerCase().contains(query) ||
-              (b.createdBy ?? '').toLowerCase().contains(query) ||
-              (b.notes ?? '').toLowerCase().contains(query);
+                    (b.createdBy ?? '').toLowerCase().contains(query) ||
+                    (b.sourcePath ?? '').toLowerCase().contains(query) ||
+                    (b.notes ?? '').toLowerCase().contains(query);
           final sourceOk = sourceFilter == 'all' || b.sourceType == sourceFilter;
           final statusOk = statusFilter == 'all' || b.status == statusFilter;
           return queryOk && sourceOk && statusOk;
@@ -2068,6 +2069,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('${_sourceLabel(batch.sourceType)} • ${_statusLabel(batch.status)} • ${batch.createdAt.toString().substring(0, 16)}', style: AppTextStyles.bodySmallSecondary),
+          if ((batch.sourcePath ?? '').isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text('المصدر: ${batch.sourcePath}', style: AppTextStyles.bodySmallSecondary, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
           if (total > 0) ...[
             const SizedBox(height: 6),
             Row(
@@ -2121,23 +2126,44 @@ class ArchiveIntakeScreen extends ConsumerWidget {
 
   Future<void> _showCreateBatch(BuildContext context, WidgetRef ref, String sourceType) async {
     final name = TextEditingController(text: '${_sourceLabel(sourceType)} - ${DateTime.now().toString().substring(0, 10)}');
+    final sourcePath = TextEditingController();
     final notes = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('إنشاء دفعة ${_sourceLabel(sourceType)}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الدفعة *')),
-            const SizedBox(height: 12),
-            TextField(controller: notes, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات')),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text('إنشاء دفعة ${_sourceLabel(sourceType)}'),
+          content: SizedBox(
+            width: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الدفعة *')),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: sourcePath,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'مصدر الأرشيف / المجلد أو الملف الأصلي',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.folder_open),
+                      onPressed: () async {
+                        final selected = await fp.FilePicker.platform.getDirectoryPath(dialogTitle: 'اختر مصدر الأرشيف');
+                        if (selected != null) setDialog(() => sourcePath.text = selected);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: notes, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إنشاء')),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إنشاء')),
-        ],
       ),
     ) ?? false;
     if (!ok || name.text.trim().isEmpty) return;
@@ -2145,6 +2171,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final id = await ref.read(archiveIntakeRepositoryProvider).createBatch(
       name: name.text.trim(),
       sourceType: sourceType,
+      sourcePath: sourcePath.text.trim().isEmpty ? null : sourcePath.text.trim(),
       createdBy: user?.fullName,
       notes: notes.text.trim().isEmpty ? null : notes.text.trim(),
     );
@@ -2155,7 +2182,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       entityId: '$id',
       entityTitle: name.text.trim(),
       description: 'إنشاء دفعة إدخال أرشيف',
-      after: {'sourceType': sourceType},
+      after: {'sourceType': sourceType, if (sourcePath.text.trim().isNotEmpty) 'sourcePath': sourcePath.text.trim()},
       severity: 'info',
     );
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
