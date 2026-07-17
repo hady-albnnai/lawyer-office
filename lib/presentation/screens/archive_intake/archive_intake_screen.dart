@@ -1358,6 +1358,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         trailing: Wrap(
           spacing: 6,
           children: [
+            if (((row['reviewed_by'] as String?) ?? '').trim().isEmpty)
+              TextButton.icon(
+                icon: const Icon(Icons.fact_check, size: 16),
+                label: const Text('تعليم كمراجع'),
+                onPressed: () => _markPaperArchiveReviewed(context, ref, row),
+              ),
             TextButton.icon(
               icon: const Icon(Icons.edit, size: 16),
               label: const Text('تعديل'),
@@ -1372,6 +1378,24 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _markPaperArchiveReviewed(BuildContext context, WidgetRef ref, Map<String, Object?> row) async {
+    final documentId = row['document_id'] as int?;
+    if (documentId == null) return;
+    final user = ref.read(authControllerProvider).user?.fullName ?? 'المكتب';
+    final db = ref.read(databaseProvider);
+    await db.ensureArchiveTables();
+    await db.customStatement('''
+      UPDATE document_paper_metadata
+      SET reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE document_id = ?
+    ''', [user, documentId]);
+    await ref.read(auditServiceProvider).log(action: 'review', category: 'archive', entityType: 'paper_archive', entityId: '$documentId', entityTitle: '${row['doc_name'] ?? ''}', description: 'تعليم الأصل الورقي كمراجع رقمياً', after: {'reviewedBy': user}, severity: 'info');
+    if (context.mounted) {
+      Navigator.pop(context);
+      await _showPaperArchiveReport(context, ref);
+    }
   }
 
   Future<void> _editPaperArchiveMetadata(BuildContext context, WidgetRef ref, Map<String, Object?> row) async {
