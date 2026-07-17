@@ -3203,6 +3203,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   TextButton(onPressed: () => _openArchiveItemFile(dialogContext, ref, item), child: const Text('فتح الملف')),
                 if ((item.sourcePath ?? '').isNotEmpty)
                   TextButton(onPressed: () => _openArchiveOriginalSource(dialogContext, ref, item), child: const Text('المصدر')),
+                if (_routeForConfirmedEntity(item) != null)
+                  TextButton(onPressed: () { final route = _routeForConfirmedEntity(item)!; final router = GoRouter.of(dialogContext); Navigator.pop(dialogContext); router.go(route); }, child: const Text('فتح المرتبط')),
                 TextButton(onPressed: () => _showArchiveItemDetails(dialogContext, ref, item), child: const Text('تفاصيل')),
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.status != 'duplicate' && item.status != 'failed' && item.reviewStatus != 'approved')
                   TextButton(onPressed: () => _showLinkItemDialog(dialogContext, ref, item), child: const Text('ربط بملف')),
