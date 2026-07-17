@@ -254,6 +254,16 @@ class ArchiveIntakeRepository {
     );
   }
 
+  Future<void> updateBatchSourcePath(int id, String sourcePath) async {
+    await ensureReady();
+    final clean = sourcePath.trim();
+    if (clean.isEmpty) return;
+    await _db.customStatement(
+      'UPDATE archive_batches SET source_path = ? WHERE id = ?',
+      [clean, id],
+    );
+  }
+
   Future<ArchiveImportSummary> importFilesToBatch(int batchId, List<File> files) async {
     await ensureReady();
     await updateBatchStatus(batchId, 'processing');

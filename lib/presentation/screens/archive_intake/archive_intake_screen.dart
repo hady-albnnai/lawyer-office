@@ -2295,6 +2295,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ) ??
         false;
     if (!confirmed) return;
+    await ref.read(archiveIntakeRepositoryProvider).updateBatchSourcePath(batchId, directoryPath);
     final summary = await ref.read(archiveIntakeRepositoryProvider).importFilesToBatch(batchId, files);
     await ref.read(auditServiceProvider).log(action: 'import_folder', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', entityTitle: batchName, description: 'استيراد مجلد إلى دفعة أرشيف', after: {'folder': directoryPath, 'files': files.length, 'imported': summary.imported, 'duplicates': summary.duplicates, 'failed': summary.failed}, severity: 'info');
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
@@ -2326,6 +2327,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (!context.mounted) return;
     final confirmed = await _confirmCsvImport(context, preview);
     if (!confirmed) return;
+    await ref.read(archiveIntakeRepositoryProvider).updateBatchSourcePath(batchId, csvFile.path);
     final summary = await ref.read(archiveIntakeRepositoryProvider).importCsvRowsToBatch(batchId, csvFile);
     await ref.read(auditServiceProvider).log(action: 'import_csv', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'استيراد صفوف CSV إلى دفعة أرشيف للمراجعة الآمنة', after: {'imported': summary.imported, 'failed': summary.failed}, severity: 'info');
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
