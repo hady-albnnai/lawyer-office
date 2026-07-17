@@ -1174,47 +1174,62 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_duplicates', description: 'محاولة فتح المكررات دون صلاحية', severity: 'warning');
       return;
     }
+    final search = TextEditingController();
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('الملفات المكررة'),
-        content: SizedBox(
-          width: 860,
-          height: 520,
-          child: FutureBuilder<List<ArchiveItemRecord>>(
-            future: ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate'),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              final items = snapshot.data!;
-              if (items.isEmpty) return const Center(child: Text('لا توجد ملفات مكررة حالياً.'));
-              return ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (_, index) {
-                  final item = items[index];
-                  return Card(
-                    child: ListTile(
-                      leading: Icon(Icons.copy_all, color: AppColors.info),
-                      title: Text(item.originalFileName, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('دفعة #${item.batchId} • ${item.errorMessage ?? 'ملف مكرر محتمل'}'),
-                      trailing: Wrap(
-                        spacing: 6,
-                        children: [
-                          TextButton(onPressed: () => _showArchiveItemDetails(ctx, ref, item), child: const Text('تفاصيل')),
-                          if (permissions.can(PermissionKeys.archiveDuplicatesResolve))
-                            TextButton(
-                              onPressed: () => _setItemReview(ctx, ref, item.id, item.batchId, 'rejected', 'rejected'),
-                              child: const Text('تجاهل المكرر'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('الملفات المكررة'),
+          content: SizedBox(
+            width: 900,
+            height: 580,
+            child: Column(
+              children: [
+                TextField(
+                  controller: search,
+                  decoration: const InputDecoration(labelText: 'بحث في المكررات', prefixIcon: Icon(Icons.search)),
+                  onChanged: (_) => setDialog(() {}),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: FutureBuilder<List<ArchiveItemRecord>>(
+                    future: ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate'),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                      final items = _filteredArchiveItems(snapshot.data!, search.text);
+                      if (items.isEmpty) return const Center(child: Text('لا توجد ملفات مكررة مطابقة حالياً.'));
+                      return ListView.builder(
+                        itemCount: items.length,
+                        itemBuilder: (_, index) {
+                          final item = items[index];
+                          return Card(
+                            child: ListTile(
+                              leading: Icon(Icons.copy_all, color: AppColors.info),
+                              title: Text(item.originalFileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              subtitle: Text('دفعة #${item.batchId} • ${item.errorMessage ?? 'ملف مكرر محتمل'}'),
+                              trailing: Wrap(
+                                spacing: 6,
+                                children: [
+                                  TextButton(onPressed: () => _showArchiveItemDetails(ctx, ref, item), child: const Text('تفاصيل')),
+                                  if (permissions.can(PermissionKeys.archiveDuplicatesResolve))
+                                    TextButton(
+                                      onPressed: () => _setItemReview(ctx, ref, item.id, item.batchId, 'rejected', 'rejected'),
+                                      child: const Text('تجاهل المكرر'),
+                                    ),
+                                ],
+                              ),
                             ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );
   }
