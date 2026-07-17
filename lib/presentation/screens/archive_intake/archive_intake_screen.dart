@@ -302,6 +302,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     _statusTile('دفعات الإدخال', 'متابعة دفعات الاستيراد وحالاتها.', Icons.inventory_2, AppColors.primaryNavy),
                     _statusTile('صندوق غير مصنف', 'ملفات تحتاج ربطاً أو تصنيفاً.', Icons.inbox, AppColors.warning, onTap: () => _showUnclassifiedInbox(context, ref)),
                     _statusTile('ملفات جارية تحتاج استكمال', 'دعاوى وإجراءات وملفات نشطة ناقصة بيانات تشغيلية.', Icons.pending_actions, AppColors.error, onTap: () => _showActiveNeedsCompletion(context, ref)),
+                    _statusTile('الأرشيف الورقي', 'بحث وكشوف مواقع الأصول الورقية والصناديق والرفوف.', Icons.inventory, AppColors.secondaryGold, onTap: () => _showPaperArchiveReport(context, ref)),
                     _statusTile('التصنيفات المخصصة', 'كل ما أضافه المستخدم من أنواع ومحاكم ووثائق غير معرفة مسبقاً.', Icons.tune, AppColors.primaryNavy, onTap: () => _showCustomReferences(context, ref)),
                     _statusTile('المكررات', 'ملفات كشفها النظام كنسخ مكررة.', Icons.copy_all, AppColors.info, onTap: () => _showDuplicates(context, ref)),
                     _statusTile('تقارير الجودة', 'نتائج الاستيراد والأخطاء والعينات المطلوبة للمراجعة.', Icons.fact_check, AppColors.success, onTap: () => _showQualityReport(context, ref)),
@@ -1184,6 +1185,213 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       default:
         return 'field_1,field_2,notes\n"","",""\n';
     }
+  }
+
+  Future<List<Map<String, Object?>>> _loadPaperArchiveRows(WidgetRef ref) async {
+    final db = ref.read(databaseProvider);
+    await db.ensureArchiveTables();
+    final rows = await db.customSelect('''
+      SELECT
+        d.id AS document_id,
+        d.doc_name AS doc_name,
+        d.doc_type AS doc_type,
+        d.file_path AS file_path,
+        d.date_added AS date_added,
+        m.paper_original_saved AS paper_original_saved,
+        m.paper_location AS paper_location,
+        m.box AS box,
+        m.shelf AS shelf,
+        m.paper_folder AS paper_folder,
+        m.can_destroy_original AS can_destroy_original,
+        m.reviewed_by AS reviewed_by,
+        m.reviewed_at AS reviewed_at,
+        m.notes AS paper_notes
+      FROM document_paper_metadata m
+      JOIN documents d ON d.id = m.document_id
+      ORDER BY m.paper_location COLLATE NOCASE, m.box COLLATE NOCASE, m.shelf COLLATE NOCASE, d.doc_name COLLATE NOCASE
+    ''').get();
+    return rows.map((row) => row.data).toList();
+  }
+
+  Future<void> _showPaperArchiveReport(BuildContext context, WidgetRef ref) async {
+    final permissions = ref.read(permissionServiceProvider);
+    if (!permissions.can(PermissionKeys.archiveQualityView)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'paper_archive', description: 'محاولة فتح كشف الأرشيف الورقي دون صلاحية', severity: 'warning');
+      return;
+    }
+    final search = TextEditingController();
+    String savedFilter = 'all';
+    bool destroyableOnly = false;
+    bool unreviewedOnly = false;
+    await ref.read(auditServiceProvider).log(action: 'view', category: 'archive', entityType: 'paper_archive', description: 'عرض كشف الأرشيف الورقي', severity: 'info');
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('كشف الأرشيف الورقي'),
+          content: SizedBox(
+            width: 980,
+            height: 640,
+            child: FutureBuilder<List<Map<String, Object?>>>(
+              future: _loadPaperArchiveRows(ref),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final filtered = _filterPaperRows(snapshot.data!, search.text, savedFilter, destroyableOnly, unreviewedOnly);
+                return Column(
+                  children: [
+                    TextField(
+                      controller: search,
+                      decoration: const InputDecoration(labelText: 'بحث باسم المستند أو مكان الأصل أو الصندوق أو الرف', prefixIcon: Icon(Icons.search)),
+                      onChanged: (_) => setDialog(() {}),
+                    ),
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _archiveReviewFilterChip('all', 'كل الأصول', savedFilter, (v) => setDialog(() => savedFilter = v)),
+                          _archiveReviewFilterChip('saved', 'الأصل محفوظ', savedFilter, (v) => setDialog(() => savedFilter = v)),
+                          _archiveReviewFilterChip('missing', 'الأصل غير محفوظ', savedFilter, (v) => setDialog(() => savedFilter = v)),
+                          FilterChip(label: const Text('قابل للإتلاف'), selected: destroyableOnly, onSelected: (v) => setDialog(() => destroyableOnly = v)),
+                          const SizedBox(width: 8),
+                          FilterChip(label: const Text('غير مراجع رقمياً'), selected: unreviewedOnly, onSelected: (v) => setDialog(() => unreviewedOnly = v)),
+                          if (search.text.isNotEmpty || savedFilter != 'all' || destroyableOnly || unreviewedOnly)
+                            TextButton.icon(
+                              icon: const Icon(Icons.filter_alt_off, size: 16),
+                              label: const Text('مسح'),
+                              onPressed: () => setDialog(() {
+                                search.clear();
+                                savedFilter = 'all';
+                                destroyableOnly = false;
+                                unreviewedOnly = false;
+                              }),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _paperArchiveStatsBar(filtered),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(child: Text('لا توجد نتائج مطابقة في الأرشيف الورقي.'))
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (_, index) => _paperArchiveRow(context, filtered[index]),
+                            ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            if (permissions.can(PermissionKeys.archiveQualityExport))
+              OutlinedButton.icon(
+                icon: const Icon(Icons.download),
+                label: const Text('تصدير المعروض CSV'),
+                onPressed: () async {
+                  final rows = await _loadPaperArchiveRows(ref);
+                  final visible = _filterPaperRows(rows, search.text, savedFilter, destroyableOnly, unreviewedOnly);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _exportPaperArchiveRows(context, ref, visible);
+                },
+              ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, Object?>> _filterPaperRows(List<Map<String, Object?>> rows, String rawQuery, String savedFilter, bool destroyableOnly, bool unreviewedOnly) {
+    final query = rawQuery.trim().toLowerCase();
+    return rows.where((row) {
+      final saved = ((row['paper_original_saved'] as int?) ?? 0) == 1;
+      final destroyable = ((row['can_destroy_original'] as int?) ?? 0) == 1;
+      final reviewed = ((row['reviewed_by'] as String?) ?? '').trim().isNotEmpty;
+      final savedOk = savedFilter == 'all' || (savedFilter == 'saved' && saved) || (savedFilter == 'missing' && !saved);
+      final destroyOk = !destroyableOnly || destroyable;
+      final reviewedOk = !unreviewedOnly || !reviewed;
+      final haystack = [
+        row['doc_name'], row['doc_type'], row['paper_location'], row['box'], row['shelf'], row['paper_folder'], row['reviewed_by'], row['paper_notes']
+      ].whereType<Object>().join(' ').toLowerCase();
+      final queryOk = query.isEmpty || haystack.contains(query);
+      return savedOk && destroyOk && reviewedOk && queryOk;
+    }).toList();
+  }
+
+  Widget _paperArchiveStatsBar(List<Map<String, Object?>> rows) {
+    final saved = rows.where((row) => ((row['paper_original_saved'] as int?) ?? 0) == 1).length;
+    final missing = rows.length - saved;
+    final destroyable = rows.where((row) => ((row['can_destroy_original'] as int?) ?? 0) == 1).length;
+    final unreviewed = rows.where((row) => ((row['reviewed_by'] as String?) ?? '').trim().isEmpty).length;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          _mini('المعروض', rows.length),
+          _mini('محفوظ', saved),
+          _mini('غير محفوظ', missing),
+          _mini('قابل للإتلاف', destroyable),
+          _mini('غير مراجع', unreviewed),
+        ],
+      ),
+    );
+  }
+
+  Widget _paperArchiveRow(BuildContext context, Map<String, Object?> row) {
+    final saved = ((row['paper_original_saved'] as int?) ?? 0) == 1;
+    final location = _paperLocationFromRow(row);
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(backgroundColor: (saved ? AppColors.success : AppColors.warning).withOpacity(0.12), child: Icon(saved ? Icons.inventory_2 : Icons.warning_amber, color: saved ? AppColors.success : AppColors.warning)),
+        title: Text('${row['doc_name'] ?? 'مستند'}', maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text([
+          saved ? 'الأصل محفوظ' : 'الأصل غير محفوظ',
+          if (location.isNotEmpty) location,
+          if (((row['reviewed_by'] as String?) ?? '').trim().isNotEmpty) 'راجعه: ${row['reviewed_by']}',
+        ].join(' • ')),
+        trailing: TextButton.icon(
+          icon: const Icon(Icons.open_in_new, size: 16),
+          label: const Text('فتح المستند'),
+          onPressed: () => context.go('/documents/${row['document_id']}'),
+        ),
+      ),
+    );
+  }
+
+  String _paperLocationFromRow(Map<String, Object?> row) {
+    final parts = <String>[
+      ((row['paper_location'] as String?) ?? '').trim(),
+      if (((row['box'] as String?) ?? '').trim().isNotEmpty) 'صندوق ${(row['box'] as String).trim()}',
+      if (((row['shelf'] as String?) ?? '').trim().isNotEmpty) 'رف ${(row['shelf'] as String).trim()}',
+      if (((row['paper_folder'] as String?) ?? '').trim().isNotEmpty) 'مجلد ${(row['paper_folder'] as String).trim()}',
+    ].where((value) => value.isNotEmpty).toList();
+    return parts.join(' • ');
+  }
+
+  Future<void> _exportPaperArchiveRows(BuildContext context, WidgetRef ref, List<Map<String, Object?>> rows) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) return;
+    final buffer = StringBuffer('documentId,name,type,paperSaved,location,box,shelf,folder,canDestroy,reviewedBy,reviewedAt,notes\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final row in rows) {
+      buffer.writeln([
+        row['document_id'], esc(row['doc_name']), esc(row['doc_type']), ((row['paper_original_saved'] as int?) ?? 0) == 1,
+        esc(row['paper_location']), esc(row['box']), esc(row['shelf']), esc(row['paper_folder']), ((row['can_destroy_original'] as int?) ?? 0) == 1,
+        esc(row['reviewed_by']), esc(row['reviewed_at']), esc(row['paper_notes']),
+      ].join(','));
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'paper_archive_exports'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = File(path.join(dir.path, 'paper_archive_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await _writeArabicCsv(file, buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'paper_archive', entityTitle: file.path, description: 'تصدير كشف الأرشيف الورقي CSV', after: {'count': rows.length}, severity: 'info');
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير كشف الأرشيف الورقي: ${file.path}'), backgroundColor: AppColors.success));
   }
 
   Future<void> _showActiveNeedsCompletion(BuildContext context, WidgetRef ref) async {
