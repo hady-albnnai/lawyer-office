@@ -2024,6 +2024,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                         label: const Text('إضافة ملفات'),
                         onPressed: () => _importFiles(context, ref, b.id, batchName: b.name),
                       ),
+                    if (canImport)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.folder_copy, size: 16),
+                        label: const Text('إضافة مجلد'),
+                        onPressed: () => _importFolder(context, ref, b.id, batchName: b.name),
+                      ),
                     if (b.sourceType == 'excel' && ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportExcel))
                       OutlinedButton.icon(
                         icon: const Icon(Icons.table_chart, size: 16),
@@ -2195,6 +2201,54 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تمت المعالجة: ${summary.imported} جديد، ${summary.duplicates} مكرر، ${summary.failed} فشل'),
+          backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
+          action: SnackBarAction(
+            label: 'فتح الدفعة',
+            textColor: Colors.white,
+            onPressed: () => _showBatchDetails(context, ref, batchId, batchName ?? 'دفعة #$batchId'),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importFolder(BuildContext context, WidgetRef ref, int batchId, {String? batchName}) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportFiles)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'محاولة استيراد مجلد أرشيف دون صلاحية', severity: 'warning');
+      return;
+    }
+    final directoryPath = await fp.FilePicker.platform.getDirectoryPath(dialogTitle: 'اختر مجلد الأرشيف');
+    if (directoryPath == null || directoryPath.trim().isEmpty) return;
+    final root = Directory(directoryPath);
+    if (!await root.exists()) return;
+    final files = <File>[];
+    await for (final entity in root.list(recursive: true, followLinks: false)) {
+      if (entity is File) files.add(entity);
+    }
+    if (files.isEmpty) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('المجلد المختار لا يحتوي ملفات.'), backgroundColor: AppColors.warning));
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('استيراد مجلد أرشيف'),
+            content: Text('سيتم استيراد ${files.length} ملف من المجلد:\n$directoryPath\n\nسيتم فحص التكرارات بالبصمة وحفظ الملفات غير المكررة فقط.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('استيراد')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    final summary = await ref.read(archiveIntakeRepositoryProvider).importFilesToBatch(batchId, files);
+    await ref.read(auditServiceProvider).log(action: 'import_folder', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', entityTitle: batchName, description: 'استيراد مجلد إلى دفعة أرشيف', after: {'folder': directoryPath, 'files': files.length, 'imported': summary.imported, 'duplicates': summary.duplicates, 'failed': summary.failed}, severity: 'info');
+    ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم استيراد المجلد: ${summary.imported} جديد، ${summary.duplicates} مكرر، ${summary.failed} فشل'),
           backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
           action: SnackBarAction(
             label: 'فتح الدفعة',
