@@ -249,6 +249,23 @@ class AppDatabase extends _$AppDatabase {
       );
     ''');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_reference_values_category ON archive_reference_values(category, parent_value, is_active);');
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS document_paper_metadata (
+        document_id INTEGER PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+        paper_original_saved INTEGER NOT NULL DEFAULT 0,
+        paper_location TEXT,
+        box TEXT,
+        shelf TEXT,
+        paper_folder TEXT,
+        can_destroy_original INTEGER NOT NULL DEFAULT 0,
+        reviewed_by TEXT,
+        reviewed_at DATETIME,
+        notes TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_paper_metadata_location ON document_paper_metadata(paper_location, box, shelf);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_batches_status ON archive_batches(status, created_at);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_batch ON archive_items(batch_id, status);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_hash ON archive_items(sha256);');

@@ -2722,6 +2722,13 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                           userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
                           archiveNotes: paperNotes,
                           physicalLocation: paperOriginalSaved ? 0 : 1,
+                          paperOriginalSaved: paperOriginalSaved,
+                          paperLocation: paperLocation.text.trim().isEmpty ? null : paperLocation.text.trim(),
+                          paperBox: paperBox.text.trim().isEmpty ? null : paperBox.text.trim(),
+                          paperShelf: paperShelf.text.trim().isEmpty ? null : paperShelf.text.trim(),
+                          paperFolder: paperFolder.text.trim().isEmpty ? null : paperFolder.text.trim(),
+                          canDestroyOriginal: canDestroyOriginal,
+                          reviewedBy: reviewedBy.text.trim().isEmpty ? null : reviewedBy.text.trim(),
                         );
                         await ref.read(auditServiceProvider).log(action: 'link', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'ربط عنصر أرشيف بملف وإنشاء مستند رقم $docId', after: {'target': target.label, 'targetId': selectedId, 'documentType': effectiveDocumentType, 'paperOriginalSaved': paperOriginalSaved, 'paperLocation': paperLocation.text.trim(), 'box': paperBox.text.trim(), 'shelf': paperShelf.text.trim(), 'paperFolder': paperFolder.text.trim(), 'canDestroyOriginal': canDestroyOriginal, 'reviewedBy': reviewedBy.text.trim()}, severity: 'info');
                         ref.read(_archiveIntakeRefreshProvider.notifier).state++;

@@ -159,6 +159,42 @@ ui_doc.FileType _mapFileType(String? raw) {
   }
 }
 
+String _paperArchiveLocationFromMetadata(Map<String, dynamic>? metadata, String? notes, int physicalLocation) {
+  if (metadata != null) {
+    final parts = <String>[
+      (metadata['paper_location'] as String?)?.trim() ?? '',
+      if (((metadata['box'] as String?)?.trim() ?? '').isNotEmpty) 'صندوق ${(metadata['box'] as String).trim()}',
+      if (((metadata['shelf'] as String?)?.trim() ?? '').isNotEmpty) 'رف ${(metadata['shelf'] as String).trim()}',
+      if (((metadata['paper_folder'] as String?)?.trim() ?? '').isNotEmpty) 'مجلد ${(metadata['paper_folder'] as String).trim()}',
+    ].where((value) => value.isNotEmpty).toList();
+    if (parts.isNotEmpty) return parts.join(' • ');
+  }
+  return _paperArchiveLocation(notes, physicalLocation);
+}
+
+bool _isPaperOriginalMissingFromMetadata(Map<String, dynamic>? metadata, String? notes, int status) {
+  if (metadata != null) {
+    final saved = ((metadata['paper_original_saved'] as int?) ?? 0) == 1;
+    return !saved || status != 0;
+  }
+  return _isPaperOriginalMissing(notes, status);
+}
+
+String? _mergePaperMetadataNotes(Map<String, dynamic>? metadata, String? existingNotes) {
+  if (metadata == null) return existingNotes;
+  final lines = <String>[
+    if ((existingNotes ?? '').trim().isNotEmpty) existingNotes!.trim(),
+    'الأصل الورقي محفوظ: ${((metadata['paper_original_saved'] as int?) ?? 0) == 1 ? 'نعم' : 'لا'}',
+    if (((metadata['paper_location'] as String?) ?? '').trim().isNotEmpty) 'مكان الأصل: ${(metadata['paper_location'] as String).trim()}',
+    if (((metadata['box'] as String?) ?? '').trim().isNotEmpty) 'الصندوق: ${(metadata['box'] as String).trim()}',
+    if (((metadata['shelf'] as String?) ?? '').trim().isNotEmpty) 'الرف: ${(metadata['shelf'] as String).trim()}',
+    if (((metadata['paper_folder'] as String?) ?? '').trim().isNotEmpty) 'المجلد الورقي: ${(metadata['paper_folder'] as String).trim()}',
+    'يجوز إتلاف الأصل: ${((metadata['can_destroy_original'] as int?) ?? 0) == 1 ? 'نعم' : 'لا'}',
+    if (((metadata['reviewed_by'] as String?) ?? '').trim().isNotEmpty) 'راجع النسخة الرقمية: ${(metadata['reviewed_by'] as String).trim()}',
+  ];
+  return lines.join('\n');
+}
+
 String _paperArchiveLocation(String? notes, int physicalLocation) {
   final raw = notes ?? '';
   String pick(String prefix) {
@@ -212,12 +248,22 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
   for (final l in links) {
     byDoc.putIfAbsent(l.documentId, () => l);
   }
+  final database = ref.watch(databaseProvider);
+  await database.ensureArchiveTables();
+  final paperRows = await database.customSelect('SELECT * FROM document_paper_metadata').get();
+  final paperByDoc = <int, Map<String, dynamic>>{};
+  for (final row in paperRows) {
+    final docId = row.data['document_id'] as int?;
+    if (docId != null) paperByDoc[docId] = row.data;
+  }
 
   return docs.map((d) {
     final link = byDoc[d.id];
     final entityType = link?.entityType ?? 0;
     final entityId = link?.entityId ?? 0;
-    final originalMissing = _isPaperOriginalMissing(d.notes, d.status);
+    final paper = paperByDoc[d.id];
+    final notes = _mergePaperMetadataNotes(paper, d.notes);
+    final originalMissing = _isPaperOriginalMissingFromMetadata(paper, d.notes, d.status);
     return ui_doc.DocumentItem(
       id: '${d.id}',
       title: d.docName,
@@ -231,10 +277,10 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
       fileType: _mapFileType(d.fileType),
       uploadDate: d.dateAdded,
       uploadedBy: 'المكتب',
-      physicalLocation: _paperArchiveLocation(d.notes, d.physicalLocation),
+      physicalLocation: _paperArchiveLocationFromMetadata(paper, d.notes, d.physicalLocation),
       hasOriginal: !originalMissing,
       isMissingOriginal: originalMissing,
-      notes: d.notes ?? '',
+      notes: notes ?? '',
     );
   }).toList();
 });

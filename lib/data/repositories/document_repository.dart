@@ -26,6 +26,13 @@ class DocumentRepository {
     String? summary,
     String? notes,
     int? physicalLocation,
+    bool? paperOriginalSaved,
+    String? paperLocation,
+    String? paperBox,
+    String? paperShelf,
+    String? paperFolder,
+    bool? canDestroyOriginal,
+    String? reviewedBy,
     File? sourceFile,
     required int entityType,
     required int entityId,
@@ -54,6 +61,32 @@ class DocumentRepository {
       );
 
       await _documentDao.linkDocument(docId, entityType, entityId);
+
+      final hasPaperMetadata = paperOriginalSaved != null ||
+          (paperLocation ?? '').trim().isNotEmpty ||
+          (paperBox ?? '').trim().isNotEmpty ||
+          (paperShelf ?? '').trim().isNotEmpty ||
+          (paperFolder ?? '').trim().isNotEmpty ||
+          canDestroyOriginal != null ||
+          (reviewedBy ?? '').trim().isNotEmpty;
+      if (hasPaperMetadata) {
+        await _documentDao.db.customStatement('''
+          INSERT OR REPLACE INTO document_paper_metadata(
+            document_id, paper_original_saved, paper_location, box, shelf, paper_folder,
+            can_destroy_original, reviewed_by, reviewed_at, notes, updated_at
+          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+        ''', [
+          docId,
+          (paperOriginalSaved ?? false) ? 1 : 0,
+          paperLocation,
+          paperBox,
+          paperShelf,
+          paperFolder,
+          (canDestroyOriginal ?? false) ? 1 : 0,
+          reviewedBy,
+          notes,
+        ]);
+      }
 
       await _documentDao.into(_documentDao.db.timelineEvents).insert(
             TimelineEventsCompanion.insert(

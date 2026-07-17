@@ -383,6 +383,13 @@ class ArchiveIntakeRepository {
     required String userRef,
     String? archiveNotes,
     int? physicalLocation,
+    bool? paperOriginalSaved,
+    String? paperLocation,
+    String? paperBox,
+    String? paperShelf,
+    String? paperFolder,
+    bool? canDestroyOriginal,
+    String? reviewedBy,
   }) async {
     await ensureReady();
     final item = await getItemById(itemId);
@@ -405,6 +412,32 @@ class ArchiveIntakeRepository {
               physicalLocation: Value(physicalLocation ?? 0),
             ),
           );
+      final hasPaperMetadata = paperOriginalSaved != null ||
+          (paperLocation ?? '').trim().isNotEmpty ||
+          (paperBox ?? '').trim().isNotEmpty ||
+          (paperShelf ?? '').trim().isNotEmpty ||
+          (paperFolder ?? '').trim().isNotEmpty ||
+          canDestroyOriginal != null ||
+          (reviewedBy ?? '').trim().isNotEmpty;
+      if (hasPaperMetadata) {
+        await _db.customStatement('''
+          INSERT OR REPLACE INTO document_paper_metadata(
+            document_id, paper_original_saved, paper_location, box, shelf, paper_folder,
+            can_destroy_original, reviewed_by, reviewed_at, notes, updated_at
+          ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+        ''', [
+          docId,
+          (paperOriginalSaved ?? false) ? 1 : 0,
+          paperLocation,
+          paperBox,
+          paperShelf,
+          paperFolder,
+          (canDestroyOriginal ?? false) ? 1 : 0,
+          reviewedBy,
+          archiveNotes,
+        ]);
+      }
+
       await _db.into(_db.documentLinks).insert(
             DocumentLinksCompanion.insert(
               documentId: docId,
