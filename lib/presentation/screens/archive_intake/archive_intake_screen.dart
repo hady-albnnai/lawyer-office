@@ -936,7 +936,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'import_templates'));
     if (!await dir.exists()) await dir.create(recursive: true);
     final file = File(path.join(dir.path, fileName));
-    await file.writeAsString(_templateContent(templateKey));
+    await _writeArabicCsv(file, _templateContent(templateKey));
     await ref.read(auditServiceProvider).log(
       action: 'export_template',
       category: 'archive',
