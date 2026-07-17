@@ -196,6 +196,20 @@ const _documentTypeOptions = <String, String>{
 class ArchiveIntakeScreen extends ConsumerWidget {
   const ArchiveIntakeScreen({super.key});
 
+  String _normalizeSearchText(Object? value) {
+    return (value ?? '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ة', 'ه')
+        .replaceAll('ى', 'ي');
+  }
+
+  bool _containsSearch(Object? source, String query) => _normalizeSearchText(source).contains(query);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(permissionServiceProvider);
@@ -483,13 +497,13 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) {
           final filteredGroups = <String, List<ArchiveReferenceValueRecord>>{};
-          final q = query.trim().toLowerCase();
+          final q = _normalizeSearchText(query);
           grouped.forEach((category, records) {
             final filtered = records.where((record) {
               final queryOk = q.isEmpty ||
-                  _archiveReferenceCategoryLabel(record.category).toLowerCase().contains(q) ||
-                  record.value.toLowerCase().contains(q) ||
-                  (record.parentValue ?? '').toLowerCase().contains(q);
+                  _containsSearch(_archiveReferenceCategoryLabel(record.category), q) ||
+                  _containsSearch(record.value, q) ||
+                  _containsSearch(record.parentValue, q);
               final categoryOk = categoryFilter == 'all' || record.category == categoryFilter;
               final activeOk = activeFilter == 'all' || (activeFilter == 'active' && record.isActive) || (activeFilter == 'inactive' && !record.isActive);
               return queryOk && categoryOk && activeOk;
@@ -1407,7 +1421,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   List<Map<String, Object?>> _filterPaperRows(List<Map<String, Object?>> rows, String rawQuery, String savedFilter, bool destroyableOnly, bool unreviewedOnly) {
-    final query = rawQuery.trim().toLowerCase();
+    final query = _normalizeSearchText(rawQuery);
     return rows.where((row) {
       final saved = ((row['paper_original_saved'] as int?) ?? 0) == 1;
       final destroyable = ((row['can_destroy_original'] as int?) ?? 0) == 1;
@@ -1750,7 +1764,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   List<FileItem> _filteredCompletionFiles(List<FileItem> files, String rawQuery, FileType? typeFilter, String reasonFilter) {
-    final query = rawQuery.trim().toLowerCase();
+    final query = _normalizeSearchText(rawQuery);
     return files.where((file) {
       final typeOk = typeFilter == null || file.type == typeFilter;
       final reasonOk = switch (reasonFilter) {
@@ -1760,10 +1774,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         _ => true,
       };
       final queryOk = query.isEmpty ||
-          file.fileNumber.toLowerCase().contains(query) ||
-          file.title.toLowerCase().contains(query) ||
-          file.court.toLowerCase().contains(query) ||
-          (file.baseNumber ?? '').toLowerCase().contains(query);
+          _containsSearch(file.fileNumber, query) ||
+          _containsSearch(file.title, query) ||
+          _containsSearch(file.court, query) ||
+          _containsSearch(file.baseNumber, query);
       return typeOk && reasonOk && queryOk;
     }).toList();
   }
@@ -1898,7 +1912,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
 
   Widget _batchesList(WidgetRef ref) {
     final repo = ref.watch(archiveIntakeRepositoryProvider);
-    final query = ref.watch(_archiveBatchSearchProvider).trim().toLowerCase();
+    final query = _normalizeSearchText(ref.watch(_archiveBatchSearchProvider));
     final sourceFilter = ref.watch(_archiveBatchSourceFilterProvider);
     final statusFilter = ref.watch(_archiveBatchStatusFilterProvider);
     return FutureBuilder(
@@ -1908,12 +1922,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         final allBatches = snapshot.data!;
         final batches = allBatches.where((b) {
           final queryOk = query.isEmpty ||
-              b.name.toLowerCase().contains(query) ||
-              _sourceLabel(b.sourceType).toLowerCase().contains(query) ||
-              _statusLabel(b.status).toLowerCase().contains(query) ||
-                    (b.createdBy ?? '').toLowerCase().contains(query) ||
-                    (b.sourcePath ?? '').toLowerCase().contains(query) ||
-                    (b.notes ?? '').toLowerCase().contains(query);
+              _containsSearch(b.name, query) ||
+              _containsSearch(_sourceLabel(b.sourceType), query) ||
+              _containsSearch(_statusLabel(b.status), query) ||
+              _containsSearch(b.createdBy, query) ||
+              _containsSearch(b.sourcePath, query) ||
+              _containsSearch(b.notes, query);
           final sourceOk = sourceFilter == 'all' || b.sourceType == sourceFilter;
           final statusOk = statusFilter == 'all' || b.status == statusFilter;
           return queryOk && sourceOk && statusOk;
@@ -3006,16 +3020,16 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   List<ArchiveItemRecord> _filteredArchiveItems(List<ArchiveItemRecord> items, String rawQuery) {
-    final query = rawQuery.trim().toLowerCase();
+    final query = _normalizeSearchText(rawQuery);
     if (query.isEmpty) return items;
     return items.where((item) {
-      return item.originalFileName.toLowerCase().contains(query) ||
-          (item.fileType ?? '').toLowerCase().contains(query) ||
-          (item.status).toLowerCase().contains(query) ||
-          (item.reviewStatus).toLowerCase().contains(query) ||
-          (item.errorMessage ?? '').toLowerCase().contains(query) ||
-          _documentTypeLabel(item.suggestedDocumentType ?? 'archive_document').toLowerCase().contains(query) ||
-          (item.sha256 ?? '').toLowerCase().contains(query);
+      return _containsSearch(item.originalFileName, query) ||
+          _containsSearch(item.fileType, query) ||
+          _containsSearch(item.status, query) ||
+          _containsSearch(item.reviewStatus, query) ||
+          _containsSearch(item.errorMessage, query) ||
+          _containsSearch(_documentTypeLabel(item.suggestedDocumentType ?? 'archive_document'), query) ||
+          _containsSearch(item.sha256, query);
     }).toList();
   }
 
@@ -3526,20 +3540,20 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   Widget _linkChoices(WidgetRef ref, _ArchiveLinkTarget target, String rawQuery, int? selectedId, void Function(int id, String title) onSelect) {
-    final query = rawQuery.trim().toLowerCase();
+    final query = _normalizeSearchText(rawQuery);
     switch (target) {
       case _ArchiveLinkTarget.caseFile:
-        return ref.watch(allCasesProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الدعاوى: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || c.internalNumber.toLowerCase().contains(query) || (c.subject ?? '').toLowerCase().contains(query) || (c.baseNumber ?? '').toLowerCase().contains(query)).take(20).map((c) => (id: c.id, title: '${c.internalNumber} — ${c.subject ?? 'دعوى'}')).toList(), selectedId, onSelect));
+        return ref.watch(allCasesProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الدعاوى: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || _containsSearch(c.internalNumber, query) || _containsSearch(c.subject, query) || _containsSearch(c.baseNumber, query)).take(20).map((c) => (id: c.id, title: '${c.internalNumber} — ${c.subject ?? 'دعوى'}')).toList(), selectedId, onSelect));
       case _ArchiveLinkTarget.procedure:
-        return ref.watch(allProceduresProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الإجراءات: $e'), data: (items) => _choiceList(items.where((p) => query.isEmpty || p.title.toLowerCase().contains(query) || (p.transactionNumber ?? '').toLowerCase().contains(query)).take(20).map((p) => (id: p.id, title: '${p.title} — ${p.transactionNumber ?? p.procedureType}')).toList(), selectedId, onSelect));
+        return ref.watch(allProceduresProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الإجراءات: $e'), data: (items) => _choiceList(items.where((p) => query.isEmpty || _containsSearch(p.title, query) || _containsSearch(p.transactionNumber, query)).take(20).map((p) => (id: p.id, title: '${p.title} — ${p.transactionNumber ?? p.procedureType}')).toList(), selectedId, onSelect));
       case _ArchiveLinkTarget.company:
-        return ref.watch(allCompaniesProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الشركات: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || c.name.toLowerCase().contains(query) || c.internalNumber.toLowerCase().contains(query)).take(20).map((c) => (id: c.id, title: '${c.name} — ${c.internalNumber}')).toList(), selectedId, onSelect));
+        return ref.watch(allCompaniesProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الشركات: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || _containsSearch(c.name, query) || _containsSearch(c.internalNumber, query)).take(20).map((c) => (id: c.id, title: '${c.name} — ${c.internalNumber}')).toList(), selectedId, onSelect));
       case _ArchiveLinkTarget.contract:
-        return ref.watch(allContractsProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل العقود: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || c.title.toLowerCase().contains(query) || c.internalNumber.toLowerCase().contains(query)).take(20).map((c) => (id: c.id, title: '${c.title} — ${c.internalNumber}')).toList(), selectedId, onSelect));
+        return ref.watch(allContractsProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل العقود: $e'), data: (items) => _choiceList(items.where((c) => query.isEmpty || _containsSearch(c.title, query) || _containsSearch(c.internalNumber, query)).take(20).map((c) => (id: c.id, title: '${c.title} — ${c.internalNumber}')).toList(), selectedId, onSelect));
       case _ArchiveLinkTarget.person:
-        return ref.watch(allPersonsProvider(null)).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الأشخاص: $e'), data: (items) => _choiceList(items.where((p) => query.isEmpty || p.fullName.toLowerCase().contains(query) || (p.phone1 ?? '').contains(query) || (p.nationalId ?? '').contains(query)).take(20).map((p) => (id: p.id, title: p.fullName)).toList(), selectedId, onSelect));
+        return ref.watch(allPersonsProvider(null)).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الأشخاص: $e'), data: (items) => _choiceList(items.where((p) => query.isEmpty || _containsSearch(p.fullName, query) || _containsSearch(p.phone1, query) || _containsSearch(p.nationalId, query)).take(20).map((p) => (id: p.id, title: p.fullName)).toList(), selectedId, onSelect));
       case _ArchiveLinkTarget.poa:
-        return ref.watch(uiPersonsDirectoryProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الوكالات: $e'), data: (state) => _choiceList(state.agencies.where((a) => query.isEmpty || a.number.toLowerCase().contains(query) || (state.personById(a.principalPersonId)?.fullName.toLowerCase().contains(query) ?? false)).take(20).map((a) => (id: int.tryParse(a.id) ?? 0, title: '${a.number} — ${state.personById(a.principalPersonId)?.fullName ?? 'موكل'}')).where((e) => e.id > 0).toList(), selectedId, onSelect));
+        return ref.watch(uiPersonsDirectoryProvider).when(loading: () => const Center(child: CircularProgressIndicator()), error: (e, _) => Text('تعذر تحميل الوكالات: $e'), data: (state) => _choiceList(state.agencies.where((a) => query.isEmpty || _containsSearch(a.number, query) || _containsSearch(state.personById(a.principalPersonId)?.fullName, query)).take(20).map((a) => (id: int.tryParse(a.id) ?? 0, title: '${a.number} — ${state.personById(a.principalPersonId)?.fullName ?? 'موكل'}')).where((e) => e.id > 0).toList(), selectedId, onSelect));
     }
   }
 
