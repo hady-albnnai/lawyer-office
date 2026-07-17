@@ -1032,6 +1032,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           final statusOk = statusFilter == 'all' || b.status == statusFilter;
           return queryOk && sourceOk && statusOk;
         }).toList();
+        final shownFiles = batches.fold<int>(0, (sum, b) => sum + b.totalFiles);
+        final shownUnclassified = batches.fold<int>(0, (sum, b) => sum + b.unclassifiedFiles);
+        final shownDuplicates = batches.fold<int>(0, (sum, b) => sum + b.duplicateFiles);
+        final shownFailed = batches.fold<int>(0, (sum, b) => sum + b.failedFiles);
+        final shownApproved = batches.fold<int>(0, (sum, b) => sum + b.approvedFiles);
         if (allBatches.isEmpty) {
           return Card(
             child: Padding(
@@ -1072,6 +1077,19 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   _archiveReviewFilterChip('completed_with_errors', 'مكتملة مع أخطاء', statusFilter, (v) => ref.read(_archiveBatchStatusFilterProvider.notifier).state = v),
                 ],
               ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _mini('الدفعات المعروضة', batches.length),
+                _mini('الملفات', shownFiles),
+                _mini('معتمدة', shownApproved),
+                _mini('غير مصنف', shownUnclassified),
+                _mini('مكرر', shownDuplicates),
+                _mini('فشل', shownFailed),
+              ],
             ),
             const SizedBox(height: 12),
             if (batches.isEmpty)
