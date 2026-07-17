@@ -1047,7 +1047,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       OutlinedButton.icon(
                         icon: const Icon(Icons.upload_file, size: 16),
                         label: const Text('إضافة ملفات'),
-                        onPressed: () => _importFiles(context, ref, b.id),
+                        onPressed: () => _importFiles(context, ref, b.id, batchName: b.name),
                       ),
                   ],
                 ),
@@ -1143,7 +1143,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               ? SnackBarAction(
                   label: 'إضافة ملفات الآن',
                   textColor: Colors.white,
-                  onPressed: () => _importFiles(context, ref, id),
+                  onPressed: () => _importFiles(context, ref, id, batchName: name.text.trim()),
                 )
               : null,
         ),
@@ -1151,7 +1151,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _importFiles(BuildContext context, WidgetRef ref, int batchId) async {
+  Future<void> _importFiles(BuildContext context, WidgetRef ref, int batchId, {String? batchName}) async {
     if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportFiles)) {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'محاولة استيراد ملفات أرشيف دون صلاحية', severity: 'warning');
       return;
@@ -1176,6 +1176,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         SnackBar(
           content: Text('تمت المعالجة: ${summary.imported} جديد، ${summary.duplicates} مكرر، ${summary.failed} فشل'),
           backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
+          action: SnackBarAction(
+            label: 'فتح الدفعة',
+            textColor: Colors.white,
+            onPressed: () => _showBatchDetails(context, ref, batchId, batchName ?? 'دفعة #$batchId'),
+          ),
         ),
       );
     }
