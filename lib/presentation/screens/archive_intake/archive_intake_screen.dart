@@ -1134,7 +1134,20 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إنشاء دفعة الأرشيف: ${name.text.trim()}'), backgroundColor: AppColors.success));
+      final canImportNow = ref.read(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportFiles);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم إنشاء دفعة الأرشيف: ${name.text.trim()}'),
+          backgroundColor: AppColors.success,
+          action: canImportNow
+              ? SnackBarAction(
+                  label: 'إضافة ملفات الآن',
+                  textColor: Colors.white,
+                  onPressed: () => _importFiles(context, ref, id),
+                )
+              : null,
+        ),
+      );
     }
   }
 
