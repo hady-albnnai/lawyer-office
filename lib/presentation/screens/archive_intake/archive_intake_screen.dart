@@ -931,38 +931,116 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       severity: 'info',
     );
     if (!context.mounted) return;
+    final search = TextEditingController();
+    FileType? typeFilter;
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('ملفات جارية تحتاج استكمال'),
-        content: SizedBox(
-          width: 900,
-          height: 560,
-          child: files.isEmpty
-              ? const Center(child: Text('لا توجد ملفات جارية ناقصة حالياً.'))
-              : ListView.builder(
-                  itemCount: files.length,
-                  itemBuilder: (_, index) {
-                    final file = files[index];
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(backgroundColor: AppColors.error.withOpacity(0.12), child: Icon(_fileTypeIcon(file.type), color: AppColors.error)),
-                        title: Text('${file.fileNumber} — ${file.title}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(_completionReasons(file).join(' • ')),
-                        trailing: OutlinedButton.icon(
-                          icon: const Icon(Icons.open_in_new, size: 16),
-                          label: const Text('فتح الملف'),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _openOfficeFile(context, file);
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          final filtered = _filteredCompletionFiles(files, search.text, typeFilter);
+          return AlertDialog(
+            title: const Text('ملفات جارية تحتاج استكمال'),
+            content: SizedBox(
+              width: 940,
+              height: 620,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: search,
+                    decoration: const InputDecoration(labelText: 'بحث برقم الملف أو العنوان أو الجهة', prefixIcon: Icon(Icons.search)),
+                    onChanged: (_) => setDialog(() {}),
+                  ),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _completionTypeChip(null, 'كل الأنواع', Icons.folder_copy, typeFilter, (v) => setDialog(() => typeFilter = v)),
+                        ...FileType.values.map((type) => _completionTypeChip(type, type.displayName, _fileTypeIcon(type), typeFilter, (v) => setDialog(() => typeFilter = v))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _completionStatsBar(filtered),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(child: Text('لا توجد ملفات جارية ناقصة مطابقة.'))
+                        : ListView.builder(
+                            itemCount: filtered.length,
+                            itemBuilder: (_, index) {
+                              final file = filtered[index];
+                              return Card(
+                                child: ListTile(
+                                  leading: CircleAvatar(backgroundColor: AppColors.error.withOpacity(0.12), child: Icon(_fileTypeIcon(file.type), color: AppColors.error)),
+                                  title: Text('${file.fileNumber} — ${file.title}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  subtitle: Text(_completionReasons(file).join(' • ')),
+                                  trailing: OutlinedButton.icon(
+                                    icon: const Icon(Icons.open_in_new, size: 16),
+                                    label: const Text('فتح الملف'),
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      _openOfficeFile(context, file);
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+          );
+        },
+      ),
+    );
+  }
+
+  List<FileItem> _filteredCompletionFiles(List<FileItem> files, String rawQuery, FileType? typeFilter) {
+    final query = rawQuery.trim().toLowerCase();
+    return files.where((file) {
+      final typeOk = typeFilter == null || file.type == typeFilter;
+      final queryOk = query.isEmpty ||
+          file.fileNumber.toLowerCase().contains(query) ||
+          file.title.toLowerCase().contains(query) ||
+          file.court.toLowerCase().contains(query) ||
+          (file.baseNumber ?? '').toLowerCase().contains(query);
+      return typeOk && queryOk;
+    }).toList();
+  }
+
+  Widget _completionTypeChip(FileType? value, String label, IconData icon, FileType? selected, ValueChanged<FileType?> onSelected) {
+    final isSelected = selected == value;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: ChoiceChip(
+        avatar: Icon(icon, size: 16, color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary),
+        selected: isSelected,
+        label: Text(label),
+        selectedColor: AppColors.primaryNavy.withOpacity(0.10),
+        labelStyle: TextStyle(color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        onSelected: (_) => onSelected(value),
+      ),
+    );
+  }
+
+  Widget _completionStatsBar(List<FileItem> files) {
+    final missingBase = files.where((file) => !file.hasBaseNumber).length;
+    final missingDocs = files.where((file) => file.hasMissingDocuments || file.documentCount == 0).length;
+    final deficiencies = files.where((file) => file.hasDeficiencies).length;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          _mini('المعروض', files.length),
+          _mini('نواقص', deficiencies),
+          _mini('مستندات ناقصة', missingDocs),
+          _mini('بلا رقم/مرجع', missingBase),
+        ],
       ),
     );
   }
