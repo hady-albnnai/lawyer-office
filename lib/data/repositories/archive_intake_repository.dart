@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -307,6 +308,122 @@ class ArchiveIntakeRepository {
   }
 
 
+  Future<ArchiveImportSummary> importCsvRowsToBatch(int batchId, File csvFile) async {
+    await ensureReady();
+    await updateBatchStatus(batchId, 'processing');
+    var imported = 0;
+    var failed = 0;
+    final fileName = csvFile.path.split(Platform.pathSeparator).last;
+
+    try {
+      final content = await csvFile.readAsString(encoding: utf8);
+      final rows = _parseCsv(content);
+      if (rows.isEmpty) {
+        throw StateError('ملف CSV فارغ');
+      }
+      final headers = rows.first.map((value) => value.trim()).toList();
+      final dataRows = rows.skip(1).where((row) => row.any((cell) => cell.trim().isNotEmpty)).toList();
+      for (var i = 0; i < dataRows.length; i++) {
+        final row = dataRows[i];
+        final mapped = <String, String>{};
+        for (var c = 0; c < headers.length; c++) {
+          mapped[headers[c]] = c < row.length ? row[c] : '';
+        }
+        final rowTitle = _csvRowTitle(fileName, i + 2, mapped);
+        await _db.customStatement('''
+          INSERT INTO archive_items(
+            batch_id, original_file_name, source_path, file_type, file_size, sha256,
+            status, review_status, suggested_document_type, error_message
+          ) VALUES(?, ?, ?, 'csv_row', 0, ?, 'imported', 'needs_review', ?, ?)
+        ''', [
+          batchId,
+          rowTitle,
+          csvFile.path,
+          sha256.convert(utf8.encode('$fileName:${i + 2}:${jsonEncode(mapped)}')).toString(),
+          _suggestCsvDocumentType(fileName, headers),
+          jsonEncode(mapped),
+        ]);
+        imported++;
+      }
+    } catch (e) {
+      failed++;
+      await _db.customStatement('''
+        INSERT INTO archive_items(batch_id, original_file_name, source_path, file_type, status, review_status, error_message)
+        VALUES(?, ?, ?, 'csv', 'failed', 'needs_review', ?)
+      ''', [batchId, fileName, csvFile.path, '$e']);
+    }
+
+    await _db.customStatement('''
+      UPDATE archive_batches
+      SET total_files = total_files + ?,
+          processed_files = processed_files + ?,
+          failed_files = failed_files + ?,
+          unclassified_files = unclassified_files + ?,
+          status = ?
+      WHERE id = ?
+    ''', [
+      imported + failed,
+      imported + failed,
+      failed,
+      imported + failed,
+      failed > 0 ? 'completed_with_errors' : 'waiting_review',
+      batchId,
+    ]);
+    await refreshBatchCounters(batchId);
+    return ArchiveImportSummary(imported: imported, duplicates: 0, failed: failed);
+  }
+
+  List<List<String>> _parseCsv(String content) {
+    final rows = <List<String>>[];
+    final currentRow = <String>[];
+    final current = StringBuffer();
+    var inQuotes = false;
+    for (var i = 0; i < content.length; i++) {
+      final char = content[i];
+      final next = i + 1 < content.length ? content[i + 1] : '';
+      if (char == '"') {
+        if (inQuotes && next == '"') {
+          current.write('"');
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char == ',' && !inQuotes) {
+        currentRow.add(current.toString());
+        current.clear();
+      } else if ((char == '\n' || char == '\r') && !inQuotes) {
+        if (char == '\r' && next == '\n') i++;
+        currentRow.add(current.toString());
+        current.clear();
+        if (currentRow.any((cell) => cell.trim().isNotEmpty)) rows.add(List<String>.from(currentRow));
+        currentRow.clear();
+      } else {
+        current.write(char);
+      }
+    }
+    if (current.isNotEmpty || currentRow.isNotEmpty) {
+      currentRow.add(current.toString());
+      if (currentRow.any((cell) => cell.trim().isNotEmpty)) rows.add(List<String>.from(currentRow));
+    }
+    return rows;
+  }
+
+  String _csvRowTitle(String fileName, int lineNumber, Map<String, String> row) {
+    for (final key in const ['internal_number', 'file_number', 'poa_number', 'full_name', 'client_name', 'company_name', 'title', 'file_name']) {
+      final value = row[key]?.trim();
+      if (value != null && value.isNotEmpty) return '$fileName / السطر $lineNumber — $value';
+    }
+    return '$fileName / السطر $lineNumber';
+  }
+
+  String _suggestCsvDocumentType(String fileName, List<String> headers) {
+    final raw = '${fileName.toLowerCase()} ${headers.join(' ').toLowerCase()}';
+    if (raw.contains('poa') || raw.contains('وكال')) return 'power_of_attorney';
+    if (raw.contains('case') || raw.contains('دعوى')) return 'case_document';
+    if (raw.contains('contract') || raw.contains('عقد')) return 'contract';
+    if (raw.contains('receipt') || raw.contains('قبض') || raw.contains('ايصال') || raw.contains('إيصال')) return 'receipt';
+    return 'archive_document';
+  }
 
 
   Future<List<ArchiveItemRecord>> getItemsByStatus(String status) async {

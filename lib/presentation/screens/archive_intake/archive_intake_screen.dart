@@ -1924,6 +1924,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                         label: const Text('إضافة ملفات'),
                         onPressed: () => _importFiles(context, ref, b.id, batchName: b.name),
                       ),
+                    if (b.sourceType == 'excel' && ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportExcel))
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.table_chart, size: 16),
+                        label: const Text('استيراد CSV'),
+                        onPressed: () => _importCsvRows(context, ref, b.id, batchName: b.name),
+                      ),
                   ],
                 ),
               ),
@@ -2089,6 +2095,32 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تمت المعالجة: ${summary.imported} جديد، ${summary.duplicates} مكرر، ${summary.failed} فشل'),
+          backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
+          action: SnackBarAction(
+            label: 'فتح الدفعة',
+            textColor: Colors.white,
+            onPressed: () => _showBatchDetails(context, ref, batchId, batchName ?? 'دفعة #$batchId'),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _importCsvRows(BuildContext context, WidgetRef ref, int batchId, {String? batchName}) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveIntakeImportExcel)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'محاولة استيراد CSV دون صلاحية', severity: 'warning');
+      return;
+    }
+    final result = await fp.FilePicker.platform.pickFiles(type: fp.FileType.custom, allowedExtensions: const ['csv']);
+    final pathValue = result?.files.single.path;
+    if (pathValue == null) return;
+    final summary = await ref.read(archiveIntakeRepositoryProvider).importCsvRowsToBatch(batchId, File(pathValue));
+    await ref.read(auditServiceProvider).log(action: 'import_csv', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'استيراد صفوف CSV إلى دفعة أرشيف للمراجعة الآمنة', after: {'imported': summary.imported, 'failed': summary.failed}, severity: 'info');
+    ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تم استيراد CSV: ${summary.imported} صف، فشل ${summary.failed}'),
           backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
           action: SnackBarAction(
             label: 'فتح الدفعة',
