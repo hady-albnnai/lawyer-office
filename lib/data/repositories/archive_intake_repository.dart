@@ -400,6 +400,7 @@ class ArchiveIntakeRepository {
     await ensureReady();
     await updateBatchStatus(batchId, 'processing');
     var imported = 0;
+    var duplicates = 0;
     var failed = 0;
     final fileName = csvFile.path.split(Platform.pathSeparator).last;
 
@@ -418,20 +419,32 @@ class ArchiveIntakeRepository {
           mapped[headers[c]] = c < row.length ? row[c] : '';
         }
         final rowTitle = _csvRowTitle(fileName, i + 2, mapped);
+        final rowHash = sha256.convert(utf8.encode(jsonEncode(mapped))).toString();
+        final duplicateRows = await _db.customSelect(
+          'SELECT id FROM archive_items WHERE sha256 = ? LIMIT 1',
+          variables: [Variable.withString(rowHash)],
+        ).get();
+        final isDuplicate = duplicateRows.isNotEmpty;
+        final duplicateOfId = isDuplicate ? duplicateRows.first.data['id'] as int? : null;
         await _db.customStatement('''
           INSERT INTO archive_items(
             batch_id, original_file_name, source_path, file_type, file_size, sha256,
             status, review_status, suggested_document_type, error_message
-          ) VALUES(?, ?, ?, 'csv_row', 0, ?, 'imported', 'needs_review', ?, ?)
+          ) VALUES(?, ?, ?, 'csv_row', 0, ?, ?, 'needs_review', ?, ?)
         ''', [
           batchId,
           rowTitle,
           csvFile.path,
-          sha256.convert(utf8.encode('$fileName:${i + 2}:${jsonEncode(mapped)}')).toString(),
+          rowHash,
+          isDuplicate ? 'duplicate' : 'imported',
           _suggestCsvDocumentType(fileName, headers),
-          jsonEncode(mapped),
+          isDuplicate ? 'صف CSV مكرر محتمل${duplicateOfId == null ? '' : ' للعنصر #$duplicateOfId'}\n${jsonEncode(mapped)}' : jsonEncode(mapped),
         ]);
-        imported++;
+        if (isDuplicate) {
+          duplicates++;
+        } else {
+          imported++;
+        }
       }
     } catch (e) {
       failed++;
@@ -446,19 +459,21 @@ class ArchiveIntakeRepository {
       SET total_files = total_files + ?,
           processed_files = processed_files + ?,
           failed_files = failed_files + ?,
+          duplicate_files = duplicate_files + ?,
           unclassified_files = unclassified_files + ?,
           status = ?
       WHERE id = ?
     ''', [
-      imported + failed,
-      imported + failed,
+      imported + duplicates + failed,
+      imported + duplicates + failed,
       failed,
-      imported + failed,
+      duplicates,
+      imported + duplicates + failed,
       failed > 0 ? 'completed_with_errors' : 'waiting_review',
       batchId,
     ]);
     await refreshBatchCounters(batchId);
-    return ArchiveImportSummary(imported: imported, duplicates: 0, failed: failed);
+    return ArchiveImportSummary(imported: imported, duplicates: duplicates, failed: failed);
   }
 
   List<String> _csvWarnings(List<String> headers, List<List<String>> rows) {

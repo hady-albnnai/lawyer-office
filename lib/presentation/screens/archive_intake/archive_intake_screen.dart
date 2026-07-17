@@ -2398,12 +2398,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (!confirmed) return;
     await ref.read(archiveIntakeRepositoryProvider).updateBatchSourcePath(batchId, csvFile.path);
     final summary = await ref.read(archiveIntakeRepositoryProvider).importCsvRowsToBatch(batchId, csvFile);
-    await ref.read(auditServiceProvider).log(action: 'import_csv', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'استيراد صفوف CSV إلى دفعة أرشيف للمراجعة الآمنة', after: {'imported': summary.imported, 'failed': summary.failed}, severity: 'info');
+    await ref.read(auditServiceProvider).log(action: 'import_csv', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'استيراد صفوف CSV إلى دفعة أرشيف للمراجعة الآمنة', after: {'imported': summary.imported, 'duplicates': summary.duplicates, 'failed': summary.failed}, severity: 'info');
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم استيراد CSV: ${summary.imported} صف، فشل ${summary.failed}'),
+          content: Text('تم استيراد CSV: ${summary.imported} جديد، ${summary.duplicates} مكرر، فشل ${summary.failed}'),
           backgroundColor: summary.failed > 0 ? AppColors.warning : AppColors.success,
           action: SnackBarAction(
             label: 'فتح الدفعة',
@@ -3246,8 +3246,10 @@ class ArchiveIntakeScreen extends ConsumerWidget {
 
   Map<String, String>? _csvRowData(ArchiveItemRecord item) {
     if (item.fileType != 'csv_row') return null;
-    final raw = item.errorMessage ?? '';
+    var raw = item.errorMessage ?? '';
     if (raw.trim().isEmpty) return null;
+    final jsonStart = raw.indexOf('{');
+    if (jsonStart > 0) raw = raw.substring(jsonStart);
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return null;
