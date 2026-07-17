@@ -1408,17 +1408,70 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     future: ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      return _itemsList(ctx, ref, _filteredArchiveItems(snapshot.data!, search.text));
+                      final searched = _filteredArchiveItems(snapshot.data!, search.text);
+                      final filtered = _filteredArchiveItemsByReview(searched, reviewFilter);
+                      return _itemsList(ctx, ref, filtered);
                     },
                   ),
                 ),
               ],
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+          actions: [
+            if (ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport))
+              OutlinedButton.icon(
+                icon: const Icon(Icons.download),
+                label: const Text('تصدير عناصر الدفعة CSV'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _exportBatchItems(context, ref, batchId, batchName);
+                },
+              ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _exportBatchItems(BuildContext context, WidgetRef ref, int batchId, String batchName) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'محاولة تصدير عناصر دفعة أرشيف دون صلاحية', severity: 'warning');
+      return;
+    }
+    final items = await ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId);
+    final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,confirmedType,entityType,entityId,sha256,error,createdAt,sourcePath,storedPath\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final item in items) {
+      buffer.writeln([
+        item.id,
+        item.batchId,
+        esc(item.originalFileName),
+        esc(item.status),
+        esc(item.reviewStatus),
+        esc(item.fileType),
+        item.fileSize,
+        esc(item.suggestedDocumentType),
+        esc(item.confirmedDocumentType),
+        item.confirmedEntityType ?? '',
+        item.confirmedEntityId ?? '',
+        esc(item.sha256),
+        esc(item.errorMessage),
+        esc(item.createdAt.toIso8601String()),
+        esc(item.sourcePath),
+        esc(item.storedPath),
+      ].join(','));
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_batch_exports'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final safeName = batchName.replaceAll(RegExp(r'[^\w\u0600-\u06FF-]+'), '_');
+    final file = File(path.join(dir.path, 'archive_batch_${batchId}_${safeName}_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await file.writeAsString(buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', entityTitle: file.path, description: 'تصدير عناصر دفعة الأرشيف CSV', after: {'count': items.length}, severity: 'info');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير عناصر الدفعة: ${file.path}'), backgroundColor: AppColors.success));
+    }
   }
 
   Widget _archiveReviewFilterChip(String value, String label, String selected, ValueChanged<String> onSelected) {
