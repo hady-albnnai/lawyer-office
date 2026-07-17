@@ -1801,13 +1801,23 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                                   leading: CircleAvatar(backgroundColor: AppColors.error.withOpacity(0.12), child: Icon(_fileTypeIcon(file.type), color: AppColors.error)),
                                   title: Text('${file.fileNumber} — ${file.title}', maxLines: 1, overflow: TextOverflow.ellipsis),
                                   subtitle: Text(_completionReasons(file).join(' • ')),
-                                  trailing: OutlinedButton.icon(
-                                    icon: const Icon(Icons.open_in_new, size: 16),
-                                    label: const Text('فتح الملف'),
-                                    onPressed: () {
-                                      Navigator.pop(ctx);
-                                      _openOfficeFile(context, file);
-                                    },
+                                  trailing: Wrap(
+                                    spacing: 6,
+                                    children: [
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.copy, size: 16),
+                                        label: const Text('نسخ المطلوب'),
+                                        onPressed: () => _copyCompletionFileDetails(context, file),
+                                      ),
+                                      OutlinedButton.icon(
+                                        icon: const Icon(Icons.open_in_new, size: 16),
+                                        label: const Text('فتح الملف'),
+                                        onPressed: () {
+                                          Navigator.pop(ctx);
+                                          _openOfficeFile(context, file);
+                                        },
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );
@@ -1910,6 +1920,26 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _copyCompletionFileDetails(BuildContext context, FileItem file) async {
+    final lines = <String>[
+      'ملف يحتاج استكمال',
+      'رقم الملف: ${file.fileNumber}',
+      'العنوان: ${file.title}',
+      'النوع: ${file.type.displayName}',
+      if (file.subCategory.isNotEmpty) 'التصنيف: ${file.subCategory}',
+      if (file.court.isNotEmpty) 'الجهة/المحكمة: ${file.court}',
+      if ((file.baseNumber ?? '').isNotEmpty) 'رقم/مرجع: ${file.baseNumber}',
+      'عدد المستندات: ${file.documentCount}',
+      'أسباب الاستكمال:',
+      ..._completionReasons(file).map((reason) => '- $reason'),
+      if (file.nextSessionDate != null) 'الموعد القادم: ${file.nextSessionDate!.toIso8601String()}',
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم نسخ بيانات الاستكمال'), backgroundColor: AppColors.success));
+    }
   }
 
   Future<void> _exportCompletionFiles(BuildContext context, WidgetRef ref, List<FileItem> files) async {
