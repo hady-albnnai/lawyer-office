@@ -2164,6 +2164,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           ),
         ),
         actions: [
+          if ((item.storedPath ?? '').isNotEmpty)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('فتح الملف'),
+              onPressed: () => _openArchiveItemFile(context, ref, item),
+            ),
           if (duplicateSourceId != null)
             OutlinedButton.icon(
               icon: const Icon(Icons.compare_arrows),
@@ -2177,6 +2183,31 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openArchiveItemFile(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
+    final storedPath = item.storedPath;
+    if (storedPath == null || storedPath.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا يوجد ملف محفوظ لهذا العنصر'), backgroundColor: AppColors.warning));
+      return;
+    }
+    try {
+      final file = await ref.read(fileStorageServiceProvider).getFileFromRelativePath(storedPath);
+      if (file == null) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تعذر العثور على الملف المحفوظ'), backgroundColor: AppColors.warning));
+        return;
+      }
+      if (Platform.isWindows) {
+        await Process.start('explorer', [file.path]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [file.path]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [file.path]);
+      }
+      await ref.read(auditServiceProvider).log(action: 'open_file', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'فتح ملف عنصر أرشيف مستورد', severity: 'info');
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر فتح الملف: $e'), backgroundColor: AppColors.error));
+    }
   }
 
   Widget _detailRow(String label, String value) {
