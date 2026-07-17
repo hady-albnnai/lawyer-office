@@ -1278,7 +1278,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                           ? const Center(child: Text('لا توجد نتائج مطابقة في الأرشيف الورقي.'))
                           : ListView.builder(
                               itemCount: filtered.length,
-                              itemBuilder: (_, index) => _paperArchiveRow(context, filtered[index]),
+                              itemBuilder: (_, index) => _paperArchiveRow(context, ref, filtered[index]),
                             ),
                     ),
                   ],
@@ -1343,7 +1343,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _paperArchiveRow(BuildContext context, Map<String, Object?> row) {
+  Widget _paperArchiveRow(BuildContext context, WidgetRef ref, Map<String, Object?> row) {
     final saved = ((row['paper_original_saved'] as int?) ?? 0) == 1;
     final location = _paperLocationFromRow(row);
     return Card(
@@ -1355,13 +1355,109 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           if (location.isNotEmpty) location,
           if (((row['reviewed_by'] as String?) ?? '').trim().isNotEmpty) 'راجعه: ${row['reviewed_by']}',
         ].join(' • ')),
-        trailing: TextButton.icon(
-          icon: const Icon(Icons.open_in_new, size: 16),
-          label: const Text('فتح المستند'),
-          onPressed: () => context.go('/documents/${row['document_id']}'),
+        trailing: Wrap(
+          spacing: 6,
+          children: [
+            TextButton.icon(
+              icon: const Icon(Icons.edit, size: 16),
+              label: const Text('تعديل'),
+              onPressed: () => _editPaperArchiveMetadata(context, ref, row),
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.open_in_new, size: 16),
+              label: const Text('فتح المستند'),
+              onPressed: () => context.go('/documents/${row['document_id']}'),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _editPaperArchiveMetadata(BuildContext context, WidgetRef ref, Map<String, Object?> row) async {
+    final documentId = row['document_id'] as int?;
+    if (documentId == null) return;
+    bool paperSaved = ((row['paper_original_saved'] as int?) ?? 0) == 1;
+    bool canDestroy = ((row['can_destroy_original'] as int?) ?? 0) == 1;
+    final location = TextEditingController(text: (row['paper_location'] as String?) ?? '');
+    final box = TextEditingController(text: (row['box'] as String?) ?? '');
+    final shelf = TextEditingController(text: (row['shelf'] as String?) ?? '');
+    final folder = TextEditingController(text: (row['paper_folder'] as String?) ?? '');
+    final reviewedBy = TextEditingController(text: (row['reviewed_by'] as String?) ?? '');
+    final notes = TextEditingController(text: (row['paper_notes'] as String?) ?? '');
+
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (ctx, setDialog) => AlertDialog(
+              title: Text('تعديل بيانات الأصل الورقي — ${row['doc_name'] ?? ''}'),
+              content: SizedBox(
+                width: 620,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: paperSaved,
+                        title: const Text('الأصل الورقي محفوظ'),
+                        onChanged: (v) => setDialog(() => paperSaved = v ?? false),
+                      ),
+                      TextField(controller: location, decoration: const InputDecoration(labelText: 'مكان الأصل')),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(child: TextField(controller: box, decoration: const InputDecoration(labelText: 'الصندوق'))),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(controller: shelf, decoration: const InputDecoration(labelText: 'الرف'))),
+                      ]),
+                      const SizedBox(height: 8),
+                      TextField(controller: folder, decoration: const InputDecoration(labelText: 'المجلد الورقي')),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: canDestroy,
+                        title: const Text('يجوز إتلاف الأصل لاحقاً'),
+                        onChanged: (v) => setDialog(() => canDestroy = v ?? false),
+                      ),
+                      TextField(controller: reviewedBy, decoration: const InputDecoration(labelText: 'من راجع النسخة الرقمية؟')),
+                      const SizedBox(height: 8),
+                      TextField(controller: notes, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات')),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+
+    final db = ref.read(databaseProvider);
+    await db.ensureArchiveTables();
+    await db.customStatement('''
+      INSERT OR REPLACE INTO document_paper_metadata(
+        document_id, paper_original_saved, paper_location, box, shelf, paper_folder,
+        can_destroy_original, reviewed_by, reviewed_at, notes, updated_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+    ''', [
+      documentId,
+      paperSaved ? 1 : 0,
+      location.text.trim().isEmpty ? null : location.text.trim(),
+      box.text.trim().isEmpty ? null : box.text.trim(),
+      shelf.text.trim().isEmpty ? null : shelf.text.trim(),
+      folder.text.trim().isEmpty ? null : folder.text.trim(),
+      canDestroy ? 1 : 0,
+      reviewedBy.text.trim().isEmpty ? null : reviewedBy.text.trim(),
+      notes.text.trim().isEmpty ? null : notes.text.trim(),
+    ]);
+    await ref.read(auditServiceProvider).log(action: 'edit', category: 'archive', entityType: 'paper_archive', entityId: '$documentId', entityTitle: '${row['doc_name'] ?? ''}', description: 'تعديل بيانات الأصل الورقي', after: {'paperSaved': paperSaved, 'location': location.text.trim(), 'box': box.text.trim(), 'shelf': shelf.text.trim(), 'folder': folder.text.trim(), 'canDestroy': canDestroy, 'reviewedBy': reviewedBy.text.trim()}, severity: 'info');
+    if (context.mounted) {
+      Navigator.pop(context);
+      await _showPaperArchiveReport(context, ref);
+    }
   }
 
   String _paperLocationFromRow(Map<String, Object?> row) {
