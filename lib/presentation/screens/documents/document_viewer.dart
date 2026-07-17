@@ -102,7 +102,11 @@ class DocumentViewerScreen extends ConsumerWidget {
           if (d.notes.contains('الأصل الورقي')) ...[
             const SizedBox(height: 10),
             _paperArchiveBox(d.notes),
-          ] else if (d.notes.isNotEmpty) ...[
+          ],
+          if (d.notes.contains('بيانات صف CSV:')) ...[
+            const SizedBox(height: 10),
+            _csvDataBox(d.notes),
+          ] else if (d.notes.isNotEmpty && !d.notes.contains('الأصل الورقي')) ...[
             const SizedBox(height: 8),
             Text('ملاحظات: ${d.notes}', style: AppTextStyles.bodySmallSecondary),
           ],
@@ -148,6 +152,42 @@ class DocumentViewerScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(line, style: AppTextStyles.bodySmallSecondary),
               )),
+        ],
+      ),
+    );
+  }
+
+  Widget _csvDataBox(String notes) {
+    final start = notes.indexOf('بيانات صف CSV:');
+    if (start == -1) return const SizedBox.shrink();
+    final lines = notes.substring(start).split('\n').skip(1).where((line) => line.trim().isNotEmpty).toList();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryNavy.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primaryNavy.withOpacity(0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('بيانات صف CSV', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...lines.map((line) {
+            final split = line.indexOf(':');
+            final key = split == -1 ? '' : line.substring(0, split).trim();
+            final value = split == -1 ? line : line.substring(split + 1).trim();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (key.isNotEmpty) SizedBox(width: 170, child: Text(key, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSecondary))),
+                  Expanded(child: SelectableText(value.isEmpty ? '—' : value, style: AppTextStyles.bodySmall)),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
