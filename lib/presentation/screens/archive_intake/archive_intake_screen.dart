@@ -2033,6 +2033,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             trailing: Wrap(
               spacing: 6,
               children: [
+                if ((item.storedPath ?? '').isNotEmpty)
+                  TextButton(onPressed: () => _openArchiveItemFile(dialogContext, ref, item), child: const Text('فتح الملف')),
                 TextButton(onPressed: () => _showArchiveItemDetails(dialogContext, ref, item), child: const Text('تفاصيل')),
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.status != 'duplicate' && item.status != 'failed' && item.reviewStatus != 'approved')
                   TextButton(onPressed: () => _showLinkItemDialog(dialogContext, ref, item), child: const Text('ربط بملف')),
