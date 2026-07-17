@@ -1511,7 +1511,13 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                       final searched = _filteredArchiveItems(snapshot.data!, search.text);
                       final filtered = _filteredArchiveItemsByStatus(searched, statusFilter);
-                      return _itemsList(ctx, ref, filtered);
+                      return Column(
+                        children: [
+                          _archiveItemsStatsBar(filtered),
+                          const SizedBox(height: 8),
+                          Expanded(child: _itemsList(ctx, ref, filtered)),
+                        ],
+                      );
                     },
                   ),
                 ),
@@ -1611,7 +1617,13 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                       final searched = _filteredArchiveItems(snapshot.data!, search.text);
                       final filtered = _filteredArchiveItemsByReview(searched, reviewFilter);
-                      return _itemsList(ctx, ref, filtered);
+                      return Column(
+                        children: [
+                          _archiveItemsStatsBar(filtered),
+                          const SizedBox(height: 8),
+                          Expanded(child: _itemsList(ctx, ref, filtered)),
+                        ],
+                      );
                     },
                   ),
                 ),
@@ -1631,6 +1643,29 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _archiveItemsStatsBar(List<ArchiveItemRecord> items) {
+    final imported = items.where((item) => item.status == 'imported').length;
+    final duplicates = items.where((item) => item.status == 'duplicate').length;
+    final failed = items.where((item) => item.status == 'failed').length;
+    final approved = items.where((item) => item.reviewStatus == 'approved').length;
+    final rejected = items.where((item) => item.reviewStatus == 'rejected').length;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          _mini('المعروض', items.length),
+          _mini('مستوردة', imported),
+          _mini('معتمدة', approved),
+          _mini('مكررة', duplicates),
+          _mini('فاشلة', failed),
+          _mini('مرفوضة', rejected),
+        ],
       ),
     );
   }
