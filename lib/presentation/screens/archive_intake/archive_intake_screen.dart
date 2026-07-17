@@ -1082,6 +1082,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 _mini('الدفعات المعروضة', batches.length),
                 _mini('الملفات', shownFiles),
@@ -1089,6 +1090,16 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 _mini('غير مصنف', shownUnclassified),
                 _mini('مكرر', shownDuplicates),
                 _mini('فشل', shownFailed),
+                if (query.isNotEmpty || sourceFilter != 'all' || statusFilter != 'all')
+                  TextButton.icon(
+                    icon: const Icon(Icons.filter_alt_off, size: 16),
+                    label: const Text('مسح فلاتر الدفعات'),
+                    onPressed: () {
+                      ref.read(_archiveBatchSearchProvider.notifier).state = '';
+                      ref.read(_archiveBatchSourceFilterProvider.notifier).state = 'all';
+                      ref.read(_archiveBatchStatusFilterProvider.notifier).state = 'all';
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: 12),
