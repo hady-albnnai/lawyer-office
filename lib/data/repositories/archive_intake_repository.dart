@@ -283,6 +283,8 @@ class ArchiveIntakeRepository {
     required int entityType,
     required int entityId,
     required String userRef,
+    String? archiveNotes,
+    int? physicalLocation,
   }) async {
     await ensureReady();
     final item = await getItemById(itemId);
@@ -298,7 +300,11 @@ class ArchiveIntakeRepository {
               filePath: Value(item.storedPath),
               fileType: Value(item.fileType),
               summary: Value('مستند مستورد من مركز إدخال الأرشيف'),
-              notes: Value('ArchiveItem #$itemId / SHA256: ${item.sha256 ?? '-'}'),
+              notes: Value([
+                'ArchiveItem #$itemId / SHA256: ${item.sha256 ?? '-'}',
+                if ((archiveNotes ?? '').trim().isNotEmpty) archiveNotes!.trim(),
+              ].join('\n')),
+              physicalLocation: Value(physicalLocation ?? 0),
             ),
           );
       await _db.into(_db.documentLinks).insert(

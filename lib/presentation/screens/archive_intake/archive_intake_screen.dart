@@ -2124,16 +2124,25 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     String selectedTitle = '';
     final search = TextEditingController();
     final customDocumentType = TextEditingController();
+    final paperLocation = TextEditingController();
+    final paperBox = TextEditingController();
+    final paperShelf = TextEditingController();
+    final paperFolder = TextEditingController();
+    final reviewedBy = TextEditingController();
+    bool paperOriginalSaved = false;
+    bool canDestroyOriginal = false;
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
           title: Text('ربط ملف: ${item.originalFileName}'),
           content: SizedBox(
-            width: 760,
-            height: 560,
-            child: Column(
-              children: [
+            width: 780,
+            height: 660,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 Row(
                   children: [
                     Expanded(
@@ -2158,11 +2167,37 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 TextField(controller: customDocumentType, decoration: const InputDecoration(labelText: 'نوع مستند آخر / غير موجود بالقائمة')),
                 const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: paperOriginalSaved,
+                  title: const Text('هل الأصل الورقي محفوظ؟'),
+                  onChanged: (v) => setDialog(() => paperOriginalSaved = v ?? false),
+                ),
+                if (paperOriginalSaved) ...[
+                  TextField(controller: paperLocation, decoration: const InputDecoration(labelText: 'مكان الأصل')),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: TextField(controller: paperBox, decoration: const InputDecoration(labelText: 'الصندوق'))),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(controller: paperShelf, decoration: const InputDecoration(labelText: 'الرف'))),
+                  ]),
+                  const SizedBox(height: 8),
+                  TextField(controller: paperFolder, decoration: const InputDecoration(labelText: 'المجلد الورقي')),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: canDestroyOriginal,
+                    title: const Text('هل يجوز إتلاف الأصل لاحقاً؟'),
+                    onChanged: (v) => setDialog(() => canDestroyOriginal = v ?? false),
+                  ),
+                ],
+                TextField(controller: reviewedBy, decoration: const InputDecoration(labelText: 'من راجع النسخة الرقمية؟')),
+                const SizedBox(height: 12),
                 TextField(controller: search, decoration: InputDecoration(labelText: 'بحث في ${target.label}', prefixIcon: const Icon(Icons.search)), onChanged: (_) => setDialog(() {})),
                 const SizedBox(height: 8),
-                Expanded(child: _linkChoices(ref, target, search.text, selectedId, (id, title) => setDialog(() { selectedId = id; selectedTitle = title; }))),
+                SizedBox(height: 220, child: _linkChoices(ref, target, search.text, selectedId, (id, title) => setDialog(() { selectedId = id; selectedTitle = title; }))),
                 if (selectedId != null) Align(alignment: Alignment.centerRight, child: Text('تم اختيار: $selectedTitle', style: AppTextStyles.bodySmallSecondary)),
               ],
+              ),
             ),
           ),
           actions: [
@@ -2173,14 +2208,25 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   : () async {
                       try {
                         final effectiveDocumentType = customDocumentType.text.trim().isNotEmpty ? customDocumentType.text.trim() : documentType;
+                        final paperNotes = [
+                          'الأصل الورقي محفوظ: ${paperOriginalSaved ? 'نعم' : 'لا'}',
+                          if (paperLocation.text.trim().isNotEmpty) 'مكان الأصل: ${paperLocation.text.trim()}',
+                          if (paperBox.text.trim().isNotEmpty) 'الصندوق: ${paperBox.text.trim()}',
+                          if (paperShelf.text.trim().isNotEmpty) 'الرف: ${paperShelf.text.trim()}',
+                          if (paperFolder.text.trim().isNotEmpty) 'المجلد الورقي: ${paperFolder.text.trim()}',
+                          'يجوز إتلاف الأصل: ${canDestroyOriginal ? 'نعم' : 'لا'}',
+                          if (reviewedBy.text.trim().isNotEmpty) 'راجع النسخة الرقمية: ${reviewedBy.text.trim()}',
+                        ].join('\n');
                         final docId = await ref.read(archiveIntakeRepositoryProvider).promoteItemToDocument(
                           itemId: item.id,
                           documentType: effectiveDocumentType,
                           entityType: target.entityType,
                           entityId: selectedId!,
                           userRef: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
+                          archiveNotes: paperNotes,
+                          physicalLocation: paperOriginalSaved ? 0 : 1,
                         );
-                        await ref.read(auditServiceProvider).log(action: 'link', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'ربط عنصر أرشيف بملف وإنشاء مستند رقم $docId', after: {'target': target.label, 'targetId': selectedId, 'documentType': effectiveDocumentType}, severity: 'info');
+                        await ref.read(auditServiceProvider).log(action: 'link', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'ربط عنصر أرشيف بملف وإنشاء مستند رقم $docId', after: {'target': target.label, 'targetId': selectedId, 'documentType': effectiveDocumentType, 'paperOriginalSaved': paperOriginalSaved, 'paperLocation': paperLocation.text.trim(), 'box': paperBox.text.trim(), 'shelf': paperShelf.text.trim(), 'paperFolder': paperFolder.text.trim(), 'canDestroyOriginal': canDestroyOriginal, 'reviewedBy': reviewedBy.text.trim()}, severity: 'info');
                         ref.read(_archiveIntakeRefreshProvider.notifier).state++;
                         if (ctx.mounted) Navigator.pop(ctx);
                       } catch (e) {
