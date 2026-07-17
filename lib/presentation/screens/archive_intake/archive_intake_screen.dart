@@ -3338,6 +3338,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             label: const Text('نسخ التفاصيل'),
             onPressed: () => _copyArchiveItemDetails(context, item),
           ),
+          if ((item.sourcePath ?? '').isNotEmpty)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.source),
+              label: const Text('فتح المصدر الأصلي'),
+              onPressed: () => _openArchiveOriginalSource(context, ref, item),
+            ),
           if ((item.storedPath ?? '').isNotEmpty)
             OutlinedButton.icon(
               icon: const Icon(Icons.open_in_new),
@@ -3405,6 +3411,29 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (entityType == EntityType.powerOfAttorney.index) return '/poa/$entityId';
     if (entityType == EntityType.person.index) return '/persons/$entityId';
     return null;
+  }
+
+  Future<void> _openArchiveOriginalSource(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
+    final source = item.sourcePath;
+    if (source == null || source.trim().isEmpty) return;
+    try {
+      final file = File(source);
+      final directory = Directory(source);
+      if (!await file.exists() && !await directory.exists()) {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('المصدر الأصلي غير موجود حالياً على الجهاز'), backgroundColor: AppColors.warning));
+        return;
+      }
+      if (Platform.isWindows) {
+        await Process.start('explorer', [source]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [source]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [source]);
+      }
+      await ref.read(auditServiceProvider).log(action: 'open_source', category: 'archive', entityType: 'archive_item', entityId: '${item.id}', entityTitle: item.originalFileName, description: 'فتح المصدر الأصلي لعنصر أرشيف', after: {'sourcePath': source}, severity: 'info');
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر فتح المصدر الأصلي: $e'), backgroundColor: AppColors.error));
+    }
   }
 
   Future<void> _openArchiveItemFile(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
