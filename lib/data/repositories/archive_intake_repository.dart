@@ -494,6 +494,19 @@ class ArchiveIntakeRepository {
     }
     final widthMismatch = rows.where((row) => row.length != headers.length).length;
     if (widthMismatch > 0) warnings.add('يوجد $widthMismatch صف بعدد خلايا مختلف عن عدد الأعمدة.');
+
+    final rowHashes = <String>{};
+    var duplicateRowsInsideFile = 0;
+    for (final row in rows) {
+      final mapped = <String, String>{};
+      for (var c = 0; c < headers.length; c++) {
+        mapped[headers[c]] = c < row.length ? row[c] : '';
+      }
+      final rowHash = sha256.convert(utf8.encode(jsonEncode(mapped))).toString();
+      if (!rowHashes.add(rowHash)) duplicateRowsInsideFile++;
+    }
+    if (duplicateRowsInsideFile > 0) warnings.add('يوجد $duplicateRowsInsideFile صف مكرر داخل ملف CSV نفسه.');
+    if (rows.length > 1000) warnings.add('الملف يحتوي ${rows.length} صف؛ قد تستغرق عملية الاستيراد والمراجعة وقتاً أطول.');
     return warnings;
   }
 
