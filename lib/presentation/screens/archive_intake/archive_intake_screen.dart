@@ -2014,6 +2014,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     _miniAction('غير مصنف', b.unclassifiedFiles, () => _showBatchDetails(context, ref, b.id, b.name, initialFilter: 'needs_review')),
                     _miniAction('مكرر', b.duplicateFiles, () => _showBatchDetails(context, ref, b.id, b.name, initialFilter: 'duplicate')),
                     if (b.failedFiles > 0) _miniAction('فشل', b.failedFiles, () => _showBatchDetails(context, ref, b.id, b.name, initialFilter: 'failed')),
+                    if ((b.sourcePath ?? '').isNotEmpty)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.folder_open, size: 16),
+                        label: const Text('فتح المصدر'),
+                        onPressed: () => _openArchiveSourcePath(context, ref, b),
+                      ),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.visibility, size: 16),
                       label: const Text('فتح'),
@@ -2049,6 +2055,26 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   Widget _mini(String label, int value) => Chip(label: Text('$label: $value'));
+
+  Future<void> _openArchiveSourcePath(BuildContext context, WidgetRef ref, ArchiveBatchRecord batch) async {
+    final source = batch.sourcePath;
+    if (source == null || source.trim().isEmpty) return;
+    try {
+      if (Platform.isWindows) {
+        await Process.start('explorer', [source]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [source]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [source]);
+      } else {
+        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('مصدر الدفعة: $source'), backgroundColor: AppColors.info));
+        return;
+      }
+      await ref.read(auditServiceProvider).log(action: 'open_source', category: 'archive', entityType: 'archive_batch', entityId: '${batch.id}', entityTitle: batch.name, description: 'فتح مصدر دفعة الأرشيف', after: {'sourcePath': source}, severity: 'info');
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر فتح مصدر الدفعة: $e'), backgroundColor: AppColors.error));
+    }
+  }
 
   Widget _miniAction(String label, int value, VoidCallback onTap) {
     return ActionChip(
