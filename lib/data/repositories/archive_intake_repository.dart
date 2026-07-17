@@ -591,7 +591,8 @@ class ArchiveIntakeRepository {
     await ensureReady();
     final item = await getItemById(itemId);
     if (item == null) throw StateError('عنصر الأرشيف غير موجود');
-    if (item.storedPath == null || item.storedPath!.isEmpty) {
+    final isMetadataOnlyCsvRow = item.fileType == 'csv_row' && item.status == 'imported';
+    if ((item.storedPath == null || item.storedPath!.isEmpty) && !isMetadataOnlyCsvRow) {
       throw StateError('لا يمكن اعتماد عنصر بلا ملف محفوظ، غالباً لأنه مكرر أو فشل استيراده');
     }
     return _db.transaction(() async {
@@ -601,7 +602,7 @@ class ArchiveIntakeRepository {
               docType: Value(documentType),
               filePath: Value(item.storedPath),
               fileType: Value(item.fileType),
-              summary: Value('مستند مستورد من مركز إدخال الأرشيف'),
+              summary: Value(isMetadataOnlyCsvRow ? 'بيانات مستوردة من صف CSV عبر مركز الأرشيف' : 'مستند مستورد من مركز إدخال الأرشيف'),
               notes: Value([
                 'ArchiveItem #$itemId / SHA256: ${item.sha256 ?? '-'}',
                 if ((archiveNotes ?? '').trim().isNotEmpty) archiveNotes!.trim(),
