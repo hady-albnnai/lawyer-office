@@ -1539,6 +1539,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 onPressed: () => _markPaperArchiveReviewed(context, ref, row),
               ),
             TextButton.icon(
+              icon: const Icon(Icons.copy, size: 16),
+              label: const Text('نسخ'),
+              onPressed: () => _copyPaperArchiveRow(context, row),
+            ),
+            TextButton.icon(
               icon: const Icon(Icons.edit, size: 16),
               label: const Text('تعديل'),
               onPressed: () => _editPaperArchiveMetadata(context, ref, row),
@@ -1552,6 +1557,24 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _copyPaperArchiveRow(BuildContext context, Map<String, Object?> row) async {
+    final lines = <String>[
+      'مستند: ${row['doc_name'] ?? ''}',
+      'رقم المستند: ${row['document_id'] ?? ''}',
+      'نوع المستند: ${row['doc_type'] ?? ''}',
+      'الأصل الورقي: ${((row['paper_original_saved'] as int?) ?? 0) == 1 ? 'محفوظ' : 'غير محفوظ'}',
+      if (_paperLocationFromRow(row).isNotEmpty) 'الموقع الكامل: ${_paperLocationFromRow(row)}',
+      'قابل للإتلاف: ${((row['can_destroy_original'] as int?) ?? 0) == 1 ? 'نعم' : 'لا'}',
+      if (((row['reviewed_by'] as String?) ?? '').trim().isNotEmpty) 'راجع النسخة الرقمية: ${row['reviewed_by']}',
+      if (((row['reviewed_at'] as String?) ?? '').trim().isNotEmpty) 'تاريخ المراجعة: ${row['reviewed_at']}',
+      if (((row['paper_notes'] as String?) ?? '').trim().isNotEmpty) 'ملاحظات: ${row['paper_notes']}',
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم نسخ بيانات الأصل الورقي'), backgroundColor: AppColors.success));
+    }
   }
 
   void _refreshArchiveDocumentProviders(WidgetRef ref) {
