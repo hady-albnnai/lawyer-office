@@ -145,9 +145,13 @@ class ArchiveIntakeRepository {
 
   Future<void> ensureReady() => _db.ensureArchiveTables();
 
-  Future<List<ArchiveReferenceValueRecord>> getAllReferenceValues() async {
+  Future<List<ArchiveReferenceValueRecord>> getAllReferenceValues({bool includeInactive = true}) async {
     await ensureReady();
-    final rows = await _db.customSelect('SELECT * FROM archive_reference_values WHERE is_active = 1 ORDER BY category, parent_value, value COLLATE NOCASE').get();
+    final rows = await _db.customSelect(
+      includeInactive
+          ? 'SELECT * FROM archive_reference_values ORDER BY category, parent_value, is_active DESC, value COLLATE NOCASE'
+          : 'SELECT * FROM archive_reference_values WHERE is_active = 1 ORDER BY category, parent_value, value COLLATE NOCASE',
+    ).get();
     return rows.map((row) {
       final d = row.data;
       return ArchiveReferenceValueRecord(
@@ -214,6 +218,14 @@ class ArchiveIntakeRepository {
     await ensureReady();
     await _db.customStatement(
       'UPDATE archive_reference_values SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [id],
+    );
+  }
+
+  Future<void> enableReferenceValue(int id) async {
+    await ensureReady();
+    await _db.customStatement(
+      'UPDATE archive_reference_values SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [id],
     );
   }

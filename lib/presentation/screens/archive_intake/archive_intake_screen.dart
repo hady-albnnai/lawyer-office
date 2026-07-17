@@ -501,21 +501,34 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                                             .map((value) => ListTile(
                                                   dense: true,
                                                   leading: const Icon(Icons.label_outline, size: 18),
-                                                  title: Text(value.value),
+                                                  title: Row(
+                                                    children: [
+                                                      Expanded(child: Text(value.value)),
+                                                      Chip(label: Text(value.isActive ? 'مفعّل' : 'معطّل'), visualDensity: VisualDensity.compact),
+                                                    ],
+                                                  ),
                                                   subtitle: value.parentValue == null ? null : Text('ضمن: ${value.parentValue}'),
                                                   trailing: Wrap(
                                                     spacing: 6,
                                                     children: [
-                                                      IconButton(
-                                                        tooltip: 'تعديل',
-                                                        icon: const Icon(Icons.edit, size: 18),
-                                                        onPressed: () => _renameCustomReference(ctx, ref, value),
-                                                      ),
-                                                      IconButton(
-                                                        tooltip: 'تعطيل',
-                                                        icon: const Icon(Icons.block, size: 18, color: AppColors.error),
-                                                        onPressed: () => _disableCustomReference(ctx, ref, value),
-                                                      ),
+                                                      if (value.isActive)
+                                                        IconButton(
+                                                          tooltip: 'تعديل',
+                                                          icon: const Icon(Icons.edit, size: 18),
+                                                          onPressed: () => _renameCustomReference(ctx, ref, value),
+                                                        ),
+                                                      if (value.isActive)
+                                                        IconButton(
+                                                          tooltip: 'تعطيل',
+                                                          icon: const Icon(Icons.block, size: 18, color: AppColors.error),
+                                                          onPressed: () => _disableCustomReference(ctx, ref, value),
+                                                        )
+                                                      else
+                                                        IconButton(
+                                                          tooltip: 'إعادة تفعيل',
+                                                          icon: const Icon(Icons.restore, size: 18, color: AppColors.success),
+                                                          onPressed: () => _enableCustomReference(ctx, ref, value),
+                                                        ),
                                                     ],
                                                   ),
                                                 ))
@@ -614,6 +627,16 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     await ref.read(archiveIntakeRepositoryProvider).disableReferenceValue(value.id);
     ref.invalidate(_archiveReferenceValuesProvider((category: value.category, parent: value.parentValue)));
     await ref.read(auditServiceProvider).log(action: 'disable', category: 'archive', entityType: 'archive_reference', entityId: '${value.id}', entityTitle: value.value, description: 'تعطيل تصنيف مخصص للأرشيف', severity: 'warning');
+    if (context.mounted) {
+      Navigator.pop(context);
+      await _showCustomReferences(context, ref);
+    }
+  }
+
+  Future<void> _enableCustomReference(BuildContext context, WidgetRef ref, ArchiveReferenceValueRecord value) async {
+    await ref.read(archiveIntakeRepositoryProvider).enableReferenceValue(value.id);
+    ref.invalidate(_archiveReferenceValuesProvider((category: value.category, parent: value.parentValue)));
+    await ref.read(auditServiceProvider).log(action: 'enable', category: 'archive', entityType: 'archive_reference', entityId: '${value.id}', entityTitle: value.value, description: 'إعادة تفعيل تصنيف مخصص للأرشيف', severity: 'info');
     if (context.mounted) {
       Navigator.pop(context);
       await _showCustomReferences(context, ref);
