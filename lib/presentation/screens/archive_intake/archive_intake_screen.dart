@@ -1699,7 +1699,16 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 _qualityPercentRow('نسبة التكرار', duplicateRate, AppColors.info),
                 _qualityPercentRow('نسبة الفشل', failureRate, AppColors.error),
                 const Divider(),
-                ...batches.take(8).map((b) => ListTile(dense: true, title: Text(b.name), subtitle: Text('${_sourceLabel(b.sourceType)} • ${_statusLabel(b.status)}'), trailing: Text('${b.approvedFiles}/${b.totalFiles}'))),
+                ...batches.take(8).map((b) => ListTile(
+                      dense: true,
+                      title: Text(b.name),
+                      subtitle: Text('${_sourceLabel(b.sourceType)} • ${_statusLabel(b.status)}'),
+                      trailing: Text('${b.approvedFiles}/${b.totalFiles}'),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showBatchDetails(context, ref, b.id, b.name);
+                      },
+                    )),
               ],
             ),
           ),
