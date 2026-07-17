@@ -236,6 +236,19 @@ class AppDatabase extends _$AppDatabase {
     await _ensureSqlColumn('archive_items', 'reviewed_by', 'TEXT');
     await _ensureSqlColumn('archive_items', 'reviewed_at', 'DATETIME');
     await _ensureSqlColumn('archive_items', 'review_note', 'TEXT');
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS archive_reference_values (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT NOT NULL,
+        parent_value TEXT,
+        value TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(category, parent_value, value)
+      );
+    ''');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_reference_values_category ON archive_reference_values(category, parent_value, is_active);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_batches_status ON archive_batches(status, created_at);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_batch ON archive_items(batch_id, status);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_hash ON archive_items(sha256);');

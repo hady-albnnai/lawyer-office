@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart' as fp;
@@ -26,6 +27,11 @@ final _archiveBatchSourceFilterProvider = StateProvider<String>((ref) => 'all');
 final _archiveBatchStatusFilterProvider = StateProvider<String>((ref) => 'all');
 
 final _archiveWizardProvider = StateProvider<_ArchiveWizardSelection>((ref) => const _ArchiveWizardSelection());
+
+final _archiveReferenceValuesProvider = FutureProvider.family<List<String>, ({String category, String? parent})>((ref, key) async {
+  final records = await ref.watch(archiveIntakeRepositoryProvider).getReferenceValues(category: key.category, parentValue: key.parent);
+  return records.map((record) => record.value).toList();
+});
 
 class _ArchiveWizardSelection {
   final String? archiveStatus; // running / closed
@@ -455,6 +461,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   Widget _archiveGuidedEntryPanel(BuildContext context, WidgetRef ref) {
     final selection = ref.watch(_archiveWizardProvider);
     final notifier = ref.read(_archiveWizardProvider.notifier);
+    final persistedFileKinds = ref.watch(_archiveReferenceValuesProvider((category: 'file_kind', parent: null))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
     final statusDone = selection.archiveStatus != null;
     final kindDone = selection.fileKind != null;
     final canStart = _archiveSelectionReady(selection);
@@ -491,8 +498,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _wizardStep('2', 'النوع الفرعي للملف', 'اختر نوع الأرشيف المراد إدخاله، أو أضف نوعاً غير موجود.', Wrap(spacing: 8, runSpacing: 8, children: [
                 ..._archiveFileKindOptions.entries.map((e) => _choiceChip(selection.fileKind == e.key, e.value, () => notifier.state = selection.copyWith(fileKind: e.key, caseType: null, courtLevel: null, companyGroup: null, companyType: null, procedureType: null, contractType: null, poaType: null))),
-                ...selection.customFileKinds.map((v) => _choiceChip(selection.fileKind == v, v, () => notifier.state = selection.copyWith(fileKind: v))),
-                ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع جديد'), onPressed: () => _addCustomValue(context, 'نوع ملف جديد', (value) => notifier.state = selection.copyWith(customFileKinds: [...selection.customFileKinds, value], fileKind: value))),
+                ...{...selection.customFileKinds, ...persistedFileKinds}.map((v) => _choiceChip(selection.fileKind == v, v, () => notifier.state = selection.copyWith(fileKind: v))),
+                ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع جديد'), onPressed: () => _addCustomReferenceValue(context, ref, 'نوع ملف جديد', 'file_kind', null, (value) => notifier.state = selection.copyWith(customFileKinds: [...selection.customFileKinds, value], fileKind: value))),
               ])),
             ],
             if (kindDone) ...[
@@ -597,12 +604,14 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   Widget _wizardDetailsForKind(BuildContext context, WidgetRef ref, _ArchiveWizardSelection s) {
     final notifier = ref.read(_archiveWizardProvider.notifier);
     if (s.fileKind == 'case') {
-      final caseTypes = [..._caseCourtMap.keys, ...s.customCaseTypes];
-      final courts = s.caseType == null ? const <String>[] : [...(_caseCourtMap[s.caseType] ?? const <String>[]), ...(s.customCourtsByCaseType[s.caseType] ?? const <String>[])];
+      final persistedCaseTypes = ref.watch(_archiveReferenceValuesProvider((category: 'case_type', parent: null))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
+      final persistedCourts = s.caseType == null ? const <String>[] : ref.watch(_archiveReferenceValuesProvider((category: 'court_level', parent: s.caseType))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
+      final caseTypes = {..._caseCourtMap.keys, ...s.customCaseTypes, ...persistedCaseTypes}.toList();
+      final courts = s.caseType == null ? const <String>[] : {...(_caseCourtMap[s.caseType] ?? const <String>[]), ...(s.customCourtsByCaseType[s.caseType] ?? const <String>[]), ...persistedCourts}.toList();
       return _wizardStep('3', 'تصنيف الدعوى والمحكمة', 'اختر نوع الدعوى ثم المحكمة/درجة التقاضي. يمكن إضافة أي تصنيف أو محكمة غير موجودة.', Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 8, runSpacing: 8, children: [
           ...caseTypes.map((v) => _choiceChip(s.caseType == v, v, () => notifier.state = s.copyWith(caseType: v, courtLevel: null))),
-          ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع دعوى'), onPressed: () => _addCustomValue(context, 'نوع دعوى جديد', (value) => notifier.state = s.copyWith(customCaseTypes: [...s.customCaseTypes, value], caseType: value, courtLevel: null))),
+          ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع دعوى'), onPressed: () => _addCustomReferenceValue(context, ref, 'نوع دعوى جديد', 'case_type', null, (value) => notifier.state = s.copyWith(customCaseTypes: [...s.customCaseTypes, value], caseType: value, courtLevel: null))),
         ]),
         if (s.caseType != null) ...[
           const SizedBox(height: 12),
@@ -610,7 +619,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
             ...courts.map((v) => _choiceChip(s.courtLevel == v, v, () => notifier.state = s.copyWith(courtLevel: v))),
-            ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة محكمة / درجة'), onPressed: () => _addCustomValue(context, 'محكمة أو درجة جديدة', (value) {
+            ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة محكمة / درجة'), onPressed: () => _addCustomReferenceValue(context, ref, 'محكمة أو درجة جديدة', 'court_level', s.caseType, (value) {
               final updated = Map<String, List<String>>.from(s.customCourtsByCaseType);
               updated[s.caseType!] = [...(updated[s.caseType!] ?? const <String>[]), value];
               notifier.state = s.copyWith(customCourtsByCaseType: updated, courtLevel: value);
@@ -621,46 +630,52 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     }
     if (s.fileKind == 'company') {
       final groups = _companyTypeMap.keys.toList();
-      final subtypes = s.companyGroup == null ? const <String>[] : [...(_companyTypeMap[s.companyGroup] ?? const <String>[]), ...s.customCompanyTypes];
+      final persistedCompanyTypes = s.companyGroup == null ? const <String>[] : ref.watch(_archiveReferenceValuesProvider((category: 'company_type', parent: s.companyGroup))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
+      final subtypes = s.companyGroup == null ? const <String>[] : {...(_companyTypeMap[s.companyGroup] ?? const <String>[]), ...s.customCompanyTypes, ...persistedCompanyTypes}.toList();
       return _wizardStep('3', 'نوع الشركة ووثائقها', 'حدد إن كانت شركة أشخاص أو أموال، ثم نوعها التفصيلي.', Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 8, runSpacing: 8, children: groups.map((v) => _choiceChip(s.companyGroup == v, v, () => notifier.state = s.copyWith(companyGroup: v, companyType: null))).toList()),
         if (s.companyGroup != null) ...[
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: [
             ...subtypes.map((v) => _choiceChip(s.companyType == v, v, () => notifier.state = s.copyWith(companyType: v))),
-            ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع شركة'), onPressed: () => _addCustomValue(context, 'نوع شركة جديد', (value) => notifier.state = s.copyWith(customCompanyTypes: [...s.customCompanyTypes, value], companyType: value))),
+            ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة نوع شركة'), onPressed: () => _addCustomReferenceValue(context, ref, 'نوع شركة جديد', 'company_type', s.companyGroup, (value) => notifier.state = s.copyWith(customCompanyTypes: [...s.customCompanyTypes, value], companyType: value))),
           ]),
         ],
       ]));
     }
     if (s.fileKind == 'procedure') {
-      final items = [..._procedureTypeOptions, ...s.customProcedureTypes];
-      return _wizardSimpleClassifier(context, '3', 'نوع الإجراء / المعاملة', 'اختر تصنيف الإجراء أو أضف تصنيفاً جديداً.', items, s.procedureType, (v) => notifier.state = s.copyWith(procedureType: v), 'إضافة نوع إجراء', (v) => notifier.state = s.copyWith(customProcedureTypes: [...s.customProcedureTypes, v], procedureType: v));
+      final persisted = ref.watch(_archiveReferenceValuesProvider((category: 'procedure_type', parent: null))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
+      final items = {..._procedureTypeOptions, ...s.customProcedureTypes, ...persisted}.toList();
+      return _wizardSimpleClassifier(context, ref, 'procedure_type', null, '3', 'نوع الإجراء / المعاملة', 'اختر تصنيف الإجراء أو أضف تصنيفاً جديداً.', items, s.procedureType, (v) => notifier.state = s.copyWith(procedureType: v), 'إضافة نوع إجراء', (v) => notifier.state = s.copyWith(customProcedureTypes: [...s.customProcedureTypes, v], procedureType: v));
     }
     if (s.fileKind == 'contract') {
-      final items = [..._contractTypeOptions, ...s.customContractTypes];
-      return _wizardSimpleClassifier(context, '3', 'نوع العقد', 'اختر نوع العقد أو أضف نوعاً جديداً.', items, s.contractType, (v) => notifier.state = s.copyWith(contractType: v), 'إضافة نوع عقد', (v) => notifier.state = s.copyWith(customContractTypes: [...s.customContractTypes, v], contractType: v));
+      final persisted = ref.watch(_archiveReferenceValuesProvider((category: 'contract_type', parent: null))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
+      final items = {..._contractTypeOptions, ...s.customContractTypes, ...persisted}.toList();
+      return _wizardSimpleClassifier(context, ref, 'contract_type', null, '3', 'نوع العقد', 'اختر نوع العقد أو أضف نوعاً جديداً.', items, s.contractType, (v) => notifier.state = s.copyWith(contractType: v), 'إضافة نوع عقد', (v) => notifier.state = s.copyWith(customContractTypes: [...s.customContractTypes, v], contractType: v));
     }
     if (s.fileKind == 'poa') {
-      final items = [..._poaTypeOptions, ...s.customPoaTypes];
-      return _wizardSimpleClassifier(context, '3', 'نوع الوكالة', 'اختر نوع الوكالة أو أضف نوعاً جديداً.', items, s.poaType, (v) => notifier.state = s.copyWith(poaType: v), 'إضافة نوع وكالة', (v) => notifier.state = s.copyWith(customPoaTypes: [...s.customPoaTypes, v], poaType: v));
+      final persisted = ref.watch(_archiveReferenceValuesProvider((category: 'poa_type', parent: null))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
+      final items = {..._poaTypeOptions, ...s.customPoaTypes, ...persisted}.toList();
+      return _wizardSimpleClassifier(context, ref, 'poa_type', null, '3', 'نوع الوكالة', 'اختر نوع الوكالة أو أضف نوعاً جديداً.', items, s.poaType, (v) => notifier.state = s.copyWith(poaType: v), 'إضافة نوع وكالة', (v) => notifier.state = s.copyWith(customPoaTypes: [...s.customPoaTypes, v], poaType: v));
     }
     return _wizardStep('3', 'أرشيف غير محدد', 'استخدم هذا المسار للمواد التي لا تنتمي لأي نوع معروف حالياً، مع إمكانية إضافة الوثائق المطلوبة يدوياً.', Text('سيتم حفظه كأرشيف يحتاج تصنيفاً لاحقاً.', style: AppTextStyles.bodyMediumSecondary));
   }
 
-  Widget _wizardSimpleClassifier(BuildContext context, String number, String title, String subtitle, List<String> items, String? selected, ValueChanged<String> onSelect, String addLabel, ValueChanged<String> onAdd) {
+  Widget _wizardSimpleClassifier(BuildContext context, WidgetRef ref, String category, String? parent, String number, String title, String subtitle, List<String> items, String? selected, ValueChanged<String> onSelect, String addLabel, ValueChanged<String> onAdd) {
     return _wizardStep(number, title, subtitle, Wrap(spacing: 8, runSpacing: 8, children: [
       ...items.map((v) => _choiceChip(selected == v, v, () => onSelect(v))),
-      ActionChip(avatar: const Icon(Icons.add, size: 16), label: Text(addLabel), onPressed: () => _addCustomValue(context, addLabel, onAdd)),
+      ActionChip(avatar: const Icon(Icons.add, size: 16), label: Text(addLabel), onPressed: () => _addCustomReferenceValue(context, ref, addLabel, category, parent, onAdd)),
     ]));
   }
 
   Widget _documentsHint(BuildContext context, WidgetRef ref, _ArchiveWizardSelection s) {
     final notifier = ref.read(_archiveWizardProvider.notifier);
-    final docs = [..._defaultDocumentsFor(s), ...s.customDocumentTypes];
+    final docParent = s.fileKind ?? 'misc';
+    final persistedDocs = ref.watch(_archiveReferenceValuesProvider((category: 'document_type', parent: docParent))).maybeWhen(data: (values) => values, orElse: () => const <String>[]);
+    final docs = {..._defaultDocumentsFor(s), ...s.customDocumentTypes, ...persistedDocs}.toList();
     return _wizardStep('4', 'الوثائق والثبوتيات المتوقعة', 'هذه قائمة مساعدة فقط، ويمكن إضافة أي وثيقة يحتاجها المستخدم داخل الأرشفة.', Wrap(spacing: 8, runSpacing: 8, children: [
       ...docs.map((d) => Chip(label: Text(d), avatar: const Icon(Icons.description, size: 16))),
-      ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة وثيقة'), onPressed: () => _addCustomValue(context, 'اسم الوثيقة', (value) => notifier.state = s.copyWith(customDocumentTypes: [...s.customDocumentTypes, value]))),
+      ActionChip(avatar: const Icon(Icons.add, size: 16), label: const Text('إضافة وثيقة'), onPressed: () => _addCustomReferenceValue(context, ref, 'اسم الوثيقة', 'document_type', docParent, (value) => notifier.state = s.copyWith(customDocumentTypes: [...s.customDocumentTypes, value]))),
     ]));
   }
 
@@ -720,11 +735,26 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     return true;
   }
 
-  Future<void> _addCustomValue(BuildContext context, String title, ValueChanged<String> onAdd) async {
+  Future<void> _addCustomReferenceValue(
+    BuildContext context,
+    WidgetRef ref,
+    String title,
+    String category,
+    String? parentValue,
+    ValueChanged<String> onAdd,
+  ) async {
+    await _addCustomValue(context, title, (value) async {
+      await ref.read(archiveIntakeRepositoryProvider).addReferenceValue(category: category, value: value, parentValue: parentValue);
+      ref.invalidate(_archiveReferenceValuesProvider((category: category, parent: parentValue)));
+      onAdd(value);
+    });
+  }
+
+  Future<void> _addCustomValue(BuildContext context, String title, FutureOr<void> Function(String value) onAdd) async {
     final controller = TextEditingController();
     final value = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(title: Text(title), content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'القيمة الجديدة')), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')), ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('إضافة'))]));
     if (value == null || value.trim().isEmpty) return;
-    onAdd(value.trim());
+    await onAdd(value.trim());
   }
 
   Future<void> _startArchiveEntry(BuildContext context, WidgetRef ref, _ArchiveWizardSelection s) async {

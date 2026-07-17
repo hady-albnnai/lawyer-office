@@ -90,6 +90,22 @@ class ArchiveItemRecord {
   });
 }
 
+class ArchiveReferenceValueRecord {
+  final int id;
+  final String category;
+  final String value;
+  final String? parentValue;
+  final bool isActive;
+
+  const ArchiveReferenceValueRecord({
+    required this.id,
+    required this.category,
+    required this.value,
+    this.parentValue,
+    required this.isActive,
+  });
+}
+
 class ArchiveImportSummary {
   final int imported;
   final int duplicates;
@@ -109,6 +125,46 @@ class ArchiveIntakeRepository {
   ArchiveIntakeRepository(this._db, this._storage);
 
   Future<void> ensureReady() => _db.ensureArchiveTables();
+
+  Future<List<ArchiveReferenceValueRecord>> getReferenceValues({required String category, String? parentValue}) async {
+    await ensureReady();
+    final rows = await _db.customSelect(
+      parentValue == null
+          ? 'SELECT * FROM archive_reference_values WHERE category = ? AND parent_value IS NULL AND is_active = 1 ORDER BY value COLLATE NOCASE'
+          : 'SELECT * FROM archive_reference_values WHERE category = ? AND parent_value = ? AND is_active = 1 ORDER BY value COLLATE NOCASE',
+      variables: parentValue == null ? [Variable.withString(category)] : [Variable.withString(category), Variable.withString(parentValue)],
+    ).get();
+    return rows.map((row) {
+      final d = row.data;
+      return ArchiveReferenceValueRecord(
+        id: d['id'] as int,
+        category: d['category'] as String,
+        value: d['value'] as String,
+        parentValue: d['parent_value'] as String?,
+        isActive: ((d['is_active'] as int?) ?? 1) == 1,
+      );
+    }).toList();
+  }
+
+  Future<void> addReferenceValue({required String category, required String value, String? parentValue}) async {
+    await ensureReady();
+    final clean = value.trim();
+    if (clean.isEmpty) return;
+    final existing = await _db.customSelect(
+      parentValue == null
+          ? 'SELECT id FROM archive_reference_values WHERE category = ? AND parent_value IS NULL AND value = ? LIMIT 1'
+          : 'SELECT id FROM archive_reference_values WHERE category = ? AND parent_value = ? AND value = ? LIMIT 1',
+      variables: parentValue == null ? [Variable.withString(category), Variable.withString(clean)] : [Variable.withString(category), Variable.withString(parentValue), Variable.withString(clean)],
+    ).get();
+    if (existing.isNotEmpty) {
+      await _db.customStatement('UPDATE archive_reference_values SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [existing.first.data['id'] as int]);
+      return;
+    }
+    await _db.customStatement('''
+      INSERT INTO archive_reference_values(category, parent_value, value)
+      VALUES(?, ?, ?)
+    ''', [category, parentValue, clean]);
+  }
 
   Future<int> createBatch({
     required String name,
