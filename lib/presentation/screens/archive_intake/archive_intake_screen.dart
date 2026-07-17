@@ -2117,6 +2117,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                         onPressed: () => _openArchiveSourcePath(context, ref, b),
                       ),
                     OutlinedButton.icon(
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('نسخ الملخص'),
+                      onPressed: () => _copyArchiveBatchSummary(context, b),
+                    ),
+                    OutlinedButton.icon(
                       icon: const Icon(Icons.edit, size: 16),
                       label: const Text('تعديل'),
                       onPressed: () => _editArchiveBatch(context, ref, b),
@@ -2156,6 +2161,32 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   Widget _mini(String label, int value) => Chip(label: Text('$label: $value'));
+
+  Future<void> _copyArchiveBatchSummary(BuildContext context, ArchiveBatchRecord batch) async {
+    final total = batch.totalFiles;
+    final reviewed = total == 0 ? 0 : total - batch.unclassifiedFiles;
+    final lines = <String>[
+      'دفعة أرشيف #${batch.id}',
+      'الاسم: ${batch.name}',
+      'المصدر: ${_sourceLabel(batch.sourceType)}',
+      'الحالة: ${_statusLabel(batch.status)}',
+      if ((batch.sourcePath ?? '').isNotEmpty) 'مسار المصدر: ${batch.sourcePath}',
+      'تاريخ الإنشاء: ${batch.createdAt.toString().substring(0, 19)}',
+      if ((batch.createdBy ?? '').isNotEmpty) 'أنشأها: ${batch.createdBy}',
+      'إجمالي الملفات: ${batch.totalFiles}',
+      'تمت معالجتها: ${batch.processedFiles}',
+      'تمت مراجعتها: $reviewed',
+      'معتمدة: ${batch.approvedFiles}',
+      'غير مصنفة: ${batch.unclassifiedFiles}',
+      'مكررة: ${batch.duplicateFiles}',
+      'فاشلة: ${batch.failedFiles}',
+      if ((batch.notes ?? '').isNotEmpty) 'ملاحظات: ${batch.notes}',
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم نسخ ملخص دفعة الأرشيف'), backgroundColor: AppColors.success));
+    }
+  }
 
   Future<void> _editArchiveBatch(BuildContext context, WidgetRef ref, ArchiveBatchRecord batch) async {
     final name = TextEditingController(text: batch.name);
