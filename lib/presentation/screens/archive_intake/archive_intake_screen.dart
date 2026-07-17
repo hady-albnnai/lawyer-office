@@ -2234,6 +2234,15 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               label: const Text('فتح الملف'),
               onPressed: () => _openArchiveItemFile(context, ref, item),
             ),
+          if (_routeForConfirmedEntity(item) != null)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.folder_open),
+              label: const Text('فتح الملف المرتبط'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.go(_routeForConfirmedEntity(item)!);
+              },
+            ),
           if (duplicateSourceId != null)
             OutlinedButton.icon(
               icon: const Icon(Icons.compare_arrows),
@@ -2247,6 +2256,19 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String? _routeForConfirmedEntity(ArchiveItemRecord item) {
+    final entityType = item.confirmedEntityType;
+    final entityId = item.confirmedEntityId;
+    if (entityType == null || entityId == null) return null;
+    if (entityType == EntityType.caseEntity.index) return '/cases/$entityId';
+    if (entityType == EntityType.contract.index) return '/contracts/$entityId';
+    if (entityType == EntityType.company.index) return '/companies/$entityId';
+    if (entityType == EntityType.adminProcedure.index) return '/procedures/$entityId';
+    if (entityType == EntityType.powerOfAttorney.index) return '/poa/$entityId';
+    if (entityType == EntityType.person.index) return '/persons/$entityId';
+    return null;
   }
 
   Future<void> _openArchiveItemFile(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
