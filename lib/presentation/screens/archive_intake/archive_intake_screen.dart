@@ -1287,7 +1287,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               child: ListTile(
                 leading: CircleAvatar(backgroundColor: AppColors.primaryNavy.withOpacity(0.12), child: Icon(_sourceIcon(b.sourceType), color: AppColors.primaryNavy)),
                 title: Text(b.name, style: AppTextStyles.labelLarge),
-                subtitle: Text('${_sourceLabel(b.sourceType)} • ${_statusLabel(b.status)} • ${b.createdAt.toString().substring(0, 16)}'),
+                subtitle: _batchSubtitle(b),
                 trailing: Wrap(
                   spacing: 8,
                   crossAxisAlignment: WrapCrossAlignment.center,
@@ -1318,6 +1318,36 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   Widget _mini(String label, int value) => Chip(label: Text('$label: $value'));
+
+  Widget _batchSubtitle(ArchiveBatchRecord batch) {
+    final total = batch.totalFiles;
+    final reviewed = total == 0 ? 0 : total - batch.unclassifiedFiles;
+    final reviewProgress = total == 0 ? 0.0 : reviewed / total;
+    final approvedProgress = total == 0 ? 0.0 : batch.approvedFiles / total;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${_sourceLabel(batch.sourceType)} • ${_statusLabel(batch.status)} • ${batch.createdAt.toString().substring(0, 16)}', style: AppTextStyles.bodySmallSecondary),
+          if (total > 0) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(child: LinearProgressIndicator(value: reviewProgress.clamp(0, 1), color: AppColors.primaryNavy, backgroundColor: AppColors.primaryNavy.withOpacity(0.10), minHeight: 5)),
+                const SizedBox(width: 8),
+                Text('مراجعة ${reviewed}/$total', style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryNavy)),
+                const SizedBox(width: 12),
+                Expanded(child: LinearProgressIndicator(value: approvedProgress.clamp(0, 1), color: AppColors.success, backgroundColor: AppColors.success.withOpacity(0.10), minHeight: 5)),
+                const SizedBox(width: 8),
+                Text('اعتماد ${batch.approvedFiles}/$total', style: AppTextStyles.labelSmall.copyWith(color: AppColors.success)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   IconData _sourceIcon(String source) {
     switch (source) {
