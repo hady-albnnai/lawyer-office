@@ -22,6 +22,8 @@ import '../../theme/app_theme.dart';
 final _archiveIntakeRefreshProvider = StateProvider<int>((ref) => 0);
 final _archiveWizardQuerySeedProvider = StateProvider<String?>((ref) => null);
 final _archiveBatchSearchProvider = StateProvider<String>((ref) => '');
+final _archiveBatchSourceFilterProvider = StateProvider<String>((ref) => 'all');
+final _archiveBatchStatusFilterProvider = StateProvider<String>((ref) => 'all');
 
 final _archiveWizardProvider = StateProvider<_ArchiveWizardSelection>((ref) => const _ArchiveWizardSelection());
 
@@ -1012,20 +1014,24 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   Widget _batchesList(WidgetRef ref) {
     final repo = ref.watch(archiveIntakeRepositoryProvider);
     final query = ref.watch(_archiveBatchSearchProvider).trim().toLowerCase();
+    final sourceFilter = ref.watch(_archiveBatchSourceFilterProvider);
+    final statusFilter = ref.watch(_archiveBatchStatusFilterProvider);
     return FutureBuilder(
       future: repo.getBatches(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final allBatches = snapshot.data!;
-        final batches = query.isEmpty
-            ? allBatches
-            : allBatches.where((b) {
-                return b.name.toLowerCase().contains(query) ||
-                    _sourceLabel(b.sourceType).toLowerCase().contains(query) ||
-                    _statusLabel(b.status).toLowerCase().contains(query) ||
-                    (b.createdBy ?? '').toLowerCase().contains(query) ||
-                    (b.notes ?? '').toLowerCase().contains(query);
-              }).toList();
+        final batches = allBatches.where((b) {
+          final queryOk = query.isEmpty ||
+              b.name.toLowerCase().contains(query) ||
+              _sourceLabel(b.sourceType).toLowerCase().contains(query) ||
+              _statusLabel(b.status).toLowerCase().contains(query) ||
+              (b.createdBy ?? '').toLowerCase().contains(query) ||
+              (b.notes ?? '').toLowerCase().contains(query);
+          final sourceOk = sourceFilter == 'all' || b.sourceType == sourceFilter;
+          final statusOk = statusFilter == 'all' || b.status == statusFilter;
+          return queryOk && sourceOk && statusOk;
+        }).toList();
         if (allBatches.isEmpty) {
           return Card(
             child: Padding(
@@ -1040,6 +1046,32 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             TextField(
               decoration: const InputDecoration(labelText: 'بحث في دفعات الأرشيف', prefixIcon: Icon(Icons.search)),
               onChanged: (value) => ref.read(_archiveBatchSearchProvider.notifier).state = value,
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _archiveReviewFilterChip('all', 'كل المصادر', sourceFilter, (v) => ref.read(_archiveBatchSourceFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('paper', 'ورقي', sourceFilter, (v) => ref.read(_archiveBatchSourceFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('electronic', 'إلكتروني', sourceFilter, (v) => ref.read(_archiveBatchSourceFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('excel', 'Excel / CSV', sourceFilter, (v) => ref.read(_archiveBatchSourceFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('mixed', 'مختلط', sourceFilter, (v) => ref.read(_archiveBatchSourceFilterProvider.notifier).state = v),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _archiveReviewFilterChip('all', 'كل الحالات', statusFilter, (v) => ref.read(_archiveBatchStatusFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('new', 'جديدة', statusFilter, (v) => ref.read(_archiveBatchStatusFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('waiting_review', 'بانتظار المراجعة', statusFilter, (v) => ref.read(_archiveBatchStatusFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('completed', 'مكتملة', statusFilter, (v) => ref.read(_archiveBatchStatusFilterProvider.notifier).state = v),
+                  _archiveReviewFilterChip('completed_with_errors', 'مكتملة مع أخطاء', statusFilter, (v) => ref.read(_archiveBatchStatusFilterProvider.notifier).state = v),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             if (batches.isEmpty)
