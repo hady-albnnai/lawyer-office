@@ -473,6 +473,21 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                                   leading: const Icon(Icons.label_outline, size: 18),
                                   title: Text(value.value),
                                   subtitle: value.parentValue == null ? null : Text('ضمن: ${value.parentValue}'),
+                                  trailing: Wrap(
+                                    spacing: 6,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'تعديل',
+                                        icon: const Icon(Icons.edit, size: 18),
+                                        onPressed: () => _renameCustomReference(ctx, ref, value),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'تعطيل',
+                                        icon: const Icon(Icons.block, size: 18, color: AppColors.error),
+                                        onPressed: () => _disableCustomReference(ctx, ref, value),
+                                      ),
+                                    ],
+                                  ),
                                 ))
                             .toList(),
                       ),
@@ -483,6 +498,52 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );
+  }
+
+  Future<void> _renameCustomReference(BuildContext context, WidgetRef ref, ArchiveReferenceValueRecord value) async {
+    final controller = TextEditingController(text: value.value);
+    final next = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تعديل تصنيف مخصص'),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'الاسم الجديد')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('حفظ')),
+        ],
+      ),
+    );
+    if (next == null || next.isEmpty || next == value.value) return;
+    await ref.read(archiveIntakeRepositoryProvider).renameReferenceValue(id: value.id, value: next);
+    ref.invalidate(_archiveReferenceValuesProvider((category: value.category, parent: value.parentValue)));
+    await ref.read(auditServiceProvider).log(action: 'edit', category: 'archive', entityType: 'archive_reference', entityId: '${value.id}', entityTitle: next, description: 'تعديل تصنيف مخصص للأرشيف', before: {'value': value.value}, after: {'value': next}, severity: 'info');
+    if (context.mounted) {
+      Navigator.pop(context);
+      await _showCustomReferences(context, ref);
+    }
+  }
+
+  Future<void> _disableCustomReference(BuildContext context, WidgetRef ref, ArchiveReferenceValueRecord value) async {
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('تعطيل تصنيف مخصص'),
+            content: Text('سيتم إخفاء "${value.value}" من قوائم معالج الأرشيف الجديدة دون حذف السجلات التي استخدمته سابقاً. هل تريد المتابعة؟'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تعطيل')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    await ref.read(archiveIntakeRepositoryProvider).disableReferenceValue(value.id);
+    ref.invalidate(_archiveReferenceValuesProvider((category: value.category, parent: value.parentValue)));
+    await ref.read(auditServiceProvider).log(action: 'disable', category: 'archive', entityType: 'archive_reference', entityId: '${value.id}', entityTitle: value.value, description: 'تعطيل تصنيف مخصص للأرشيف', severity: 'warning');
+    if (context.mounted) {
+      Navigator.pop(context);
+      await _showCustomReferences(context, ref);
+    }
   }
 
   String _archiveReferenceCategoryLabel(String category) {

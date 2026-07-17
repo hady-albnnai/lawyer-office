@@ -181,6 +181,24 @@ class ArchiveIntakeRepository {
     ''', [category, parentValue, clean]);
   }
 
+  Future<void> renameReferenceValue({required int id, required String value}) async {
+    await ensureReady();
+    final clean = value.trim();
+    if (clean.isEmpty) return;
+    await _db.customStatement(
+      'UPDATE archive_reference_values SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [clean, id],
+    );
+  }
+
+  Future<void> disableReferenceValue(int id) async {
+    await ensureReady();
+    await _db.customStatement(
+      'UPDATE archive_reference_values SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [id],
+    );
+  }
+
   Future<int> createBatch({
     required String name,
     required String sourceType,
