@@ -1452,6 +1452,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final missing = rows.length - saved;
     final destroyable = rows.where((row) => ((row['can_destroy_original'] as int?) ?? 0) == 1).length;
     final unreviewed = rows.where((row) => ((row['reviewed_by'] as String?) ?? '').trim().isEmpty).length;
+    final reviewed = rows.length - unreviewed;
     return Align(
       alignment: Alignment.centerRight,
       child: Wrap(
@@ -1462,6 +1463,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           _mini('محفوظ', saved),
           _mini('غير محفوظ', missing),
           _mini('قابل للإتلاف', destroyable),
+          _mini('مراجع', reviewed),
           _mini('غير مراجع', unreviewed),
         ],
       ),
@@ -1511,6 +1513,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
 
   Widget _paperArchiveRow(BuildContext context, WidgetRef ref, Map<String, Object?> row) {
     final saved = ((row['paper_original_saved'] as int?) ?? 0) == 1;
+    final destroyable = ((row['can_destroy_original'] as int?) ?? 0) == 1;
+    final reviewedBy = ((row['reviewed_by'] as String?) ?? '').trim();
+    final reviewedAt = ((row['reviewed_at'] as String?) ?? '').trim();
     final location = _paperLocationFromRow(row);
     return Card(
       child: ListTile(
@@ -1518,13 +1523,15 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         title: Text('${row['doc_name'] ?? 'مستند'}', maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text([
           saved ? 'الأصل محفوظ' : 'الأصل غير محفوظ',
+          if (destroyable) 'قابل للإتلاف',
           if (location.isNotEmpty) location,
-          if (((row['reviewed_by'] as String?) ?? '').trim().isNotEmpty) 'راجعه: ${row['reviewed_by']}',
+          if (reviewedBy.isNotEmpty) 'راجعه: $reviewedBy',
+          if (reviewedAt.isNotEmpty) 'بتاريخ: ${reviewedAt.length >= 10 ? reviewedAt.substring(0, 10) : reviewedAt}',
         ].join(' • ')),
         trailing: Wrap(
           spacing: 6,
           children: [
-            if (((row['reviewed_by'] as String?) ?? '').trim().isEmpty)
+            if (reviewedBy.isEmpty)
               TextButton.icon(
                 icon: const Icon(Icons.fact_check, size: 16),
                 label: const Text('تعليم كمراجع'),
