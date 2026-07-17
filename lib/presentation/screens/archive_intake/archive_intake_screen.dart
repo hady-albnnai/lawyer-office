@@ -2670,6 +2670,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                               trailing: Wrap(
                                 spacing: 6,
                                 children: [
+                                  if ((item.sourcePath ?? '').isNotEmpty)
+                                    TextButton(onPressed: () => _openArchiveOriginalSource(ctx, ref, item), child: const Text('المصدر')),
                                   TextButton(onPressed: () => _showArchiveItemDetails(ctx, ref, item), child: const Text('تفاصيل')),
                                   if (_duplicateSourceItemId(item) != null)
                                     TextButton(onPressed: () => _compareDuplicateWithSource(ctx, ref, item, _duplicateSourceItemId(item)!), child: const Text('مقارنة')),
@@ -3199,6 +3201,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               children: [
                 if ((item.storedPath ?? '').isNotEmpty)
                   TextButton(onPressed: () => _openArchiveItemFile(dialogContext, ref, item), child: const Text('فتح الملف')),
+                if ((item.sourcePath ?? '').isNotEmpty)
+                  TextButton(onPressed: () => _openArchiveOriginalSource(dialogContext, ref, item), child: const Text('المصدر')),
                 TextButton(onPressed: () => _showArchiveItemDetails(dialogContext, ref, item), child: const Text('تفاصيل')),
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.status != 'duplicate' && item.status != 'failed' && item.reviewStatus != 'approved')
                   TextButton(onPressed: () => _showLinkItemDialog(dialogContext, ref, item), child: const Text('ربط بملف')),
