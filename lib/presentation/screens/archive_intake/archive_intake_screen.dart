@@ -1005,6 +1005,16 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               ),
             ),
             actions: [
+              if (search.text.isNotEmpty || typeFilter != null || reasonFilter != 'all')
+                TextButton.icon(
+                  icon: const Icon(Icons.filter_alt_off, size: 16),
+                  label: const Text('مسح الفلاتر'),
+                  onPressed: () => setDialog(() {
+                    search.clear();
+                    typeFilter = null;
+                    reasonFilter = 'all';
+                  }),
+                ),
               if (ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport))
                 OutlinedButton.icon(
                   icon: const Icon(Icons.download),
