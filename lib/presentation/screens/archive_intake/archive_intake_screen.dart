@@ -2154,6 +2154,21 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     Text('الأعمدة', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
                     const SizedBox(height: 6),
                     Wrap(spacing: 6, runSpacing: 6, children: preview.headers.map((h) => Chip(label: Text(h))).toList()),
+                    if (preview.warnings.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.10), borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.warning.withOpacity(0.35))),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('تنبيهات قبل الاستيراد', style: AppTextStyles.labelLarge.copyWith(color: AppColors.warning, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            ...preview.warnings.map((warning) => Text('• $warning', style: AppTextStyles.bodySmallSecondary)),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Text('عينة من أول الصفوف', style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
                     const SizedBox(height: 6),

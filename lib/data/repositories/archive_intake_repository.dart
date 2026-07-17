@@ -125,6 +125,7 @@ class ArchiveCsvPreview {
   final List<String> headers;
   final int rowCount;
   final List<Map<String, String>> sampleRows;
+  final List<String> warnings;
 
   const ArchiveCsvPreview({
     required this.fileName,
@@ -132,6 +133,7 @@ class ArchiveCsvPreview {
     required this.headers,
     required this.rowCount,
     required this.sampleRows,
+    this.warnings = const [],
   });
 }
 
@@ -345,6 +347,7 @@ class ArchiveIntakeRepository {
       headers: headers,
       rowCount: dataRows.length,
       sampleRows: dataRows.take(5).map(mapRow).toList(),
+      warnings: _csvWarnings(headers, dataRows),
     );
   }
 
@@ -411,6 +414,27 @@ class ArchiveIntakeRepository {
     ]);
     await refreshBatchCounters(batchId);
     return ArchiveImportSummary(imported: imported, duplicates: 0, failed: failed);
+  }
+
+  List<String> _csvWarnings(List<String> headers, List<List<String>> rows) {
+    final warnings = <String>[];
+    final normalized = headers.map((h) => h.trim().toLowerCase()).toList();
+    final emptyHeaders = headers.where((h) => h.trim().isEmpty).length;
+    if (emptyHeaders > 0) warnings.add('يوجد $emptyHeaders عمود بلا اسم.');
+    final duplicates = <String>{};
+    final seen = <String>{};
+    for (final header in normalized.where((h) => h.isNotEmpty)) {
+      if (!seen.add(header)) duplicates.add(header);
+    }
+    if (duplicates.isNotEmpty) warnings.add('أسماء أعمدة مكررة: ${duplicates.join(', ')}');
+    if (rows.isEmpty) warnings.add('لا توجد صفوف بيانات بعد سطر العناوين.');
+    final known = {'full_name', 'client_name', 'company_name', 'internal_number', 'file_number', 'case_type', 'poa_number', 'file_name', 'document_type', 'title'};
+    if (!normalized.any(known.contains)) {
+      warnings.add('لم يتم العثور على أعمدة تعريف معروفة مثل full_name أو internal_number أو file_name؛ سيتم الاستيراد كصفوف مراجعة عامة.');
+    }
+    final widthMismatch = rows.where((row) => row.length != headers.length).length;
+    if (widthMismatch > 0) warnings.add('يوجد $widthMismatch صف بعدد خلايا مختلف عن عدد الأعمدة.');
+    return warnings;
   }
 
   String _stripBom(String content) {
