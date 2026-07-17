@@ -233,9 +233,20 @@ class AppDatabase extends _$AppDatabase {
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     ''');
+    await _ensureSqlColumn('archive_items', 'reviewed_by', 'TEXT');
+    await _ensureSqlColumn('archive_items', 'reviewed_at', 'DATETIME');
+    await _ensureSqlColumn('archive_items', 'review_note', 'TEXT');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_batches_status ON archive_batches(status, created_at);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_batch ON archive_items(batch_id, status);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_hash ON archive_items(sha256);');
+  }
+
+  Future<void> _ensureSqlColumn(String tableName, String columnName, String definition) async {
+    final columns = await customSelect('PRAGMA table_info($tableName)').get();
+    final exists = columns.any((row) => row.data['name'] == columnName);
+    if (!exists) {
+      await customStatement('ALTER TABLE $tableName ADD COLUMN $columnName $definition;');
+    }
   }
 
   /// مسح كل بيانات التشغيل/البيانات التجريبية مع الإبقاء على الإعدادات والقوائم المرجعية.

@@ -60,6 +60,9 @@ class ArchiveItemRecord {
   final String? confirmedDocumentType;
   final int? confirmedEntityType;
   final int? confirmedEntityId;
+  final String? reviewedBy;
+  final DateTime? reviewedAt;
+  final String? reviewNote;
   final DateTime createdAt;
 
   const ArchiveItemRecord({
@@ -80,6 +83,9 @@ class ArchiveItemRecord {
     this.confirmedDocumentType,
     this.confirmedEntityType,
     this.confirmedEntityId,
+    this.reviewedBy,
+    this.reviewedAt,
+    this.reviewNote,
     required this.createdAt,
   });
 }
@@ -253,6 +259,9 @@ class ArchiveIntakeRepository {
       confirmedDocumentType: d['confirmed_document_type'] as String?,
       confirmedEntityType: d['confirmed_entity_type'] as int?,
       confirmedEntityId: d['confirmed_entity_id'] as int?,
+      reviewedBy: d['reviewed_by'] as String?,
+      reviewedAt: d['reviewed_at'] == null ? null : parseDate(d['reviewed_at']),
+      reviewNote: d['review_note'] as String?,
       createdAt: parseDate(d['created_at']),
     );
   }
@@ -322,6 +331,8 @@ class ArchiveIntakeRepository {
         documentType: documentType,
         entityType: entityType,
         entityId: entityId,
+        reviewedBy: userRef,
+        reviewNote: 'ربط واعتماد كمستند رقم $docId',
       );
       await refreshBatchCounters(item.batchId);
       await _db.into(_db.timelineEvents).insert(
@@ -346,6 +357,8 @@ class ArchiveIntakeRepository {
     int? entityType,
     int? entityId,
     String? errorMessage,
+    String? reviewedBy,
+    String? reviewNote,
   }) async {
     await ensureReady();
     await _db.customStatement('''
@@ -356,9 +369,12 @@ class ArchiveIntakeRepository {
           confirmed_entity_type = COALESCE(?, confirmed_entity_type),
           confirmed_entity_id = COALESCE(?, confirmed_entity_id),
           error_message = ?,
+          reviewed_by = COALESCE(?, reviewed_by),
+          reviewed_at = CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE reviewed_at END,
+          review_note = COALESCE(?, review_note),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    ''', [status, reviewStatus, documentType, entityType, entityId, errorMessage, itemId]);
+    ''', [status, reviewStatus, documentType, entityType, entityId, errorMessage, reviewedBy, reviewedBy, reviewNote, itemId]);
   }
 
   Future<void> refreshBatchCounters(int batchId) async {

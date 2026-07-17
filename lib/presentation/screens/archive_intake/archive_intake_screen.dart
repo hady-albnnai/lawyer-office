@@ -1568,7 +1568,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       return;
     }
     final items = await ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate');
-    final buffer = StringBuffer('id,batchId,fileName,duplicateOf,status,reviewStatus,fileType,fileSize,sha256,error,createdAt,sourcePath\n');
+    final buffer = StringBuffer('id,batchId,fileName,duplicateOf,status,reviewStatus,fileType,fileSize,sha256,error,reviewedBy,reviewedAt,reviewNote,createdAt,sourcePath\n');
     String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
     for (final item in items) {
       buffer.writeln([
@@ -1582,6 +1582,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         item.fileSize,
         esc(item.sha256),
         esc(item.errorMessage),
+        esc(item.reviewedBy),
+        esc(item.reviewedAt?.toIso8601String()),
+        esc(item.reviewNote),
         esc(item.createdAt.toIso8601String()),
         esc(item.sourcePath),
       ].join(','));
@@ -1789,7 +1792,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       return;
     }
     final items = await ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review');
-    final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,sha256,error,createdAt,sourcePath,storedPath\n');
+    final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,sha256,error,reviewedBy,reviewedAt,reviewNote,createdAt,sourcePath,storedPath\n');
     String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
     for (final item in items) {
       buffer.writeln([
@@ -1803,6 +1806,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         esc(item.suggestedDocumentType),
         esc(item.sha256),
         esc(item.errorMessage),
+        esc(item.reviewedBy),
+        esc(item.reviewedAt?.toIso8601String()),
+        esc(item.reviewNote),
         esc(item.createdAt.toIso8601String()),
         esc(item.sourcePath),
         esc(item.storedPath),
@@ -1930,7 +1936,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       return;
     }
     final items = itemsOverride ?? await ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId);
-    final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,confirmedType,entityType,entityId,sha256,error,createdAt,sourcePath,storedPath\n');
+    final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,confirmedType,entityType,entityId,sha256,error,reviewedBy,reviewedAt,reviewNote,createdAt,sourcePath,storedPath\n');
     String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
     for (final item in items) {
       buffer.writeln([
@@ -1947,6 +1953,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         item.confirmedEntityId ?? '',
         esc(item.sha256),
         esc(item.errorMessage),
+        esc(item.reviewedBy),
+        esc(item.reviewedAt?.toIso8601String()),
+        esc(item.reviewNote),
         esc(item.createdAt.toIso8601String()),
         esc(item.sourcePath),
         esc(item.storedPath),
@@ -2143,6 +2152,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 if (item.confirmedDocumentType != null) _detailRow('نوع المستند المعتمد', _documentTypeLabel(item.confirmedDocumentType!)),
                 if (item.confirmedEntityType != null || item.confirmedEntityId != null) _detailRow('الربط المعتمد', '${item.confirmedEntityType ?? '-'} / ${item.confirmedEntityId ?? '-'}'),
                 if ((item.errorMessage ?? '').isNotEmpty) _detailRow('ملاحظة / خطأ', item.errorMessage!),
+                if ((item.reviewedBy ?? '').isNotEmpty) _detailRow('راجعه', item.reviewedBy!),
+                if (item.reviewedAt != null) _detailRow('تاريخ المراجعة', item.reviewedAt!.toString().substring(0, 19)),
+                if ((item.reviewNote ?? '').isNotEmpty) _detailRow('ملاحظة المراجعة', item.reviewNote!),
                 if ((item.sha256 ?? '').isNotEmpty) _detailRow('بصمة SHA-256', item.sha256!),
                 if ((item.sourcePath ?? '').isNotEmpty) _detailRow('المسار الأصلي', item.sourcePath!),
                 if ((item.storedPath ?? '').isNotEmpty) _detailRow('المسار المحفوظ', item.storedPath!),
@@ -2195,7 +2207,13 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_item', entityId: '$itemId', description: 'محاولة مراجعة عنصر أرشيف دون صلاحية', severity: 'warning');
       return;
     }
-    await ref.read(archiveIntakeRepositoryProvider).updateItemReview(itemId: itemId, status: status, reviewStatus: reviewStatus);
+    await ref.read(archiveIntakeRepositoryProvider).updateItemReview(
+      itemId: itemId,
+      status: status,
+      reviewStatus: reviewStatus,
+      reviewedBy: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
+      reviewNote: reviewStatus == 'approved' ? 'اعتماد عام من مركز الأرشيف' : 'رفض / تجاهل من مركز الأرشيف',
+    );
     await ref.read(archiveIntakeRepositoryProvider).refreshBatchCounters(batchId);
     await ref.read(auditServiceProvider).log(action: reviewStatus == 'approved' ? 'approve' : 'reject', category: 'archive', entityType: 'archive_item', entityId: '$itemId', description: reviewStatus == 'approved' ? 'اعتماد عنصر أرشيف' : 'رفض عنصر أرشيف', severity: reviewStatus == 'approved' ? 'info' : 'warning');
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
