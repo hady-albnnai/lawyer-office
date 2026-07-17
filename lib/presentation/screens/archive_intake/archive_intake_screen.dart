@@ -1402,6 +1402,16 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             ),
           ),
           actions: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.fact_check),
+              label: const Text('تعليم المعروض كمراجع'),
+              onPressed: () async {
+                final rows = await _loadPaperArchiveRows(ref);
+                final visible = _filterPaperRows(rows, search.text, savedFilter, destroyableOnly, unreviewedOnly);
+                if (ctx.mounted) Navigator.pop(ctx);
+                await _markPaperRowsReviewed(context, ref, visible);
+              },
+            ),
             if (permissions.can(PermissionKeys.archiveQualityExport))
               OutlinedButton.icon(
                 icon: const Icon(Icons.download),
@@ -1429,9 +1439,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       final savedOk = savedFilter == 'all' || (savedFilter == 'saved' && saved) || (savedFilter == 'missing' && !saved);
       final destroyOk = !destroyableOnly || destroyable;
       final reviewedOk = !unreviewedOnly || !reviewed;
-      final haystack = [
+      final haystack = _normalizeSearchText([
         row['doc_name'], row['doc_type'], row['paper_location'], row['box'], row['shelf'], row['paper_folder'], row['reviewed_by'], row['paper_notes']
-      ].whereType<Object>().join(' ').toLowerCase();
+      ].whereType<Object>().join(' '));
       final queryOk = query.isEmpty || haystack.contains(query);
       return savedOk && destroyOk && reviewedOk && queryOk;
     }).toList();
@@ -1456,6 +1466,47 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _markPaperRowsReviewed(BuildContext context, WidgetRef ref, List<Map<String, Object?>> rows) async {
+    final ids = rows
+        .where((row) => ((row['reviewed_by'] as String?) ?? '').trim().isEmpty)
+        .map((row) => row['document_id'] as int?)
+        .whereType<int>()
+        .toList();
+    if (ids.isEmpty) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('لا توجد عناصر غير مراجعة ضمن المعروض.'), backgroundColor: AppColors.info));
+      return;
+    }
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('تعليم المعروض كمراجع'),
+            content: Text('سيتم تعليم ${ids.length} مستند كمراجع رقمياً باسم المستخدم الحالي. هل تريد المتابعة؟'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تأكيد')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    final user = ref.read(authControllerProvider).user?.fullName ?? 'المكتب';
+    final db = ref.read(databaseProvider);
+    await db.ensureArchiveTables();
+    for (final id in ids) {
+      await db.customStatement('''
+        UPDATE document_paper_metadata
+        SET reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE document_id = ?
+      ''', [user, id]);
+    }
+    await ref.read(auditServiceProvider).log(action: 'bulk_review', category: 'archive', entityType: 'paper_archive', description: 'تعليم مجموعة أصول ورقية كمراجعة رقمياً', after: {'count': ids.length, 'reviewedBy': user}, severity: 'info');
+    _refreshArchiveDocumentProviders(ref);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تعليم ${ids.length} مستند كمراجع رقمياً'), backgroundColor: AppColors.success));
+      await _showPaperArchiveReport(context, ref);
+    }
   }
 
   Widget _paperArchiveRow(BuildContext context, WidgetRef ref, Map<String, Object?> row) {
