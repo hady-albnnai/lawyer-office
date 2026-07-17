@@ -525,11 +525,50 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       ],
                     ),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+            actions: [
+              if (ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport))
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.download),
+                  label: const Text('تصدير التصنيفات CSV'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _exportCustomReferences(context, ref, values);
+                  },
+                ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+            ],
           );
         },
       ),
     );
+  }
+
+  Future<void> _exportCustomReferences(BuildContext context, WidgetRef ref, List<ArchiveReferenceValueRecord> values) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_references', description: 'محاولة تصدير التصنيفات المخصصة دون صلاحية', severity: 'warning');
+      return;
+    }
+    final buffer = StringBuffer('id,category,categoryLabel,parent,value,isActive\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final value in values) {
+      buffer.writeln([
+        value.id,
+        esc(value.category),
+        esc(_archiveReferenceCategoryLabel(value.category)),
+        esc(value.parentValue),
+        esc(value.value),
+        value.isActive,
+      ].join(','));
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_reference_exports'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = File(path.join(dir.path, 'archive_custom_references_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await _writeArabicCsv(file, buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_references', entityTitle: file.path, description: 'تصدير التصنيفات المخصصة للأرشيف CSV', after: {'count': values.length}, severity: 'info');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير التصنيفات المخصصة: ${file.path}'), backgroundColor: AppColors.success));
+    }
   }
 
   Future<void> _renameCustomReference(BuildContext context, WidgetRef ref, ArchiveReferenceValueRecord value) async {
