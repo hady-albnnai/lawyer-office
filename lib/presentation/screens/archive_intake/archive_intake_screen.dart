@@ -380,7 +380,26 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             _overviewMetric('تحتاج مراجعة', needsReview, Icons.rate_review, AppColors.warning, onTap: needsReview > 0 ? () => _showUnclassifiedInbox(context, ref) : null),
             _overviewMetric('مكررة', duplicates, Icons.copy_all, AppColors.info, onTap: duplicates > 0 ? () => _showDuplicates(context, ref) : null),
             _overviewMetric('فاشلة', failed, Icons.error_outline, AppColors.error, onTap: failed > 0 ? () => _showQualityReport(context, ref) : null),
+            _paperOverviewMetric(context, ref),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _paperOverviewMetric(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<List<Map<String, Object?>>>(
+      future: _loadPaperArchiveRows(ref),
+      builder: (context, snapshot) {
+        final rows = snapshot.data ?? const <Map<String, Object?>>[];
+        final missing = rows.where((row) => ((row['paper_original_saved'] as int?) ?? 0) != 1).length;
+        final unreviewed = rows.where((row) => ((row['reviewed_by'] as String?) ?? '').trim().isEmpty).length;
+        return _overviewMetric(
+          'أصول ورقية',
+          rows.length,
+          Icons.inventory,
+          missing > 0 || unreviewed > 0 ? AppColors.warning : AppColors.secondaryGold,
+          onTap: rows.isNotEmpty ? () => _showPaperArchiveReport(context, ref) : null,
         );
       },
     );
