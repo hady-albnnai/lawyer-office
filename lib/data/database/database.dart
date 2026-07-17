@@ -266,6 +266,7 @@ class AppDatabase extends _$AppDatabase {
       );
     ''');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_paper_metadata_location ON document_paper_metadata(paper_location, box, shelf);');
+    await _backfillPaperMetadataFromDocumentNotes();
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_batches_status ON archive_batches(status, created_at);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_batch ON archive_items(batch_id, status);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_archive_items_hash ON archive_items(sha256);');
@@ -276,6 +277,51 @@ class AppDatabase extends _$AppDatabase {
     final exists = columns.any((row) => row.data['name'] == columnName);
     if (!exists) {
       await customStatement('ALTER TABLE $tableName ADD COLUMN $columnName $definition;');
+    }
+  }
+
+  Future<void> _backfillPaperMetadataFromDocumentNotes() async {
+    final rows = await customSelect('''
+      SELECT d.id, d.notes
+      FROM documents d
+      LEFT JOIN document_paper_metadata m ON m.document_id = d.id
+      WHERE m.document_id IS NULL
+        AND d.notes IS NOT NULL
+        AND d.notes LIKE '%الأصل الورقي محفوظ:%'
+    ''').get();
+
+    String? pick(String notes, String prefix) {
+      for (final line in notes.split('\n')) {
+        if (line.trim().startsWith(prefix)) {
+          final value = line.replaceFirst(prefix, '').trim();
+          return value.isEmpty ? null : value;
+        }
+      }
+      return null;
+    }
+
+    for (final row in rows) {
+      final id = row.data['id'] as int;
+      final notes = row.data['notes'] as String? ?? '';
+      final saved = (pick(notes, 'الأصل الورقي محفوظ:') ?? '').contains('نعم');
+      final canDestroy = (pick(notes, 'يجوز إتلاف الأصل:') ?? '').contains('نعم');
+      await customStatement('''
+        INSERT OR IGNORE INTO document_paper_metadata(
+          document_id, paper_original_saved, paper_location, box, shelf, paper_folder,
+          can_destroy_original, reviewed_by, reviewed_at, notes, updated_at
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE NULL END, ?, CURRENT_TIMESTAMP)
+      ''', [
+        id,
+        saved ? 1 : 0,
+        pick(notes, 'مكان الأصل:'),
+        pick(notes, 'الصندوق:'),
+        pick(notes, 'الرف:'),
+        pick(notes, 'المجلد الورقي:'),
+        canDestroy ? 1 : 0,
+        pick(notes, 'راجع النسخة الرقمية:'),
+        pick(notes, 'راجع النسخة الرقمية:'),
+        notes,
+      ]);
     }
   }
 
