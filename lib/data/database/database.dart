@@ -333,6 +333,9 @@ class AppDatabase extends _$AppDatabase {
       await delete(workOrders).go();
 
       final tables = <String>[
+        'archive_items',
+        'archive_batches',
+        'document_paper_metadata',
         'document_links',
         'documents',
         'fee_payments',
