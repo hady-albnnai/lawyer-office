@@ -372,6 +372,7 @@ class ArchiveIntakeRepository {
 
 
   Future<ArchiveCsvPreview> previewCsvFile(File csvFile) async {
+    await ensureReady();
     final content = _stripBom(await csvFile.readAsString(encoding: utf8));
     final rows = _parseCsv(content);
     if (rows.isEmpty) throw StateError('ملف CSV فارغ');
@@ -386,13 +387,18 @@ class ArchiveIntakeRepository {
     }
 
     final delimiter = _detectCsvDelimiter(content);
+    final warnings = _csvWarnings(headers, dataRows);
+    final existingDuplicates = await _countExistingCsvRowDuplicates(headers, dataRows);
+    if (existingDuplicates > 0) {
+      warnings.add('يوجد $existingDuplicates صف يبدو أنه مستورد سابقاً في الأرشيف بناءً على البصمة.');
+    }
     return ArchiveCsvPreview(
       fileName: csvFile.path.split(Platform.pathSeparator).last,
       delimiter: delimiter == '\t' ? 'Tab' : delimiter,
       headers: headers,
       rowCount: dataRows.length,
       sampleRows: dataRows.take(5).map(mapRow).toList(),
-      warnings: _csvWarnings(headers, dataRows),
+      warnings: warnings,
     );
   }
 
@@ -474,6 +480,23 @@ class ArchiveIntakeRepository {
     ]);
     await refreshBatchCounters(batchId);
     return ArchiveImportSummary(imported: imported, duplicates: duplicates, failed: failed);
+  }
+
+  Future<int> _countExistingCsvRowDuplicates(List<String> headers, List<List<String>> rows) async {
+    var count = 0;
+    for (final row in rows) {
+      final mapped = <String, String>{};
+      for (var c = 0; c < headers.length; c++) {
+        mapped[headers[c]] = c < row.length ? row[c] : '';
+      }
+      final rowHash = sha256.convert(utf8.encode(jsonEncode(mapped))).toString();
+      final existing = await _db.customSelect(
+        'SELECT id FROM archive_items WHERE sha256 = ? LIMIT 1',
+        variables: [Variable.withString(rowHash)],
+      ).get();
+      if (existing.isNotEmpty) count++;
+    }
+    return count;
   }
 
   List<String> _csvWarnings(List<String> headers, List<List<String>> rows) {
