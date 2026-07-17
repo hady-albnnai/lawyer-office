@@ -991,7 +991,18 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+            actions: [
+              if (ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport))
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.download),
+                  label: const Text('تصدير المعروض CSV'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _exportCompletionFiles(context, ref, filtered);
+                  },
+                ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+            ],
           );
         },
       ),
@@ -1043,6 +1054,42 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _exportCompletionFiles(BuildContext context, WidgetRef ref, List<FileItem> files) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_completion', description: 'محاولة تصدير ملفات تحتاج استكمال دون صلاحية', severity: 'warning');
+      return;
+    }
+    final buffer = StringBuffer('id,number,title,type,subcategory,status,court,baseNumber,documentCount,deficiencyCount,missingBase,missingDocuments,nextDate,reasons\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final file in files) {
+      buffer.writeln([
+        esc(file.id),
+        esc(file.fileNumber),
+        esc(file.title),
+        esc(file.type.displayName),
+        esc(file.subCategory),
+        esc(file.status.displayName),
+        esc(file.court),
+        esc(file.baseNumber),
+        file.documentCount,
+        file.deficiencyCount,
+        !file.hasBaseNumber,
+        file.hasMissingDocuments,
+        esc(file.nextSessionDate?.toIso8601String()),
+        esc(_completionReasons(file).join(' | ')),
+      ].join(','));
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_completion_exports'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = File(path.join(dir.path, 'archive_completion_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await file.writeAsString(buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_completion', entityTitle: file.path, description: 'تصدير الملفات الجارية التي تحتاج استكمال CSV', after: {'count': files.length}, severity: 'info');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير ملفات الاستكمال: ${file.path}'), backgroundColor: AppColors.success));
+    }
   }
 
   List<String> _completionReasons(FileItem file) {
