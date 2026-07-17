@@ -1530,7 +1530,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                                     TextButton(onPressed: () => _compareDuplicateWithSource(ctx, ref, item, _duplicateSourceItemId(item)!), child: const Text('مقارنة')),
                                   if (permissions.can(PermissionKeys.archiveDuplicatesResolve))
                                     TextButton(
-                                      onPressed: () => _setItemReview(ctx, ref, item.id, item.batchId, 'rejected', 'rejected'),
+                                      onPressed: () => _reviewArchiveItem(ctx, ref, item, 'rejected', 'rejected', actionLabel: 'تجاهل المكرر', defaultNote: 'تجاهل ملف مكرر بعد المراجعة'),
                                       child: const Text('تجاهل المكرر'),
                                     ),
                                 ],
@@ -2037,9 +2037,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.status != 'duplicate' && item.status != 'failed' && item.reviewStatus != 'approved')
                   TextButton(onPressed: () => _showLinkItemDialog(dialogContext, ref, item), child: const Text('ربط بملف')),
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.reviewStatus != 'approved')
-                  TextButton(onPressed: () => _setItemReview(dialogContext, ref, item.id, item.batchId, 'imported', 'approved'), child: const Text('اعتماد عام')),
+                  TextButton(onPressed: () => _reviewArchiveItem(dialogContext, ref, item, 'imported', 'approved', actionLabel: 'اعتماد عام', defaultNote: 'اعتماد عام من مركز الأرشيف'), child: const Text('اعتماد عام')),
                 if (permissions.can(PermissionKeys.archiveInboxReject) && item.status != 'rejected')
-                  TextButton(onPressed: () => _setItemReview(dialogContext, ref, item.id, item.batchId, 'rejected', 'rejected'), child: const Text('رفض')),
+                  TextButton(onPressed: () => _reviewArchiveItem(dialogContext, ref, item, 'rejected', 'rejected', actionLabel: 'رفض', defaultNote: 'رفض / تجاهل من مركز الأرشيف'), child: const Text('رفض')),
               ],
             ),
           ),
@@ -2084,7 +2084,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               icon: const Icon(Icons.block),
               label: const Text('تجاهل المكرر'),
               onPressed: () async {
-                await _setItemReview(ctx, ref, duplicate.id, duplicate.batchId, 'rejected', 'rejected');
+                await _reviewArchiveItem(ctx, ref, duplicate, 'rejected', 'rejected', actionLabel: 'تجاهل المكرر', defaultNote: 'تجاهل ملف مكرر بعد المقارنة مع الأصل');
               },
             ),
         ],
@@ -2201,7 +2201,47 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
-  Future<void> _setItemReview(BuildContext dialogContext, WidgetRef ref, int itemId, int batchId, String status, String reviewStatus) async {
+  Future<void> _reviewArchiveItem(
+    BuildContext dialogContext,
+    WidgetRef ref,
+    ArchiveItemRecord item,
+    String status,
+    String reviewStatus, {
+    required String actionLabel,
+    required String defaultNote,
+  }) async {
+    final noteController = TextEditingController(text: defaultNote);
+    final note = await showDialog<String>(
+      context: dialogContext,
+      builder: (ctx) => AlertDialog(
+        title: Text(actionLabel),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(item.originalFileName, style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'ملاحظة المراجعة'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, noteController.text.trim()), child: Text(actionLabel)),
+        ],
+      ),
+    );
+    if (note == null) return;
+    await _setItemReview(dialogContext, ref, item.id, item.batchId, status, reviewStatus, reviewNote: note.isEmpty ? defaultNote : note);
+  }
+
+  Future<void> _setItemReview(BuildContext dialogContext, WidgetRef ref, int itemId, int batchId, String status, String reviewStatus, {String? reviewNote}) async {
     final permissions = ref.read(permissionServiceProvider);
     if (!permissions.can(PermissionKeys.archiveIntakeReview)) {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_item', entityId: '$itemId', description: 'محاولة مراجعة عنصر أرشيف دون صلاحية', severity: 'warning');
@@ -2212,7 +2252,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       status: status,
       reviewStatus: reviewStatus,
       reviewedBy: ref.read(authControllerProvider).user?.fullName ?? 'المكتب',
-      reviewNote: reviewStatus == 'approved' ? 'اعتماد عام من مركز الأرشيف' : 'رفض / تجاهل من مركز الأرشيف',
+      reviewNote: reviewNote ?? (reviewStatus == 'approved' ? 'اعتماد عام من مركز الأرشيف' : 'رفض / تجاهل من مركز الأرشيف'),
     );
     await ref.read(archiveIntakeRepositoryProvider).refreshBatchCounters(batchId);
     await ref.read(auditServiceProvider).log(action: reviewStatus == 'approved' ? 'approve' : 'reject', category: 'archive', entityType: 'archive_item', entityId: '$itemId', description: reviewStatus == 'approved' ? 'اعتماد عنصر أرشيف' : 'رفض عنصر أرشيف', severity: reviewStatus == 'approved' ? 'info' : 'warning');
