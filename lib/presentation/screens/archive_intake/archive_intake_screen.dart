@@ -1342,7 +1342,9 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     future: ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review'),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                      return _itemsList(ctx, ref, _filteredArchiveItems(snapshot.data!, search.text));
+                      final searched = _filteredArchiveItems(snapshot.data!, search.text);
+                      final filtered = _filteredArchiveItemsByReview(searched, reviewFilter);
+                      return _itemsList(ctx, ref, filtered);
                     },
                   ),
                 ),
@@ -1357,6 +1359,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
 
   Future<void> _showBatchDetails(BuildContext context, WidgetRef ref, int batchId, String batchName) async {
     final search = TextEditingController();
+    String reviewFilter = 'all';
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1371,6 +1374,20 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                   controller: search,
                   decoration: const InputDecoration(labelText: 'بحث داخل الدفعة', prefixIcon: Icon(Icons.search)),
                   onChanged: (_) => setDialog(() {}),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _archiveReviewFilterChip('all', 'كل العناصر', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
+                      _archiveReviewFilterChip('needs_review', 'تحتاج مراجعة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
+                      _archiveReviewFilterChip('approved', 'معتمدة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
+                      _archiveReviewFilterChip('rejected', 'مرفوضة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
+                      _archiveReviewFilterChip('duplicate', 'مكررة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
+                      _archiveReviewFilterChip('failed', 'فاشلة', reviewFilter, (v) => setDialog(() => reviewFilter = v)),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Expanded(
@@ -1389,6 +1406,26 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _archiveReviewFilterChip(String value, String label, String selected, ValueChanged<String> onSelected) {
+    final isSelected = selected == value;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 8),
+      child: ChoiceChip(
+        selected: isSelected,
+        label: Text(label),
+        selectedColor: AppColors.primaryNavy.withOpacity(0.10),
+        labelStyle: TextStyle(color: isSelected ? AppColors.primaryNavy : AppColors.textSecondary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        onSelected: (_) => onSelected(value),
+      ),
+    );
+  }
+
+  List<ArchiveItemRecord> _filteredArchiveItemsByReview(List<ArchiveItemRecord> items, String filter) {
+    if (filter == 'all') return items;
+    if (filter == 'duplicate' || filter == 'failed') return items.where((item) => item.status == filter).toList();
+    return items.where((item) => item.reviewStatus == filter).toList();
   }
 
   List<ArchiveItemRecord> _filteredArchiveItems(List<ArchiveItemRecord> items, String rawQuery) {
