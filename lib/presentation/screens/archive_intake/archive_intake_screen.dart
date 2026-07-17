@@ -1549,10 +1549,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             if (permissions.can(PermissionKeys.archiveQualityExport))
               OutlinedButton.icon(
                 icon: const Icon(Icons.download),
-                label: const Text('تصدير المكررات CSV'),
+                label: const Text('تصدير المعروض CSV'),
                 onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _exportDuplicates(context, ref);
+                  final allItems = await ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate');
+                  final visible = _filteredArchiveItems(allItems, search.text);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _exportDuplicates(context, ref, itemsOverride: visible);
                 },
               ),
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
@@ -1562,12 +1564,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _exportDuplicates(BuildContext context, WidgetRef ref) async {
+  Future<void> _exportDuplicates(BuildContext context, WidgetRef ref, {List<ArchiveItemRecord>? itemsOverride}) async {
     if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_duplicates', description: 'محاولة تصدير المكررات دون صلاحية', severity: 'warning');
       return;
     }
-    final items = await ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate');
+    final items = itemsOverride ?? await ref.read(archiveIntakeRepositoryProvider).getItemsByStatus('duplicate');
     final buffer = StringBuffer('id,batchId,fileName,duplicateOf,status,reviewStatus,fileType,fileSize,sha256,error,reviewedBy,reviewedAt,reviewNote,createdAt,sourcePath\n');
     String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
     for (final item in items) {
@@ -1773,10 +1775,13 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             if (permissions.can(PermissionKeys.archiveQualityExport))
               OutlinedButton.icon(
                 icon: const Icon(Icons.download),
-                label: const Text('تصدير الصندوق CSV'),
+                label: const Text('تصدير المعروض CSV'),
                 onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _exportUnclassifiedInbox(context, ref);
+                  final allItems = await ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review');
+                  final searched = _filteredArchiveItems(allItems, search.text);
+                  final visible = _filteredArchiveItemsByStatus(searched, statusFilter);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _exportUnclassifiedInbox(context, ref, itemsOverride: visible);
                 },
               ),
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
@@ -1786,12 +1791,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _exportUnclassifiedInbox(BuildContext context, WidgetRef ref) async {
+  Future<void> _exportUnclassifiedInbox(BuildContext context, WidgetRef ref, {List<ArchiveItemRecord>? itemsOverride}) async {
     if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_inbox', description: 'محاولة تصدير صندوق الأرشيف غير المصنف دون صلاحية', severity: 'warning');
       return;
     }
-    final items = await ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review');
+    final items = itemsOverride ?? await ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review');
     final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,sha256,error,reviewedBy,reviewedAt,reviewNote,createdAt,sourcePath,storedPath\n');
     String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
     for (final item in items) {
