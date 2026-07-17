@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart' as fp;
@@ -2882,7 +2883,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                 _detailRow('نوع المستند المقترح', _documentTypeLabel(item.suggestedDocumentType ?? 'archive_document')),
                 if (item.confirmedDocumentType != null) _detailRow('نوع المستند المعتمد', _documentTypeLabel(item.confirmedDocumentType!)),
                 if (item.confirmedEntityType != null || item.confirmedEntityId != null) _detailRow('الربط المعتمد', '${item.confirmedEntityType ?? '-'} / ${item.confirmedEntityId ?? '-'}'),
-                if ((item.errorMessage ?? '').isNotEmpty) _detailRow('ملاحظة / خطأ', item.errorMessage!),
+                if (_csvRowData(item) != null) _csvRowDetails(_csvRowData(item)!),
+                if ((item.errorMessage ?? '').isNotEmpty && _csvRowData(item) == null) _detailRow('ملاحظة / خطأ', item.errorMessage!),
                 if ((item.reviewedBy ?? '').isNotEmpty) _detailRow('راجعه', item.reviewedBy!),
                 if (item.reviewedAt != null) _detailRow('تاريخ المراجعة', item.reviewedAt!.toString().substring(0, 19)),
                 if ((item.reviewNote ?? '').isNotEmpty) _detailRow('ملاحظة المراجعة', item.reviewNote!),
@@ -2961,6 +2963,49 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر فتح الملف: $e'), backgroundColor: AppColors.error));
     }
+  }
+
+  Map<String, String>? _csvRowData(ArchiveItemRecord item) {
+    if (item.fileType != 'csv_row') return null;
+    final raw = item.errorMessage ?? '';
+    if (raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      return decoded.map((key, value) => MapEntry('$key', '${value ?? ''}'));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _csvRowDetails(Map<String, String> data) {
+    final entries = data.entries.where((entry) => entry.key.trim().isNotEmpty).toList();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.info.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.info.withOpacity(0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('بيانات صف CSV', style: AppTextStyles.labelLarge.copyWith(color: AppColors.info, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ...entries.map((entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 170, child: Text(entry.key, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSecondary))),
+                    Expanded(child: SelectableText(entry.value.isEmpty ? '—' : entry.value, style: AppTextStyles.bodySmall)),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
   }
 
   Widget _detailRow(String label, String value) {
