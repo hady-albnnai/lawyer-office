@@ -1439,6 +1439,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
+  int? _duplicateSourceItemId(ArchiveItemRecord item) {
+    final message = item.errorMessage ?? '';
+    final match = RegExp(r'#(\d+)').firstMatch(message);
+    return match == null ? null : int.tryParse(match.group(1) ?? '');
+  }
+
   Future<void> _showArchiveItemDetails(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
     await ref.read(auditServiceProvider).log(
       action: 'view',
@@ -1450,6 +1456,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       severity: 'info',
     );
     if (!context.mounted) return;
+    final duplicateSourceId = _duplicateSourceItemId(item);
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1479,7 +1486,25 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             ),
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+        actions: [
+          if (duplicateSourceId != null)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.content_copy),
+              label: Text('فتح الأصل #$duplicateSourceId'),
+              onPressed: () async {
+                final original = await ref.read(archiveIntakeRepositoryProvider).getItemById(duplicateSourceId);
+                if (original == null) {
+                  if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('لم يتم العثور على العنصر الأصلي #$duplicateSourceId'), backgroundColor: AppColors.warning));
+                  return;
+                }
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  await _showArchiveItemDetails(context, ref, original);
+                }
+              },
+            ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+        ],
       ),
     );
   }
