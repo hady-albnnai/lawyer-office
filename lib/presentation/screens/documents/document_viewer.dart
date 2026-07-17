@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../providers/app_providers.dart';
+import '../../providers/auth_providers.dart';
+import '../../providers/ui_data_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import 'document_models.dart';
@@ -56,7 +59,7 @@ class DocumentViewerScreen extends ConsumerWidget {
           ),
           body: Column(
             children: [
-              _buildInfo(context, doc),
+              _buildInfo(context, ref, doc),
               Expanded(child: _buildViewer(doc, context)),
             ],
           ),
@@ -65,7 +68,7 @@ class DocumentViewerScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfo(BuildContext context, DocumentItem d) {
+  Widget _buildInfo(BuildContext context, WidgetRef ref, DocumentItem d) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppColors.cardBackground, border: Border.all(color: AppColors.cardBorder, width: 0.5)),
@@ -101,7 +104,7 @@ class DocumentViewerScreen extends ConsumerWidget {
           ),
           if (d.notes.contains('الأصل الورقي')) ...[
             const SizedBox(height: 10),
-            _paperArchiveBox(d.notes),
+            _paperArchiveBox(context, ref, d),
           ],
           if (d.notes.contains('بيانات صف CSV:')) ...[
             const SizedBox(height: 10),
@@ -115,8 +118,8 @@ class DocumentViewerScreen extends ConsumerWidget {
     );
   }
 
-  Widget _paperArchiveBox(String notes) {
-    final lines = notes.split('\n').where((line) => line.trim().isNotEmpty).toList();
+  Widget _paperArchiveBox(BuildContext context, WidgetRef ref, DocumentItem doc) {
+    final lines = doc.notes.split('\n').where((line) => line.trim().isNotEmpty).toList();
     String pick(String prefix) {
       final line = lines.firstWhere((item) => item.startsWith(prefix), orElse: () => '');
       return line.replaceFirst(prefix, '').trim();
@@ -143,7 +146,17 @@ class DocumentViewerScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('بيانات الأصل الورقي', style: AppTextStyles.labelLarge.copyWith(color: AppColors.info, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Expanded(child: Text('بيانات الأصل الورقي', style: AppTextStyles.labelLarge.copyWith(color: AppColors.info, fontWeight: FontWeight.bold))),
+              if (pick('راجع النسخة الرقمية:').isEmpty)
+                TextButton.icon(
+                  icon: const Icon(Icons.fact_check, size: 16),
+                  label: const Text('تعليم كمراجع'),
+                  onPressed: () => _markDocumentPaperReviewed(context, ref, doc),
+                ),
+            ],
+          ),
           const SizedBox(height: 6),
           if (locationParts.isNotEmpty)
             Text('الموقع الكامل: ${locationParts.join(' • ')}', style: AppTextStyles.bodySmallSecondary.copyWith(fontWeight: FontWeight.bold)),
@@ -191,6 +204,26 @@ class DocumentViewerScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _markDocumentPaperReviewed(BuildContext context, WidgetRef ref, DocumentItem doc) async {
+    final id = int.tryParse(doc.id);
+    if (id == null) return;
+    final user = ref.read(authControllerProvider).user?.fullName ?? 'المكتب';
+    final db = ref.read(databaseProvider);
+    await db.ensureArchiveTables();
+    await db.customStatement('''
+      UPDATE document_paper_metadata
+      SET reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE document_id = ?
+    ''', [user, id]);
+    await ref.read(auditServiceProvider).log(action: 'review', category: 'archive', entityType: 'paper_archive', entityId: doc.id, entityTitle: doc.title, description: 'تعليم الأصل الورقي كمراجع رقمياً من عارض المستند', after: {'reviewedBy': user}, severity: 'info');
+    ref.invalidate(documentsFutureProvider);
+    ref.invalidate(uiDocumentsProvider);
+    ref.invalidate(uiFilesProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تعليم الأصل كمراجع بواسطة $user'), backgroundColor: AppColors.success));
+    }
   }
 
   Widget _info(IconData icon, String text) {
