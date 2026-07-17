@@ -1885,10 +1885,13 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             if (ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport))
               OutlinedButton.icon(
                 icon: const Icon(Icons.download),
-                label: const Text('تصدير عناصر الدفعة CSV'),
+                label: const Text('تصدير المعروض CSV'),
                 onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _exportBatchItems(context, ref, batchId, batchName);
+                  final allItems = await ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId);
+                  final searched = _filteredArchiveItems(allItems, search.text);
+                  final filtered = _filteredArchiveItemsByReview(searched, reviewFilter);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  await _exportBatchItems(context, ref, batchId, batchName, itemsOverride: filtered);
                 },
               ),
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
@@ -1921,12 +1924,12 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _exportBatchItems(BuildContext context, WidgetRef ref, int batchId, String batchName) async {
+  Future<void> _exportBatchItems(BuildContext context, WidgetRef ref, int batchId, String batchName, {List<ArchiveItemRecord>? itemsOverride}) async {
     if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', description: 'محاولة تصدير عناصر دفعة أرشيف دون صلاحية', severity: 'warning');
       return;
     }
-    final items = await ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId);
+    final items = itemsOverride ?? await ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId);
     final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,confirmedType,entityType,entityId,sha256,error,createdAt,sourcePath,storedPath\n');
     String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
     for (final item in items) {
