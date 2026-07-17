@@ -1211,6 +1211,8 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                                 spacing: 6,
                                 children: [
                                   TextButton(onPressed: () => _showArchiveItemDetails(ctx, ref, item), child: const Text('تفاصيل')),
+                                  if (_duplicateSourceItemId(item) != null)
+                                    TextButton(onPressed: () => _compareDuplicateWithSource(ctx, ref, item, _duplicateSourceItemId(item)!), child: const Text('مقارنة')),
                                   if (permissions.can(PermissionKeys.archiveDuplicatesResolve))
                                     TextButton(
                                       onPressed: () => _setItemReview(ctx, ref, item.id, item.batchId, 'rejected', 'rejected'),
