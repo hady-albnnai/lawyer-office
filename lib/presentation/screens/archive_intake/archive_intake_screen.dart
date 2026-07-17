@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart' as fp;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -3248,6 +3249,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
           ),
         ),
         actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.copy),
+            label: const Text('نسخ التفاصيل'),
+            onPressed: () => _copyArchiveItemDetails(context, item),
+          ),
           if ((item.storedPath ?? '').isNotEmpty)
             OutlinedButton.icon(
               icon: const Icon(Icons.open_in_new),
@@ -3276,6 +3282,32 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _copyArchiveItemDetails(BuildContext context, ArchiveItemRecord item) async {
+    final lines = <String>[
+      'عنصر أرشيف #${item.id}',
+      'اسم الملف: ${item.originalFileName}',
+      'الدفعة: #${item.batchId}',
+      'الحالة: ${_itemStatusLabel(item.status)}',
+      'المراجعة: ${_reviewStatusLabel(item.reviewStatus)}',
+      if ((item.fileType ?? '').isNotEmpty) 'نوع الملف: ${item.fileType}',
+      'الحجم: ${_formatFileSize(item.fileSize)}',
+      if ((item.suggestedDocumentType ?? '').isNotEmpty) 'نوع المستند المقترح: ${_documentTypeLabel(item.suggestedDocumentType!)}',
+      if ((item.confirmedDocumentType ?? '').isNotEmpty) 'نوع المستند المعتمد: ${_documentTypeLabel(item.confirmedDocumentType!)}',
+      if (item.confirmedEntityType != null || item.confirmedEntityId != null) 'الربط المعتمد: ${item.confirmedEntityType ?? '-'} / ${item.confirmedEntityId ?? '-'}',
+      if ((item.errorMessage ?? '').isNotEmpty) 'ملاحظة/خطأ: ${item.errorMessage}',
+      if ((item.reviewedBy ?? '').isNotEmpty) 'راجعه: ${item.reviewedBy}',
+      if (item.reviewedAt != null) 'تاريخ المراجعة: ${item.reviewedAt!.toString().substring(0, 19)}',
+      if ((item.reviewNote ?? '').isNotEmpty) 'ملاحظة المراجعة: ${item.reviewNote}',
+      if ((item.sha256 ?? '').isNotEmpty) 'SHA-256: ${item.sha256}',
+      if ((item.sourcePath ?? '').isNotEmpty) 'المسار الأصلي: ${item.sourcePath}',
+      if ((item.storedPath ?? '').isNotEmpty) 'المسار المحفوظ: ${item.storedPath}',
+    ];
+    await Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم نسخ تفاصيل عنصر الأرشيف'), backgroundColor: AppColors.success));
+    }
   }
 
   String? _routeForConfirmedEntity(ArchiveItemRecord item) {
