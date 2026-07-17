@@ -496,6 +496,23 @@ class ArchiveIntakeRepository {
     return '$fileName / السطر $lineNumber';
   }
 
+  String? _formatCsvRowNotes(String? rawJson) {
+    if (rawJson == null || rawJson.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(rawJson);
+      if (decoded is! Map) return rawJson;
+      final lines = <String>['بيانات صف CSV:'];
+      for (final entry in decoded.entries) {
+        final key = '${entry.key}'.trim();
+        if (key.isEmpty) continue;
+        lines.add('$key: ${entry.value ?? ''}');
+      }
+      return lines.join('\n');
+    } catch (_) {
+      return rawJson;
+    }
+  }
+
   String _suggestCsvDocumentType(String fileName, List<String> headers) {
     final raw = '${fileName.toLowerCase()} ${headers.join(' ').toLowerCase()}';
     if (raw.contains('poa') || raw.contains('وكال')) return 'power_of_attorney';
@@ -596,6 +613,7 @@ class ArchiveIntakeRepository {
       throw StateError('لا يمكن اعتماد عنصر بلا ملف محفوظ، غالباً لأنه مكرر أو فشل استيراده');
     }
     return _db.transaction(() async {
+      final csvRowNotes = isMetadataOnlyCsvRow ? _formatCsvRowNotes(item.errorMessage) : null;
       final docId = await _db.into(_db.documents).insert(
             DocumentsCompanion.insert(
               docName: item.originalFileName,
@@ -605,6 +623,7 @@ class ArchiveIntakeRepository {
               summary: Value(isMetadataOnlyCsvRow ? 'بيانات مستوردة من صف CSV عبر مركز الأرشيف' : 'مستند مستورد من مركز إدخال الأرشيف'),
               notes: Value([
                 'ArchiveItem #$itemId / SHA256: ${item.sha256 ?? '-'}',
+                if ((csvRowNotes ?? '').trim().isNotEmpty) csvRowNotes!.trim(),
                 if ((archiveNotes ?? '').trim().isNotEmpty) archiveNotes!.trim(),
               ].join('\n')),
               physicalLocation: Value(physicalLocation ?? 0),
