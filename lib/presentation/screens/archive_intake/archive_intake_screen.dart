@@ -1196,12 +1196,17 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                       leading: Icon(Icons.copy_all, color: AppColors.info),
                       title: Text(item.originalFileName, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text('دفعة #${item.batchId} • ${item.errorMessage ?? 'ملف مكرر محتمل'}'),
-                      trailing: permissions.can(PermissionKeys.archiveDuplicatesResolve)
-                          ? TextButton(
+                      trailing: Wrap(
+                        spacing: 6,
+                        children: [
+                          TextButton(onPressed: () => _showArchiveItemDetails(ctx, ref, item), child: const Text('تفاصيل')),
+                          if (permissions.can(PermissionKeys.archiveDuplicatesResolve))
+                            TextButton(
                               onPressed: () => _setItemReview(ctx, ref, item.id, item.batchId, 'rejected', 'rejected'),
                               child: const Text('تجاهل المكرر'),
-                            )
-                          : null,
+                            ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -1360,6 +1365,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
             trailing: Wrap(
               spacing: 6,
               children: [
+                TextButton(onPressed: () => _showArchiveItemDetails(dialogContext, ref, item), child: const Text('تفاصيل')),
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.status != 'duplicate' && item.status != 'failed' && item.reviewStatus != 'approved')
                   TextButton(onPressed: () => _showLinkItemDialog(dialogContext, ref, item), child: const Text('ربط بملف')),
                 if (permissions.can(PermissionKeys.archiveInboxLink) && item.reviewStatus != 'approved')
@@ -1372,6 +1378,73 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _showArchiveItemDetails(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
+    await ref.read(auditServiceProvider).log(
+      action: 'view',
+      category: 'archive',
+      entityType: 'archive_item',
+      entityId: '${item.id}',
+      entityTitle: item.originalFileName,
+      description: 'عرض تفاصيل عنصر أرشيف',
+      severity: 'info',
+    );
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('تفاصيل عنصر الأرشيف #${item.id}'),
+        content: SizedBox(
+          width: 680,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _detailRow('اسم الملف', item.originalFileName),
+                _detailRow('الدفعة', '#${item.batchId}'),
+                _detailRow('الحالة', _itemStatusLabel(item.status)),
+                _detailRow('المراجعة', _reviewStatusLabel(item.reviewStatus)),
+                _detailRow('نوع الملف', item.fileType ?? 'غير محدد'),
+                _detailRow('الحجم', _formatFileSize(item.fileSize)),
+                _detailRow('نوع المستند المقترح', _documentTypeLabel(item.suggestedDocumentType ?? 'archive_document')),
+                if (item.confirmedDocumentType != null) _detailRow('نوع المستند المعتمد', _documentTypeLabel(item.confirmedDocumentType!)),
+                if (item.confirmedEntityType != null || item.confirmedEntityId != null) _detailRow('الربط المعتمد', '${item.confirmedEntityType ?? '-'} / ${item.confirmedEntityId ?? '-'}'),
+                if ((item.errorMessage ?? '').isNotEmpty) _detailRow('ملاحظة / خطأ', item.errorMessage!),
+                if ((item.sha256 ?? '').isNotEmpty) _detailRow('بصمة SHA-256', item.sha256!),
+                if ((item.sourcePath ?? '').isNotEmpty) _detailRow('المسار الأصلي', item.sourcePath!),
+                if ((item.storedPath ?? '').isNotEmpty) _detailRow('المسار المحفوظ', item.storedPath!),
+                _detailRow('تاريخ الإدخال', item.createdAt.toString().substring(0, 19)),
+              ],
+            ),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textSecondary)),
+          const SizedBox(height: 2),
+          SelectableText(value, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primaryNavy)),
+          const Divider(height: 12),
+        ],
+      ),
+    );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes <= 0) return 'غير محدد';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
   Future<void> _setItemReview(BuildContext dialogContext, WidgetRef ref, int itemId, int batchId, String status, String reviewStatus) async {
