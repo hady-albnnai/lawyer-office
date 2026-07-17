@@ -1364,10 +1364,57 @@ class ArchiveIntakeScreen extends ConsumerWidget {
               ],
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+          actions: [
+            if (permissions.can(PermissionKeys.archiveQualityExport))
+              OutlinedButton.icon(
+                icon: const Icon(Icons.download),
+                label: const Text('تصدير الصندوق CSV'),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _exportUnclassifiedInbox(context, ref);
+                },
+              ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _exportUnclassifiedInbox(BuildContext context, WidgetRef ref) async {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
+      await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_inbox', description: 'محاولة تصدير صندوق الأرشيف غير المصنف دون صلاحية', severity: 'warning');
+      return;
+    }
+    final items = await ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review');
+    final buffer = StringBuffer('id,batchId,fileName,status,reviewStatus,fileType,fileSize,suggestedType,sha256,error,createdAt,sourcePath,storedPath\n');
+    String esc(Object? v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
+    for (final item in items) {
+      buffer.writeln([
+        item.id,
+        item.batchId,
+        esc(item.originalFileName),
+        esc(item.status),
+        esc(item.reviewStatus),
+        esc(item.fileType),
+        item.fileSize,
+        esc(item.suggestedDocumentType),
+        esc(item.sha256),
+        esc(item.errorMessage),
+        esc(item.createdAt.toIso8601String()),
+        esc(item.sourcePath),
+        esc(item.storedPath),
+      ].join(','));
+    }
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_inbox_exports'));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final file = File(path.join(dir.path, 'archive_inbox_${DateTime.now().millisecondsSinceEpoch}.csv'));
+    await file.writeAsString(buffer.toString());
+    await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_inbox', entityTitle: file.path, description: 'تصدير صندوق الأرشيف غير المصنف CSV', after: {'count': items.length}, severity: 'info');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير صندوق غير المصنف: ${file.path}'), backgroundColor: AppColors.success));
+    }
   }
 
   Future<void> _showBatchDetails(BuildContext context, WidgetRef ref, int batchId, String batchName) async {
