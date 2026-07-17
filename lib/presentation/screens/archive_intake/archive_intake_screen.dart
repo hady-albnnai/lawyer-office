@@ -2021,6 +2021,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                         onPressed: () => _openArchiveSourcePath(context, ref, b),
                       ),
                     OutlinedButton.icon(
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('تعديل'),
+                      onPressed: () => _editArchiveBatch(context, ref, b),
+                    ),
+                    OutlinedButton.icon(
                       icon: const Icon(Icons.visibility, size: 16),
                       label: const Text('فتح'),
                       onPressed: () => _showBatchDetails(context, ref, b.id, b.name),
@@ -2055,6 +2060,70 @@ class ArchiveIntakeScreen extends ConsumerWidget {
   }
 
   Widget _mini(String label, int value) => Chip(label: Text('$label: $value'));
+
+  Future<void> _editArchiveBatch(BuildContext context, WidgetRef ref, ArchiveBatchRecord batch) async {
+    final name = TextEditingController(text: batch.name);
+    final sourcePath = TextEditingController(text: batch.sourcePath ?? '');
+    final notes = TextEditingController(text: batch.notes ?? '');
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (ctx, setDialog) => AlertDialog(
+              title: const Text('تعديل بيانات دفعة الأرشيف'),
+              content: SizedBox(
+                width: 560,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الدفعة *')),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: sourcePath,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: 'مصدر الدفعة',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.folder_open),
+                          onPressed: () async {
+                            final selected = await fp.FilePicker.platform.getDirectoryPath(dialogTitle: 'اختر مصدر الدفعة');
+                            if (selected != null) setDialog(() => sourcePath.text = selected);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(controller: notes, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات')),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    if (!ok || name.text.trim().isEmpty) return;
+    await ref.read(archiveIntakeRepositoryProvider).updateBatchDetails(
+          id: batch.id,
+          name: name.text.trim(),
+          sourcePath: sourcePath.text,
+          notes: notes.text,
+        );
+    await ref.read(auditServiceProvider).log(
+      action: 'edit',
+      category: 'archive',
+      entityType: 'archive_batch',
+      entityId: '${batch.id}',
+      entityTitle: name.text.trim(),
+      description: 'تعديل بيانات دفعة أرشيف',
+      before: {'name': batch.name, 'sourcePath': batch.sourcePath, 'notes': batch.notes},
+      after: {'name': name.text.trim(), 'sourcePath': sourcePath.text.trim(), 'notes': notes.text.trim()},
+      severity: 'info',
+    );
+    ref.read(_archiveIntakeRefreshProvider.notifier).state++;
+  }
 
   Future<void> _openArchiveSourcePath(BuildContext context, WidgetRef ref, ArchiveBatchRecord batch) async {
     final source = batch.sourcePath;

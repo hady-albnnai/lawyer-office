@@ -264,6 +264,29 @@ class ArchiveIntakeRepository {
     );
   }
 
+  Future<void> updateBatchDetails({
+    required int id,
+    required String name,
+    String? sourcePath,
+    String? notes,
+  }) async {
+    await ensureReady();
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) return;
+    await _db.customStatement('''
+      UPDATE archive_batches
+      SET name = ?,
+          source_path = ?,
+          notes = ?
+      WHERE id = ?
+    ''', [
+      cleanName,
+      sourcePath == null || sourcePath.trim().isEmpty ? null : sourcePath.trim(),
+      notes == null || notes.trim().isEmpty ? null : notes.trim(),
+      id,
+    ]);
+  }
+
   Future<ArchiveImportSummary> importFilesToBatch(int batchId, List<File> files) async {
     await ensureReady();
     await updateBatchStatus(batchId, 'processing');
