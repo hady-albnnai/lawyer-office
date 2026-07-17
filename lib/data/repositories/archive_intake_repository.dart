@@ -386,9 +386,18 @@ class ArchiveIntakeRepository {
         duplicate_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND status = 'duplicate'),
         unclassified_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND review_status = 'needs_review'),
         approved_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND review_status = 'approved'),
-        processed_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ?)
+        processed_files = (SELECT COUNT(*) FROM archive_items WHERE batch_id = ?),
+        status = CASE
+          WHEN (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND review_status = 'needs_review') > 0 THEN 'waiting_review'
+          WHEN (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND status = 'failed') > 0 THEN 'completed_with_errors'
+          ELSE 'completed'
+        END,
+        completed_at = CASE
+          WHEN (SELECT COUNT(*) FROM archive_items WHERE batch_id = ? AND review_status = 'needs_review') = 0 THEN CURRENT_TIMESTAMP
+          ELSE completed_at
+        END
       WHERE id = ?
-    ''', [batchId, batchId, batchId, batchId, batchId, batchId, batchId]);
+    ''', [batchId, batchId, batchId, batchId, batchId, batchId, batchId, batchId, batchId, batchId]);
   }
 
   Future<List<ArchiveBatchRecord>> getBatches() async {
