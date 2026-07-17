@@ -1303,50 +1303,94 @@ class ArchiveIntakeScreen extends ConsumerWidget {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_inbox', description: 'محاولة فتح صندوق الأرشيف غير المصنف دون صلاحية', severity: 'warning');
       return;
     }
+    final search = TextEditingController();
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('صندوق الأرشيف غير المصنف'),
-        content: SizedBox(
-          width: 860,
-          height: 560,
-          child: FutureBuilder<List<ArchiveItemRecord>>(
-            future: ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review'),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              return _itemsList(ctx, ref, snapshot.data!);
-            },
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: const Text('صندوق الأرشيف غير المصنف'),
+          content: SizedBox(
+            width: 900,
+            height: 600,
+            child: Column(
+              children: [
+                TextField(
+                  controller: search,
+                  decoration: const InputDecoration(labelText: 'بحث باسم الملف أو النوع أو الملاحظة', prefixIcon: Icon(Icons.search)),
+                  onChanged: (_) => setDialog(() {}),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: FutureBuilder<List<ArchiveItemRecord>>(
+                    future: ref.read(archiveIntakeRepositoryProvider).getItemsByReviewStatus('needs_review'),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                      return _itemsList(ctx, ref, _filteredArchiveItems(snapshot.data!, search.text));
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );
   }
 
   Future<void> _showBatchDetails(BuildContext context, WidgetRef ref, int batchId, String batchName) async {
+    final search = TextEditingController();
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('تفاصيل الدفعة: $batchName'),
-        content: SizedBox(
-          width: 860,
-          height: 560,
-          child: FutureBuilder<List<ArchiveItemRecord>>(
-            future: ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              return _itemsList(ctx, ref, snapshot.data!);
-            },
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text('تفاصيل الدفعة: $batchName'),
+          content: SizedBox(
+            width: 900,
+            height: 600,
+            child: Column(
+              children: [
+                TextField(
+                  controller: search,
+                  decoration: const InputDecoration(labelText: 'بحث داخل الدفعة', prefixIcon: Icon(Icons.search)),
+                  onChanged: (_) => setDialog(() {}),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: FutureBuilder<List<ArchiveItemRecord>>(
+                    future: ref.read(archiveIntakeRepositoryProvider).getItemsForBatch(batchId),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                      return _itemsList(ctx, ref, _filteredArchiveItems(snapshot.data!, search.text));
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );
   }
 
+  List<ArchiveItemRecord> _filteredArchiveItems(List<ArchiveItemRecord> items, String rawQuery) {
+    final query = rawQuery.trim().toLowerCase();
+    if (query.isEmpty) return items;
+    return items.where((item) {
+      return item.originalFileName.toLowerCase().contains(query) ||
+          (item.fileType ?? '').toLowerCase().contains(query) ||
+          (item.status).toLowerCase().contains(query) ||
+          (item.reviewStatus).toLowerCase().contains(query) ||
+          (item.errorMessage ?? '').toLowerCase().contains(query) ||
+          _documentTypeLabel(item.suggestedDocumentType ?? 'archive_document').toLowerCase().contains(query) ||
+          (item.sha256 ?? '').toLowerCase().contains(query);
+    }).toList();
+  }
+
   Widget _itemsList(BuildContext dialogContext, WidgetRef ref, List<ArchiveItemRecord> items) {
     final permissions = ref.watch(permissionServiceProvider);
-    if (items.isEmpty) return const Center(child: Text('لا توجد عناصر.'));
+    if (items.isEmpty) return const Center(child: Text('لا توجد عناصر مطابقة.'));
     return ListView.builder(
       itemCount: items.length,
       itemBuilder: (_, index) {
