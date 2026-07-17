@@ -302,6 +302,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
                     _statusTile('دفعات الإدخال', 'متابعة دفعات الاستيراد وحالاتها.', Icons.inventory_2, AppColors.primaryNavy),
                     _statusTile('صندوق غير مصنف', 'ملفات تحتاج ربطاً أو تصنيفاً.', Icons.inbox, AppColors.warning, onTap: () => _showUnclassifiedInbox(context, ref)),
                     _statusTile('ملفات جارية تحتاج استكمال', 'دعاوى وإجراءات وملفات نشطة ناقصة بيانات تشغيلية.', Icons.pending_actions, AppColors.error, onTap: () => _showActiveNeedsCompletion(context, ref)),
+                    _statusTile('التصنيفات المخصصة', 'كل ما أضافه المستخدم من أنواع ومحاكم ووثائق غير معرفة مسبقاً.', Icons.tune, AppColors.primaryNavy, onTap: () => _showCustomReferences(context, ref)),
                     _statusTile('المكررات', 'ملفات كشفها النظام كنسخ مكررة.', Icons.copy_all, AppColors.info, onTap: () => _showDuplicates(context, ref)),
                     _statusTile('تقارير الجودة', 'نتائج الاستيراد والأخطاء والعينات المطلوبة للمراجعة.', Icons.fact_check, AppColors.success, onTap: () => _showQualityReport(context, ref)),
                   ],
@@ -441,6 +442,61 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showCustomReferences(BuildContext context, WidgetRef ref) async {
+    final values = await ref.read(archiveIntakeRepositoryProvider).getAllReferenceValues();
+    await ref.read(auditServiceProvider).log(action: 'view', category: 'archive', entityType: 'archive_references', description: 'عرض التصنيفات المخصصة للأرشيف', severity: 'info');
+    if (!context.mounted) return;
+    final grouped = <String, List<ArchiveReferenceValueRecord>>{};
+    for (final value in values) {
+      grouped.putIfAbsent(value.category, () => []).add(value);
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('التصنيفات المخصصة للأرشيف'),
+        content: SizedBox(
+          width: 760,
+          height: 560,
+          child: values.isEmpty
+              ? const Center(child: Text('لا توجد تصنيفات مخصصة بعد.'))
+              : ListView(
+                  children: grouped.entries.map((entry) {
+                    return Card(
+                      child: ExpansionTile(
+                        initiallyExpanded: true,
+                        title: Text(_archiveReferenceCategoryLabel(entry.key), style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
+                        children: entry.value
+                            .map((value) => ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.label_outline, size: 18),
+                                  title: Text(value.value),
+                                  subtitle: value.parentValue == null ? null : Text('ضمن: ${value.parentValue}'),
+                                ))
+                            .toList(),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+      ),
+    );
+  }
+
+  String _archiveReferenceCategoryLabel(String category) {
+    switch (category) {
+      case 'file_kind': return 'أنواع ملفات الأرشيف';
+      case 'case_type': return 'أنواع الدعاوى';
+      case 'court_level': return 'المحاكم ودرجات التقاضي';
+      case 'company_type': return 'أنواع الشركات';
+      case 'procedure_type': return 'أنواع الإجراءات';
+      case 'contract_type': return 'أنواع العقود';
+      case 'poa_type': return 'أنواع الوكالات';
+      case 'document_type': return 'أسماء الوثائق';
+      default: return category;
+    }
   }
 
   Widget _statusTile(String title, String subtitle, IconData icon, Color color, {VoidCallback? onTap}) {

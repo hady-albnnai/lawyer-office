@@ -126,6 +126,21 @@ class ArchiveIntakeRepository {
 
   Future<void> ensureReady() => _db.ensureArchiveTables();
 
+  Future<List<ArchiveReferenceValueRecord>> getAllReferenceValues() async {
+    await ensureReady();
+    final rows = await _db.customSelect('SELECT * FROM archive_reference_values WHERE is_active = 1 ORDER BY category, parent_value, value COLLATE NOCASE').get();
+    return rows.map((row) {
+      final d = row.data;
+      return ArchiveReferenceValueRecord(
+        id: d['id'] as int,
+        category: d['category'] as String,
+        value: d['value'] as String,
+        parentValue: d['parent_value'] as String?,
+        isActive: ((d['is_active'] as int?) ?? 1) == 1,
+      );
+    }).toList();
+  }
+
   Future<List<ArchiveReferenceValueRecord>> getReferenceValues({required String category, String? parentValue}) async {
     await ensureReady();
     final rows = await _db.customSelect(
