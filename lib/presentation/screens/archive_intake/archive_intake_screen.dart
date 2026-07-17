@@ -1190,7 +1190,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_completion_exports'));
     if (!await dir.exists()) await dir.create(recursive: true);
     final file = File(path.join(dir.path, 'archive_completion_${DateTime.now().millisecondsSinceEpoch}.csv'));
-    await file.writeAsString(buffer.toString());
+    await _writeArabicCsv(file, buffer.toString());
     await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_completion', entityTitle: file.path, description: 'تصدير الملفات الجارية التي تحتاج استكمال CSV', after: {'count': files.length}, severity: 'info');
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير ملفات الاستكمال: ${file.path}'), backgroundColor: AppColors.success));
@@ -1657,7 +1657,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_duplicate_exports'));
     if (!await dir.exists()) await dir.create(recursive: true);
     final file = File(path.join(dir.path, 'archive_duplicates_${DateTime.now().millisecondsSinceEpoch}.csv'));
-    await file.writeAsString(buffer.toString());
+    await _writeArabicCsv(file, buffer.toString());
     await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_duplicates', entityTitle: file.path, description: 'تصدير قائمة مكررات الأرشيف CSV', after: {'count': items.length}, severity: 'info');
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير المكررات: ${file.path}'), backgroundColor: AppColors.success));
@@ -1732,6 +1732,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     await ref.read(auditServiceProvider).log(action: 'view', category: 'archive', entityType: 'archive_quality', description: 'عرض تقرير جودة الأرشيف', severity: 'info');
   }
 
+  Future<void> _writeArabicCsv(File file, String content) async {
+    // UTF-8 BOM يساعد Excel على قراءة العربية بشكل صحيح في ملفات CSV.
+    await file.writeAsString('\uFEFF$content');
+  }
+
   Future<void> _exportQualityReport(BuildContext context, WidgetRef ref, List<ArchiveBatchRecord> batches) async {
     if (!ref.read(permissionServiceProvider).can(PermissionKeys.archiveQualityExport)) {
       await ref.read(auditServiceProvider).log(action: 'access_denied', category: 'archive', entityType: 'archive_quality', description: 'محاولة تصدير تقرير جودة الأرشيف دون صلاحية', severity: 'warning');
@@ -1748,7 +1753,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_quality_exports'));
     if (!await dir.exists()) await dir.create(recursive: true);
     final file = File(path.join(dir.path, 'archive_quality_${DateTime.now().millisecondsSinceEpoch}.csv'));
-    await file.writeAsString(buffer.toString());
+    await _writeArabicCsv(file, buffer.toString());
     await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_quality', entityTitle: file.path, description: 'تصدير تقرير جودة الأرشيف CSV', severity: 'warning');
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير تقرير الجودة: ${file.path}'), backgroundColor: AppColors.success));
@@ -1894,7 +1899,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     final dir = Directory(path.join(docs.path, AppConstants.appDataDirectoryName, 'archive_inbox_exports'));
     if (!await dir.exists()) await dir.create(recursive: true);
     final file = File(path.join(dir.path, 'archive_inbox_${DateTime.now().millisecondsSinceEpoch}.csv'));
-    await file.writeAsString(buffer.toString());
+    await _writeArabicCsv(file, buffer.toString());
     await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_inbox', entityTitle: file.path, description: 'تصدير صندوق الأرشيف غير المصنف CSV', after: {'count': items.length}, severity: 'info');
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير صندوق غير المصنف: ${file.path}'), backgroundColor: AppColors.success));
@@ -2042,7 +2047,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (!await dir.exists()) await dir.create(recursive: true);
     final safeName = batchName.replaceAll(RegExp(r'[^\w\u0600-\u06FF-]+'), '_');
     final file = File(path.join(dir.path, 'archive_batch_${batchId}_${safeName}_${DateTime.now().millisecondsSinceEpoch}.csv'));
-    await file.writeAsString(buffer.toString());
+    await _writeArabicCsv(file, buffer.toString());
     await ref.read(auditServiceProvider).log(action: 'export', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', entityTitle: file.path, description: 'تصدير عناصر دفعة الأرشيف CSV', after: {'count': items.length}, severity: 'info');
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تصدير عناصر الدفعة: ${file.path}'), backgroundColor: AppColors.success));
