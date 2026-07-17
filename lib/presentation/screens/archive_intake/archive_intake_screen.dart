@@ -452,50 +452,82 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     for (final value in values) {
       grouped.putIfAbsent(value.category, () => []).add(value);
     }
+    String query = '';
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('التصنيفات المخصصة للأرشيف'),
-        content: SizedBox(
-          width: 760,
-          height: 560,
-          child: values.isEmpty
-              ? const Center(child: Text('لا توجد تصنيفات مخصصة بعد.'))
-              : ListView(
-                  children: grouped.entries.map((entry) {
-                    return Card(
-                      child: ExpansionTile(
-                        initiallyExpanded: true,
-                        title: Text(_archiveReferenceCategoryLabel(entry.key), style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
-                        children: entry.value
-                            .map((value) => ListTile(
-                                  dense: true,
-                                  leading: const Icon(Icons.label_outline, size: 18),
-                                  title: Text(value.value),
-                                  subtitle: value.parentValue == null ? null : Text('ضمن: ${value.parentValue}'),
-                                  trailing: Wrap(
-                                    spacing: 6,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'تعديل',
-                                        icon: const Icon(Icons.edit, size: 18),
-                                        onPressed: () => _renameCustomReference(ctx, ref, value),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          final filteredGroups = <String, List<ArchiveReferenceValueRecord>>{};
+          final q = query.trim().toLowerCase();
+          grouped.forEach((category, records) {
+            final filtered = q.isEmpty
+                ? records
+                : records.where((record) {
+                    return _archiveReferenceCategoryLabel(record.category).toLowerCase().contains(q) ||
+                        record.value.toLowerCase().contains(q) ||
+                        (record.parentValue ?? '').toLowerCase().contains(q);
+                  }).toList();
+            if (filtered.isNotEmpty) filteredGroups[category] = filtered;
+          });
+          return AlertDialog(
+            title: const Text('التصنيفات المخصصة للأرشيف'),
+            content: SizedBox(
+              width: 780,
+              height: 600,
+              child: values.isEmpty
+                  ? const Center(child: Text('لا توجد تصنيفات مخصصة بعد.'))
+                  : Column(
+                      children: [
+                        TextField(
+                          decoration: const InputDecoration(labelText: 'بحث في التصنيفات المخصصة', prefixIcon: Icon(Icons.search)),
+                          onChanged: (value) => setDialog(() => query = value),
+                        ),
+                        const SizedBox(height: 10),
+                        Align(alignment: Alignment.centerRight, child: _mini('المعروض', filteredGroups.values.fold<int>(0, (sum, list) => sum + list.length))),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: filteredGroups.isEmpty
+                              ? const Center(child: Text('لا توجد تصنيفات مطابقة.'))
+                              : ListView(
+                                  children: filteredGroups.entries.map((entry) {
+                                    return Card(
+                                      child: ExpansionTile(
+                                        initiallyExpanded: true,
+                                        title: Text(_archiveReferenceCategoryLabel(entry.key), style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy)),
+                                        children: entry.value
+                                            .map((value) => ListTile(
+                                                  dense: true,
+                                                  leading: const Icon(Icons.label_outline, size: 18),
+                                                  title: Text(value.value),
+                                                  subtitle: value.parentValue == null ? null : Text('ضمن: ${value.parentValue}'),
+                                                  trailing: Wrap(
+                                                    spacing: 6,
+                                                    children: [
+                                                      IconButton(
+                                                        tooltip: 'تعديل',
+                                                        icon: const Icon(Icons.edit, size: 18),
+                                                        onPressed: () => _renameCustomReference(ctx, ref, value),
+                                                      ),
+                                                      IconButton(
+                                                        tooltip: 'تعطيل',
+                                                        icon: const Icon(Icons.block, size: 18, color: AppColors.error),
+                                                        onPressed: () => _disableCustomReference(ctx, ref, value),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ))
+                                            .toList(),
                                       ),
-                                      IconButton(
-                                        tooltip: 'تعطيل',
-                                        icon: const Icon(Icons.block, size: 18, color: AppColors.error),
-                                        onPressed: () => _disableCustomReference(ctx, ref, value),
-                                      ),
-                                    ],
-                                  ),
-                                ))
-                            .toList(),
-                      ),
-                    );
-                  }).toList(),
-                ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+                                    );
+                                  }).toList(),
+                                ),
+                        ),
+                      ],
+                    ),
+            ),
+            actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+          );
+        },
       ),
     );
   }
