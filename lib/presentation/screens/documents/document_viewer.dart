@@ -54,7 +54,7 @@ class DocumentViewerScreen extends ConsumerWidget {
           ),
           body: Column(
             children: [
-              _buildInfo(doc),
+              _buildInfo(context, doc),
               Expanded(child: _buildViewer(doc, context)),
             ],
           ),
@@ -63,7 +63,7 @@ class DocumentViewerScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfo(DocumentItem d) {
+  Widget _buildInfo(BuildContext context, DocumentItem d) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppColors.cardBackground, border: Border.all(color: AppColors.cardBorder, width: 0.5)),
@@ -82,12 +82,19 @@ class DocumentViewerScreen extends ConsumerWidget {
           Wrap(
             spacing: 16,
             runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _info(Icons.folder, 'النوع: ${d.documentType.displayName}'),
               _info(Icons.link, 'مرتبط: ${d.entityTitle}'),
               _info(Icons.calendar_today, 'تاريخ: ${_formatDate(d.uploadDate)}'),
               _info(Icons.person, 'مرفوع: ${d.uploadedBy}'),
               _info(Icons.location_on, 'الموقع: ${d.physicalLocation}'),
+              if (_linkedEntityRoute(d) != null)
+                TextButton.icon(
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text('فتح الملف المرتبط'),
+                  onPressed: () => context.go(_linkedEntityRoute(d)!),
+                ),
             ],
           ),
           if (d.notes.contains('الأصل الورقي')) ...[
@@ -207,6 +214,26 @@ class DocumentViewerScreen extends ConsumerWidget {
   }
 
   void _showMsg(BuildContext c, String msg) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.success));
+
+  String? _linkedEntityRoute(DocumentItem doc) {
+    if (doc.entityId == '0') return null;
+    switch (doc.entityType) {
+      case 'case':
+        return '/cases/${doc.entityId}';
+      case 'contract':
+        return '/contracts/${doc.entityId}';
+      case 'company':
+        return '/companies/${doc.entityId}';
+      case 'adminProcedure':
+        return '/procedures/${doc.entityId}';
+      case 'poa':
+        return '/poa/${doc.entityId}';
+      case 'person':
+        return '/persons/${doc.entityId}';
+      default:
+        return null;
+    }
+  }
 
   DocumentItem? _getDoc(List<DocumentItem> docs, String id) {
     for (final doc in docs) {
