@@ -47,10 +47,12 @@ class DocumentViewerScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             title: Text(doc.title),
-            actions: [
-              IconButton(icon: const Icon(Icons.download), onPressed: () => _showMsg(context, 'تم تنزيل ${doc.fileName}'), tooltip: 'تنزيل'),
-              IconButton(icon: const Icon(Icons.share), onPressed: () => _showMsg(context, 'تم مشاركة ${doc.fileName}'), tooltip: 'مشاركة'),
-            ],
+        actions: [
+          if (doc.filePath.isNotEmpty)
+            IconButton(icon: const Icon(Icons.download), onPressed: () => _showMsg(context, 'تم تنزيل ${doc.fileName}'), tooltip: 'تنزيل'),
+          if (doc.filePath.isNotEmpty)
+            IconButton(icon: const Icon(Icons.share), onPressed: () => _showMsg(context, 'تم مشاركة ${doc.fileName}'), tooltip: 'مشاركة'),
+        ],
           ),
           body: Column(
             children: [
@@ -163,6 +165,36 @@ class DocumentViewerScreen extends ConsumerWidget {
   }
 
   Widget _buildViewer(DocumentItem d, BuildContext c) {
+    if (d.filePath.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.table_chart, size: 64, color: AppColors.primaryNavy),
+              const SizedBox(height: 16),
+              Text('بيانات أرشيفية بلا ملف مرفق', style: AppTextStyles.headline5),
+              const SizedBox(height: 8),
+              Text(
+                'هذا السجل يمثل بيانات مستوردة أو معلومة أرشيفية مرتبطة بالملف، وليس ملف PDF أو صورة محفوظة على القرص.',
+                style: AppTextStyles.bodyMediumSecondary,
+                textAlign: TextAlign.center,
+              ),
+              if (d.notes.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: 720,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: AppColors.cardBackground, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.cardBorder)),
+                  child: SelectableText(d.notes, style: AppTextStyles.bodySmallSecondary),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
     IconData icon;
     String title;
     String subtitle;

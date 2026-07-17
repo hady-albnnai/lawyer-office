@@ -272,7 +272,7 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
       entityId: '$entityId',
       entityTitle: _documentEntityTitle(entityType, entityId),
       filePath: d.filePath ?? '',
-      fileName: d.filePath?.split('/').last ?? '${d.docName}.pdf',
+      fileName: d.filePath?.split('/').last ?? d.docName,
       fileSize: 0,
       fileType: _mapFileType(d.fileType),
       uploadDate: d.dateAdded,
