@@ -1445,6 +1445,71 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     return match == null ? null : int.tryParse(match.group(1) ?? '');
   }
 
+  Future<void> _compareDuplicateWithSource(BuildContext context, WidgetRef ref, ArchiveItemRecord duplicate, int sourceId) async {
+    final original = await ref.read(archiveIntakeRepositoryProvider).getItemById(sourceId);
+    if (original == null) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('لم يتم العثور على العنصر الأصلي #$sourceId'), backgroundColor: AppColors.warning));
+      return;
+    }
+    await ref.read(auditServiceProvider).log(action: 'compare', category: 'archive', entityType: 'archive_duplicate', entityId: '${duplicate.id}', entityTitle: duplicate.originalFileName, description: 'مقارنة ملف مكرر مع أصله', after: {'sourceId': sourceId}, severity: 'info');
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('مقارنة المكرر #${duplicate.id} مع الأصل #$sourceId'),
+        content: SizedBox(
+          width: 900,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _archiveItemMiniDetails('الأصل', original)),
+              const SizedBox(width: 12),
+              Expanded(child: _archiveItemMiniDetails('المكرر', duplicate)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+          if (ref.read(permissionServiceProvider).can(PermissionKeys.archiveDuplicatesResolve))
+            ElevatedButton.icon(
+              icon: const Icon(Icons.block),
+              label: const Text('تجاهل المكرر'),
+              onPressed: () async {
+                await _setItemReview(ctx, ref, duplicate.id, duplicate.batchId, 'rejected', 'rejected');
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _archiveItemMiniDetails(String title, ArchiveItemRecord item) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(title, style: AppTextStyles.labelLarge.copyWith(color: AppColors.primaryNavy, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          _detailRow('رقم العنصر', '#${item.id}'),
+          _detailRow('اسم الملف', item.originalFileName),
+          _detailRow('الدفعة', '#${item.batchId}'),
+          _detailRow('الحالة', _itemStatusLabel(item.status)),
+          _detailRow('الحجم', _formatFileSize(item.fileSize)),
+          if ((item.sha256 ?? '').isNotEmpty) _detailRow('SHA-256', item.sha256!),
+          if ((item.sourcePath ?? '').isNotEmpty) _detailRow('المسار الأصلي', item.sourcePath!),
+          if ((item.storedPath ?? '').isNotEmpty) _detailRow('المسار المحفوظ', item.storedPath!),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showArchiveItemDetails(BuildContext context, WidgetRef ref, ArchiveItemRecord item) async {
     await ref.read(auditServiceProvider).log(
       action: 'view',
@@ -1489,18 +1554,11 @@ class ArchiveIntakeScreen extends ConsumerWidget {
         actions: [
           if (duplicateSourceId != null)
             OutlinedButton.icon(
-              icon: const Icon(Icons.content_copy),
-              label: Text('فتح الأصل #$duplicateSourceId'),
+              icon: const Icon(Icons.compare_arrows),
+              label: Text('مقارنة مع الأصل #$duplicateSourceId'),
               onPressed: () async {
-                final original = await ref.read(archiveIntakeRepositoryProvider).getItemById(duplicateSourceId);
-                if (original == null) {
-                  if (ctx.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('لم يتم العثور على العنصر الأصلي #$duplicateSourceId'), backgroundColor: AppColors.warning));
-                  return;
-                }
-                if (ctx.mounted) {
-                  Navigator.pop(ctx);
-                  await _showArchiveItemDetails(context, ref, original);
-                }
+                Navigator.pop(ctx);
+                await _compareDuplicateWithSource(context, ref, item, duplicateSourceId);
               },
             ),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
