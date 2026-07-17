@@ -149,6 +149,11 @@ class DocumentViewerScreen extends ConsumerWidget {
           Row(
             children: [
               Expanded(child: Text('بيانات الأصل الورقي', style: AppTextStyles.labelLarge.copyWith(color: AppColors.info, fontWeight: FontWeight.bold))),
+              TextButton.icon(
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('تعديل'),
+                onPressed: () => _editDocumentPaperMetadata(context, ref, doc),
+              ),
               if (pick('راجع النسخة الرقمية:').isEmpty)
                 TextButton.icon(
                   icon: const Icon(Icons.fact_check, size: 16),
@@ -204,6 +209,102 @@ class DocumentViewerScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _pickNoteValue(String notes, String prefix) {
+    for (final line in notes.split('\n')) {
+      if (line.trim().startsWith(prefix)) {
+        return line.replaceFirst(prefix, '').trim();
+      }
+    }
+    return '';
+  }
+
+  Future<void> _editDocumentPaperMetadata(BuildContext context, WidgetRef ref, DocumentItem doc) async {
+    final id = int.tryParse(doc.id);
+    if (id == null) return;
+    bool paperSaved = (_pickNoteValue(doc.notes, 'الأصل الورقي محفوظ:')).contains('نعم');
+    bool canDestroy = (_pickNoteValue(doc.notes, 'يجوز إتلاف الأصل:')).contains('نعم');
+    final location = TextEditingController(text: _pickNoteValue(doc.notes, 'مكان الأصل:'));
+    final box = TextEditingController(text: _pickNoteValue(doc.notes, 'الصندوق:'));
+    final shelf = TextEditingController(text: _pickNoteValue(doc.notes, 'الرف:'));
+    final folder = TextEditingController(text: _pickNoteValue(doc.notes, 'المجلد الورقي:'));
+    final reviewedBy = TextEditingController(text: _pickNoteValue(doc.notes, 'راجع النسخة الرقمية:'));
+    final paperNotes = TextEditingController();
+
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (ctx, setDialog) => AlertDialog(
+              title: Text('تعديل بيانات الأصل الورقي — ${doc.title}'),
+              content: SizedBox(
+                width: 620,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: paperSaved,
+                        title: const Text('الأصل الورقي محفوظ'),
+                        onChanged: (v) => setDialog(() => paperSaved = v ?? false),
+                      ),
+                      TextField(controller: location, decoration: const InputDecoration(labelText: 'مكان الأصل')),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(child: TextField(controller: box, decoration: const InputDecoration(labelText: 'الصندوق'))),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(controller: shelf, decoration: const InputDecoration(labelText: 'الرف'))),
+                      ]),
+                      const SizedBox(height: 8),
+                      TextField(controller: folder, decoration: const InputDecoration(labelText: 'المجلد الورقي')),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: canDestroy,
+                        title: const Text('يجوز إتلاف الأصل لاحقاً'),
+                        onChanged: (v) => setDialog(() => canDestroy = v ?? false),
+                      ),
+                      TextField(controller: reviewedBy, decoration: const InputDecoration(labelText: 'من راجع النسخة الرقمية؟')),
+                      const SizedBox(height: 8),
+                      TextField(controller: paperNotes, maxLines: 3, decoration: const InputDecoration(labelText: 'ملاحظات إضافية للأصل الورقي')),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    final db = ref.read(databaseProvider);
+    await db.ensureArchiveTables();
+    await db.customStatement('''
+      INSERT OR REPLACE INTO document_paper_metadata(
+        document_id, paper_original_saved, paper_location, box, shelf, paper_folder,
+        can_destroy_original, reviewed_by, reviewed_at, notes, updated_at
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
+    ''', [
+      id,
+      paperSaved ? 1 : 0,
+      location.text.trim().isEmpty ? null : location.text.trim(),
+      box.text.trim().isEmpty ? null : box.text.trim(),
+      shelf.text.trim().isEmpty ? null : shelf.text.trim(),
+      folder.text.trim().isEmpty ? null : folder.text.trim(),
+      canDestroy ? 1 : 0,
+      reviewedBy.text.trim().isEmpty ? null : reviewedBy.text.trim(),
+      paperNotes.text.trim().isEmpty ? doc.notes : paperNotes.text.trim(),
+    ]);
+    await ref.read(auditServiceProvider).log(action: 'edit', category: 'archive', entityType: 'paper_archive', entityId: doc.id, entityTitle: doc.title, description: 'تعديل بيانات الأصل الورقي من عارض المستند', after: {'paperSaved': paperSaved, 'location': location.text.trim(), 'box': box.text.trim(), 'shelf': shelf.text.trim(), 'folder': folder.text.trim(), 'canDestroy': canDestroy, 'reviewedBy': reviewedBy.text.trim()}, severity: 'info');
+    ref.invalidate(documentsFutureProvider);
+    ref.invalidate(uiDocumentsProvider);
+    ref.invalidate(uiFilesProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('تم تحديث بيانات الأصل الورقي'), backgroundColor: AppColors.success));
+    }
   }
 
   Future<void> _markDocumentPaperReviewed(BuildContext context, WidgetRef ref, DocumentItem doc) async {
