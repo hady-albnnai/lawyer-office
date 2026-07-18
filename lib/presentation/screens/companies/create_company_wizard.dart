@@ -557,7 +557,7 @@ class _CreateCompanyWizardState extends ConsumerState<CreateCompanyWizard> {
       if (mounted) {
         ref.invalidate(allCompaniesProvider);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(widget.archiveContext?.isClosed == true ? 'تم حفظ الشركة في الأرشيف المنتهي بنجاح!' : 'تم تأسيس الشركة بنجاح!'),
             backgroundColor: AppConstants.statusSuccess,
           ),

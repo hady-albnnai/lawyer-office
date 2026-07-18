@@ -2523,7 +2523,7 @@ class ArchiveIntakeScreen extends ConsumerWidget {
     if (!confirmed) return;
     await ref.read(archiveIntakeRepositoryProvider).updateBatchSourcePath(batchId, directoryPath);
     final summary = await ref.read(archiveIntakeRepositoryProvider).importFilesToBatch(batchId, files);
-    await ref.read(auditServiceProvider).log(action: 'import_folder', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', entityTitle: batchName, description: 'استيراد مجلد إلى دفعة أرشيف', after: {'folder': directoryPath, 'files': files.length, 'imported': summary.imported, 'duplicates': summary.duplicates, 'failed': summary.failed}, severity: 'info');
+    await ref.read(auditServiceProvider).log(action: 'import_folder', category: 'archive', entityType: 'archive_batch', entityId: '$batchId', entityTitle: batchName ?? 'دفعة #$batchId', description: 'استيراد مجلد إلى دفعة أرشيف', after: {'folder': directoryPath, 'files': files.length, 'imported': summary.imported, 'duplicates': summary.duplicates, 'failed': summary.failed}, severity: 'info');
     ref.read(_archiveIntakeRefreshProvider.notifier).state++;
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
