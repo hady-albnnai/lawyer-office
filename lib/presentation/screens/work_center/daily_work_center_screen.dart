@@ -566,7 +566,7 @@ class _AddWorkButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(permissionServiceProvider);
     return PopupMenuButton<String>(
-      tooltip: 'إضافة عمل',
+      tooltip: 'إنشاء جديد',
       onSelected: (value) {
         switch (value) {
           case 'case':
@@ -584,9 +584,6 @@ class _AddWorkButton extends ConsumerWidget {
           case 'work_order':
             showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
             break;
-          case 'archive_running':
-            context.push('/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}');
-            break;
           case 'manual':
             showDialog(context: context, builder: (_) => const _ManualTaskDialog());
             break;
@@ -598,12 +595,11 @@ class _AddWorkButton extends ConsumerWidget {
         if (permissions.can(PermissionKeys.companiesCreate)) const PopupMenuItem(value: 'company', child: Text('شركة')),
         if (permissions.can(PermissionKeys.contractsCreate)) const PopupMenuItem(value: 'contract', child: Text('عقد')),
         if (permissions.can(PermissionKeys.workOrdersCreate)) const PopupMenuItem(value: 'work_order', child: Text('أمر عمل')),
-        if (permissions.can(PermissionKeys.archiveIntakeView)) const PopupMenuItem(value: 'archive_running', child: Text('إدخال أرشيف جارٍ')),
         if (permissions.can(PermissionKeys.tasksCreate)) const PopupMenuItem(value: 'manual', child: Text('مهمة مخصصة')),
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: ElevatedButton.icon(onPressed: null, icon: const Icon(Icons.add), label: const Text('إضافة عمل')),
+        child: ElevatedButton.icon(onPressed: null, icon: const Icon(Icons.add), label: const Text('إنشاء جديد')),
       ),
     );
   }

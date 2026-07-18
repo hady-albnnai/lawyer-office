@@ -216,12 +216,17 @@ class SidebarItemList extends StatelessWidget {
         tilePadding: const EdgeInsets.symmetric(horizontal: 8),
         leading: Icon(
           parent.icon,
-          color: hasSelectedChild ? AppColors.sidebarIconSelected : AppColors.sidebarIcon,
+          color: hasSelectedChild ? AppColors.primaryNavy : AppColors.sidebarIcon,
           size: 22,
         ),
         title: Text(
           parent.label,
-          style: hasSelectedChild ? AppTextStyles.sidebarItemSelected : AppTextStyles.sidebarItem,
+          style: hasSelectedChild
+              ? AppTextStyles.sidebarItem.copyWith(
+                  color: AppColors.primaryNavy,
+                  fontWeight: FontWeight.bold,
+                )
+              : AppTextStyles.sidebarItem,
         ),
         children: parent.children!.map((child) {
           return Padding(

@@ -23,22 +23,6 @@ class NewWorkScreen extends ConsumerWidget {
     final permissions = ref.watch(permissionServiceProvider);
     final items = <_NewWorkAction>[
       _NewWorkAction(
-        title: 'إدخال أرشيف جارٍ',
-        subtitle: 'ملف قديم ما زال حيّاً ويغذي مكتب العمل بالمواعيد القادمة',
-        icon: Icons.pending_actions,
-        color: AppColors.success,
-        permission: PermissionKeys.archiveIntakeView,
-        onTap: () => context.push('/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}'),
-      ),
-      _NewWorkAction(
-        title: 'إدخال أرشيف منتهٍ',
-        subtitle: 'ملفات قديمة للحفظ والبحث فقط دون أثر على مكتب العمل',
-        icon: Icons.inventory_2,
-        color: AppColors.primaryNavy,
-        permission: PermissionKeys.archiveIntakeView,
-        onTap: () => context.push('/archive-intake?status=closed&seed=${DateTime.now().millisecondsSinceEpoch}'),
-      ),
-      _NewWorkAction(
         title: 'دعوى قضائية',
         subtitle: 'معالج إنشاء دعوى كاملة',
         icon: Icons.gavel,
@@ -105,7 +89,7 @@ class NewWorkScreen extends ConsumerWidget {
                 Text('ابدأ عملاً جديدًا', style: AppTextStyles.headline4.copyWith(color: AppColors.primaryNavy)),
                 const SizedBox(height: 8),
                 Text(
-                  'اختر نوع العمل. للأرشيف القديم ابدأ من جارٍ أو منتهٍ حتى يعرف النظام أثر الملف على مكتب العمل.',
+                  'اختر نوع العمل الجديد. إدخال الأرشيف القديم يتم فقط من تبويب إدخال الأرشيف القديم.',
                   style: AppTextStyles.bodyMediumSecondary,
                 ),
                 const SizedBox(height: 16),

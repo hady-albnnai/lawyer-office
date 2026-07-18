@@ -13,11 +13,6 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/sidebar/nav_sidebar.dart';
 import '../widgets/sidebar/sidebar_item.dart';
-import 'admin_procedures/create_procedure_screen.dart';
-import 'cases/create_case_wizard.dart';
-import 'companies/create_company_wizard.dart';
-import 'contracts/create_contract_screen.dart';
-import 'work_orders/work_order_dialogs.dart';
 import 'search_reports/search_report_models.dart';
 
 /// غلاف التطبيق مع الشريط الجانبي الموحد.
@@ -168,32 +163,6 @@ class _TopBar extends ConsumerWidget {
   final String lawyerName;
   const _TopBar({required this.officeName, required this.lawyerName});
 
-  void _handleQuickAction(BuildContext context, String action) {
-    switch (action) {
-      case "case":
-        GoRouter.of(context).push("/cases/create");
-        break;
-      case "company":
-        GoRouter.of(context).push("/companies/create");
-        break;
-      case "contract":
-        GoRouter.of(context).push("/contracts/create");
-        break;
-      case "procedure":
-        GoRouter.of(context).push("/procedures/create");
-        break;
-      case "work_order":
-        showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
-        break;
-      case "archive_running":
-        GoRouter.of(context).push("/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}");
-        break;
-      case "archive_closed":
-        GoRouter.of(context).push("/archive-intake?status=closed&seed=${DateTime.now().millisecondsSinceEpoch}");
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(permissionServiceProvider);
@@ -274,103 +243,8 @@ class _TopBar extends ConsumerWidget {
               
               const SizedBox(width: 24),
               
-              // زر الإجراء السريع (Quick Add)
-              PopupMenuButton<String>(
-                tooltip: "إجراء سريع",
-                offset: const Offset(0, 48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppConstants.accentGold,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.add, color: AppConstants.primaryNavy, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        "إضافة سريع",
-                        style: AppTextStyles.labelLarge.copyWith(color: AppConstants.primaryNavy, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-                onSelected: (action) => _handleQuickAction(context, action),
-                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  if (permissions.can(PermissionKeys.casesCreateNew))
-                    const PopupMenuItem<String>(
-                      value: "case",
-                      child: ListTile(
-                        leading: Icon(Icons.gavel, color: AppColors.primaryNavy),
-                        title: Text("دعوى قضائية جديدة"),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  if (permissions.can(PermissionKeys.workOrdersCreate))
-                    const PopupMenuItem<String>(
-                      value: "work_order",
-                      child: ListTile(
-                        leading: Icon(Icons.assignment_ind, color: AppColors.success),
-                        title: Text("أمر عمل لمعقب"),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  if (permissions.can(PermissionKeys.archiveIntakeView))
-                    const PopupMenuItem<String>(
-                      value: "archive_running",
-                      child: ListTile(
-                        leading: Icon(Icons.pending_actions, color: AppColors.success),
-                        title: Text("إدخال أرشيف جارٍ"),
-                        subtitle: Text("ينعكس على مكتب العمل والتقويم"),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  if (permissions.can(PermissionKeys.archiveIntakeView))
-                    const PopupMenuItem<String>(
-                      value: "archive_closed",
-                      child: ListTile(
-                        leading: Icon(Icons.inventory_2_outlined, color: AppColors.primaryNavy),
-                        title: Text("إدخال أرشيف منتهٍ"),
-                        subtitle: Text("للحفظ والبحث فقط"),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  if (permissions.canAny(const [PermissionKeys.companiesCreate, PermissionKeys.contractsCreate, PermissionKeys.proceduresCreate]))
-                    const PopupMenuDivider(),
-                  if (permissions.can(PermissionKeys.companiesCreate))
-                    const PopupMenuItem<String>(
-                      value: "company",
-                      child: ListTile(
-                        leading: Icon(Icons.business, color: AppColors.secondaryGold),
-                        title: Text("تأسيس شركة"),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  if (permissions.can(PermissionKeys.contractsCreate))
-                    const PopupMenuItem<String>(
-                      value: "contract",
-                      child: ListTile(
-                        leading: Icon(Icons.description, color: AppColors.info),
-                        title: Text("تنظيم عقد"),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  if (permissions.can(PermissionKeys.proceduresCreate))
-                    const PopupMenuItem<String>(
-                      value: "procedure",
-                      child: ListTile(
-                        leading: Icon(Icons.assignment, color: AppColors.warning),
-                        title: Text("إجراء إداري"),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                ],
-              ),
-              
-              const SizedBox(width: 16),
-              
-              if (permissions.can(PermissionKeys.settingsView))
+              // إنشاء الملفات الجديدة يتم حصراً من مكتب العمل عبر زر "إنشاء جديد".
+                            if (permissions.can(PermissionKeys.settingsView))
                 IconButton(
                   tooltip: "الإعدادات",
                   onPressed: () => context.go("/settings"),
@@ -453,11 +327,6 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
     // الأوامر السريعة لا تحتاج تأخير زمني لأنها تعمل بالذاكرة فورا
     if (query.startsWith("/")) {
       final commands = [
-        {"title": "إنشاء دعوى", "cmd": "/دعوى", "route": "create_case", "subtitle": "فتح شاشة إنشاء دعوى"},
-        {"title": "تأسيس شركة", "cmd": "/شركة", "route": "create_company", "subtitle": "فتح معالج الشركة"},
-        {"title": "إضافة أمر عمل", "cmd": "/امر", "route": "create_wo", "subtitle": "إنشاء أمر عمل للمتابعة"},
-        {"title": "إدخال أرشيف جارٍ", "cmd": "/ارشيف جاري", "route": "archive_running", "subtitle": "ملف قديم حي ينعكس على مكتب العمل"},
-        {"title": "إدخال أرشيف منتهٍ", "cmd": "/ارشيف منتهي", "route": "archive_closed", "subtitle": "ملف قديم للحفظ والبحث فقط"},
         {"title": "فتح الملفات الجارية", "cmd": "/ملفات جارية", "route": "files_running", "subtitle": "عرض الملفات الحية"},
         {"title": "فتح الملفات المنتهية", "cmd": "/ملفات منتهية", "route": "files_closed", "subtitle": "عرض ملفات الأرشيف المنتهي"},
       ];
@@ -540,16 +409,6 @@ class _OmnibarPopupState extends ConsumerState<_OmnibarPopup> {
                       Navigator.pop(context);
                       if (hit["route"] == "/search-reports") {
                         context.go("/search-reports");
-                      } else if (hit["route"] == "create_case") {
-                        GoRouter.of(context).push("/cases/create");
-                      } else if (hit["route"] == "create_company") {
-                        GoRouter.of(context).push("/companies/create");
-                      } else if (hit["route"] == "create_wo") {
-                        showDialog(context: context, builder: (_) => const CreateWorkOrderDialog());
-                      } else if (hit["route"] == "archive_running") {
-                        GoRouter.of(context).push("/archive-intake?status=running&seed=${DateTime.now().millisecondsSinceEpoch}");
-                      } else if (hit["route"] == "archive_closed") {
-                        GoRouter.of(context).push("/archive-intake?status=closed&seed=${DateTime.now().millisecondsSinceEpoch}");
                       } else if (hit["route"] == "files_running") {
                         context.go("/files?status=active");
                       } else if (hit["route"] == "files_closed") {

@@ -112,16 +112,6 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canCreate = ref.watch(permissionServiceProvider).canAny(const [
-      PermissionKeys.casesCreateNew,
-      PermissionKeys.contractsCreate,
-      PermissionKeys.companiesCreate,
-      PermissionKeys.proceduresCreate,
-      PermissionKeys.workOrdersCreate,
-      PermissionKeys.personsCreate,
-      PermissionKeys.poaCreate,
-      PermissionKeys.documentsUpload,
-    ]);
     final allFiles = ref.watch(filesProvider);
     final files = _filteredFiles(allFiles);
 
@@ -132,10 +122,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           title: const Text('ملفات المكتب'),
           actions: [
             IconButton(icon: const Icon(Icons.search), onPressed: () => context.go('/search-reports'), tooltip: 'بحث'),
-            if (ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeView))
-              IconButton(icon: const Icon(Icons.archive_outlined), onPressed: () => context.go(_archiveIntakeRouteForCurrentTab()), tooltip: 'إدخال الأرشيف القديم'),
-            if (canCreate)
-              IconButton(icon: const Icon(Icons.add), onPressed: () => context.go('/new-work'), tooltip: 'جديد'),
+
           ],
         ),
         body: Column(
@@ -146,14 +133,6 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
             Expanded(child: _buildOfficeFilesList(files)),
           ],
         ),
-        floatingActionButton: canCreate
-            ? FloatingActionButton.extended(
-                onPressed: () => context.go('/new-work'),
-                tooltip: 'عمل جديد',
-                icon: const Icon(Icons.add),
-                label: const Text('إضافة ملف / عمل'),
-              )
-            : null,
       ),
     );
   }
@@ -362,33 +341,6 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     );
   }
 
-  String _archiveIntakeRouteForCurrentTab() {
-    final status = _statusFilter == 'completed' ? 'closed' : 'running';
-    final kind = _archiveKindForType(_typeFilter);
-    return Uri(path: '/archive-intake', queryParameters: {
-      'status': status,
-      if (kind != null) 'kind': kind,
-      'seed': DateTime.now().millisecondsSinceEpoch.toString(),
-    }).toString();
-  }
-
-  String? _archiveKindForType(FileType? type) {
-    switch (type) {
-      case FileType.caseFile:
-        return 'case';
-      case FileType.contract:
-        return 'contract';
-      case FileType.company:
-        return 'company';
-      case FileType.adminProcedure:
-        return 'procedure';
-      case FileType.agency:
-        return 'poa';
-      case null:
-        return null;
-    }
-  }
-
   Widget _buildOfficeFilesList(List<FileItem> files) {
     if (files.isEmpty) {
       return Center(
@@ -399,22 +351,16 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
             const SizedBox(height: 16),
             Text('لا توجد ملفات ضمن هذا التبويب', style: AppTextStyles.headline6),
             const SizedBox(height: 8),
-            Text(_statusFilter == 'active' ? 'ابدأ بإدخال أرشيف جارٍ أو إضافة عمل جديد.' : 'يمكنك إدخال أرشيف منتهٍ ليظهر هنا للبحث والحفظ فقط.', style: AppTextStyles.bodySmallSecondary),
+            Text(_statusFilter == 'active' ? 'لا توجد ملفات جارية حالياً. يمكن إنشاء ملف جديد من مكتب العمل.' : 'لا توجد ملفات منتهية ضمن الفلتر الحالي.', style: AppTextStyles.bodySmallSecondary),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
               children: [
-                if (ref.watch(permissionServiceProvider).can(PermissionKeys.archiveIntakeView))
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.archive_outlined),
-                    label: const Text('إدخال الأرشيف القديم'),
-                    onPressed: () => context.go(_archiveIntakeRouteForCurrentTab()),
-                  ),
                 if (_statusFilter == 'active')
                   OutlinedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('عمل جديد'),
-                    onPressed: () => context.go('/new-work'),
+                    label: const Text('إنشاء جديد'),
+                    onPressed: () => context.go('/today'),
                   ),
               ],
             ),

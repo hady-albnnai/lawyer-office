@@ -16,7 +16,6 @@ import '../screens/files/files_screen.dart';
 import '../screens/finance/finance_screen.dart';
 import '../screens/legal_library/legal_library_screen.dart';
 import '../screens/main_layout_screen.dart';
-import '../screens/new_work/new_work_screen.dart';
 import '../screens/onboarding/first_run_setup_screen.dart';
 import '../screens/persons/person_detail_screen.dart';
 import '../screens/persons/persons_screen.dart';
@@ -75,7 +74,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/today', name: 'today', builder: (_, __) => const DailyWorkCenterScreen()),
           GoRoute(path: '/agenda', name: 'agenda', builder: (_, __) => const AgendaScreen()),
-          GoRoute(path: '/new-work', name: 'new-work', builder: (_, __) => const NewWorkScreen()),
+          GoRoute(path: '/new-work', redirect: (_, __) => '/today'),
           GoRoute(path: '/files', name: 'files', builder: (_, state) => FilesScreen(initialStatus: state.uri.queryParameters['status'])),
           GoRoute(path: '/persons', name: 'persons', builder: (_, __) => const PersonsScreen()),
           GoRoute(path: '/poa', name: 'poa', builder: (_, state) => PoaListScreen(archiveContext: ArchiveEntryContext.fromQuery(state.uri.queryParameters))),
