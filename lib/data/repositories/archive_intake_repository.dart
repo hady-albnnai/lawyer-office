@@ -107,6 +107,24 @@ class ArchiveReferenceValueRecord {
   });
 }
 
+class AgencyDelegateRecord {
+  final int id;
+  final String fullName;
+  final String phone;
+  final String barBranch;
+  final String notes;
+  final bool isActive;
+
+  const AgencyDelegateRecord({
+    required this.id,
+    required this.fullName,
+    this.phone = '',
+    this.barBranch = '',
+    this.notes = '',
+    this.isActive = true,
+  });
+}
+
 class ArchiveImportSummary {
   final int imported;
   final int duplicates;
@@ -144,6 +162,62 @@ class ArchiveIntakeRepository {
   ArchiveIntakeRepository(this._db, this._storage);
 
   Future<void> ensureReady() => _db.ensureArchiveTables();
+
+  Future<List<AgencyDelegateRecord>> getAgencyDelegates({bool includeInactive = true, String? query}) async {
+    await ensureReady();
+    final rows = await _db.customSelect(
+      includeInactive
+          ? 'SELECT * FROM agency_delegates ORDER BY is_active DESC, full_name COLLATE NOCASE'
+          : 'SELECT * FROM agency_delegates WHERE is_active = 1 ORDER BY full_name COLLATE NOCASE',
+    ).get();
+    final normalizedQuery = (query ?? '').trim().toLowerCase();
+    final mapped = rows.map((row) {
+      final d = row.data;
+      return AgencyDelegateRecord(
+        id: d['id'] as int,
+        fullName: d['full_name'] as String,
+        phone: d['phone'] as String? ?? '',
+        barBranch: d['bar_branch'] as String? ?? '',
+        notes: d['notes'] as String? ?? '',
+        isActive: ((d['is_active'] as int?) ?? 1) == 1,
+      );
+    }).toList();
+    if (normalizedQuery.isEmpty) return mapped;
+    return mapped.where((d) =>
+      d.fullName.toLowerCase().contains(normalizedQuery) ||
+      d.phone.toLowerCase().contains(normalizedQuery) ||
+      d.barBranch.toLowerCase().contains(normalizedQuery) ||
+      d.notes.toLowerCase().contains(normalizedQuery)
+    ).toList();
+  }
+
+  Future<int> upsertAgencyDelegate({int? id, required String fullName, String? phone, String? barBranch, String? notes, bool isActive = true}) async {
+    await ensureReady();
+    final cleanName = fullName.trim();
+    if (cleanName.isEmpty) throw StateError('اسم مندوب الوكالات إلزامي');
+    if (id == null) {
+      await _db.customStatement('''
+        INSERT INTO agency_delegates(full_name, phone, bar_branch, notes, is_active)
+        VALUES(?, ?, ?, ?, ?)
+      ''', [cleanName, phone?.trim(), barBranch?.trim(), notes?.trim(), isActive ? 1 : 0]);
+      final row = (await _db.customSelect('SELECT last_insert_rowid() AS id').get()).first;
+      return row.data['id'] as int;
+    }
+    await _db.customStatement('''
+      UPDATE agency_delegates
+      SET full_name = ?, phone = ?, bar_branch = ?, notes = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    ''', [cleanName, phone?.trim(), barBranch?.trim(), notes?.trim(), isActive ? 1 : 0, id]);
+    return id;
+  }
+
+  Future<void> setAgencyDelegateActive(int id, bool active) async {
+    await ensureReady();
+    await _db.customStatement(
+      'UPDATE agency_delegates SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [active ? 1 : 0, id],
+    );
+  }
 
   Future<List<ArchiveReferenceValueRecord>> getAllReferenceValues({bool includeInactive = true}) async {
     await ensureReady();

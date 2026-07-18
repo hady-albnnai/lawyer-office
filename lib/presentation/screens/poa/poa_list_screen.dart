@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 
 import '../../../core/auth/permission_catalog.dart';
 import '../../../data/database/database.dart' as db;
+import '../../../data/repositories/archive_intake_repository.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/ui_data_providers.dart';
@@ -301,6 +302,7 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
   final TextEditingController _documentController = TextEditingController();
   AgencyType _type = AgencyType.general;
   AgencySource _source = AgencySource.barDelegate;
+  int? _selectedDelegateId;
   String? _principalPersonId;
   DateTime _issuedAt = DateTime.now();
 
@@ -366,9 +368,9 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
                 onChanged: (value) => setState(() => _source = value ?? _source),
               ),
               const SizedBox(height: 12),
-              TextField(controller: _branchController, decoration: const InputDecoration(labelText: 'الفرع / المحافظة')),
+              TextField(controller: _branchController, decoration: const InputDecoration(labelText: 'فرع النقابة / المحافظة')),
               const SizedBox(height: 12),
-              TextField(controller: _agentController, decoration: const InputDecoration(labelText: 'الوكيل')),
+              _delegatePicker(),
               const SizedBox(height: 12),
               TextField(controller: _scopeController, maxLines: 2, decoration: const InputDecoration(labelText: 'النطاق')),
               const SizedBox(height: 12),
@@ -403,6 +405,92 @@ class _AddAgencyDialogState extends ConsumerState<AddAgencyDialog> {
         ElevatedButton(onPressed: _save, child: const Text('حفظ')),
       ],
     );
+  }
+
+  Widget _delegatePicker() {
+    return FutureBuilder<List<AgencyDelegateRecord>>(
+      future: ref.watch(archiveIntakeRepositoryProvider).getAgencyDelegates(includeInactive: false),
+      builder: (context, snapshot) {
+        final delegates = snapshot.data ?? const <AgencyDelegateRecord>[];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DropdownButtonFormField<int?>(
+              value: _selectedDelegateId,
+              decoration: const InputDecoration(labelText: 'مندوب الوكالات'),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('إدخال يدوي / غير محدد')),
+                ...delegates.map((d) => DropdownMenuItem<int?>(value: d.id, child: Text('${d.fullName}${d.phone.isNotEmpty ? ' — ${d.phone}' : ''}'))),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _selectedDelegateId = value;
+                  AgencyDelegateRecord? selected;
+                  for (final delegate in delegates) {
+                    if (delegate.id == value) {
+                      selected = delegate;
+                      break;
+                    }
+                  }
+                  if (selected != null) {
+                    _agentController.text = selected.fullName;
+                    if (selected.barBranch.isNotEmpty) _branchController.text = selected.barBranch;
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: TextField(controller: _agentController, decoration: const InputDecoration(labelText: 'اسم المندوب / الوكيل'))),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(icon: const Icon(Icons.person_add), label: const Text('إضافة مندوب'), onPressed: _showAddDelegateDialog),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showAddDelegateDialog() async {
+    final name = TextEditingController(text: _agentController.text.trim());
+    final phone = TextEditingController();
+    final branch = TextEditingController(text: _branchController.text.trim());
+    final notes = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('إضافة مندوب وكالات'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم المندوب *')),
+              const SizedBox(height: 12),
+              TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الهاتف')),
+              const SizedBox(height: 12),
+              TextField(controller: branch, decoration: const InputDecoration(labelText: 'فرع النقابة')),
+              const SizedBox(height: 12),
+              TextField(controller: notes, maxLines: 2, decoration: const InputDecoration(labelText: 'ملاحظات')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حفظ')),
+        ],
+      ),
+    ) ?? false;
+    if (!ok || name.text.trim().isEmpty) return;
+    final id = await ref.read(archiveIntakeRepositoryProvider).upsertAgencyDelegate(fullName: name.text.trim(), phone: phone.text.trim(), barBranch: branch.text.trim(), notes: notes.text.trim());
+    await ref.read(auditServiceProvider).log(action: 'create', category: 'lookups', entityType: 'agency_delegate', entityId: '$id', entityTitle: name.text.trim(), description: 'إضافة مندوب وكالات من نافذة الوكالة', severity: 'warning');
+    setState(() {
+      _selectedDelegateId = id;
+      _agentController.text = name.text.trim();
+      if (branch.text.trim().isNotEmpty) _branchController.text = branch.text.trim();
+    });
   }
 
   Future<void> _save() async {

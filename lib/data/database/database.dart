@@ -237,6 +237,19 @@ class AppDatabase extends _$AppDatabase {
     await _ensureSqlColumn('archive_items', 'reviewed_at', 'DATETIME');
     await _ensureSqlColumn('archive_items', 'review_note', 'TEXT');
     await customStatement('''
+      CREATE TABLE IF NOT EXISTS agency_delegates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        full_name TEXT NOT NULL,
+        phone TEXT,
+        bar_branch TEXT,
+        notes TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_agency_delegates_branch ON agency_delegates(bar_branch, is_active);');
+    await customStatement('''
       CREATE TABLE IF NOT EXISTS archive_reference_values (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         category TEXT NOT NULL,

@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/auth/permission_catalog.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../data/repositories/archive_intake_repository.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/ui_data_providers.dart';
 import '../../providers/auth_providers.dart';
@@ -657,6 +658,7 @@ class _LookupsTabState extends ConsumerState<_LookupsTab> {
     'company_types': 'أنواع الشركات',
     'procedure_types': 'أنواع الإجراءات',
     'bar_branches': 'فروع النقابة',
+    'agency_delegates': 'مندوبو الوكالات',
     'expense_types': 'أنواع المصاريف',
   };
 
@@ -713,7 +715,11 @@ class _LookupsTabState extends ConsumerState<_LookupsTab> {
                       ElevatedButton.icon(
                         icon: const Icon(Icons.add),
                         label: Text(_selected == 'courts' ? 'إضافة محكمة' : 'إضافة عنصر'),
-                        onPressed: () => _selected == 'courts' ? _showCourtDialog(context, ref) : _showLookupDialog(context, ref, _selected),
+                        onPressed: () => _selected == 'courts'
+                            ? _showCourtDialog(context, ref)
+                            : _selected == 'agency_delegates'
+                                ? _showAgencyDelegateDialog(context, ref)
+                                : _showLookupDialog(context, ref, _selected),
                       ),
                   ],
                 ),
@@ -721,7 +727,9 @@ class _LookupsTabState extends ConsumerState<_LookupsTab> {
               Expanded(
                 child: _selected == 'courts'
                     ? _courtsList(state.courts, canManage)
-                    : _lookupList(_selected, state.referenceLists[_selected] ?? const [], canManage),
+                    : _selected == 'agency_delegates'
+                        ? _agencyDelegatesList(canManage)
+                        : _lookupList(_selected, state.referenceLists[_selected] ?? const [], canManage),
               ),
             ],
           ),
@@ -758,6 +766,51 @@ class _LookupsTabState extends ConsumerState<_LookupsTab> {
     );
   }
 
+  Widget _agencyDelegatesList(bool canManage) {
+    return FutureBuilder<List<AgencyDelegateRecord>>(
+      future: ref.watch(archiveIntakeRepositoryProvider).getAgencyDelegates(query: _query),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final items = snapshot.data!;
+        if (items.isEmpty) return Center(child: Text('لا توجد مندوبو وكالات', style: AppTextStyles.bodyMediumSecondary));
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return Card(
+              child: ListTile(
+                leading: CircleAvatar(backgroundColor: (item.isActive ? AppColors.primaryNavy : AppColors.textSecondary).withOpacity(0.12), child: Icon(Icons.person_pin, color: item.isActive ? AppColors.primaryNavy : AppColors.textSecondary)),
+                title: Text(item.fullName, style: AppTextStyles.labelLarge),
+                subtitle: Text([
+                  if (item.phone.isNotEmpty) item.phone,
+                  if (item.barBranch.isNotEmpty) 'فرع ${item.barBranch}',
+                  if (item.notes.isNotEmpty) item.notes,
+                  item.isActive ? 'فعال' : 'معطل',
+                ].join(' • '), style: AppTextStyles.bodySmallSecondary),
+                trailing: canManage
+                    ? Wrap(
+                        spacing: 6,
+                        children: [
+                          IconButton(tooltip: 'تعديل', icon: const Icon(Icons.edit), onPressed: () => _showAgencyDelegateDialog(context, ref, item: item)),
+                          Switch(value: item.isActive, onChanged: (v) => _setAgencyDelegateActive(ref, item, v)),
+                        ],
+                      )
+                    : null,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _setAgencyDelegateActive(WidgetRef ref, AgencyDelegateRecord item, bool active) async {
+    await ref.read(archiveIntakeRepositoryProvider).setAgencyDelegateActive(item.id, active);
+    await ref.read(auditServiceProvider).log(action: active ? 'enable' : 'disable', category: 'lookups', entityType: 'agency_delegate', entityId: '${item.id}', entityTitle: item.fullName, description: active ? 'إعادة تفعيل مندوب وكالات' : 'تعطيل مندوب وكالات', severity: active ? 'info' : 'warning');
+    setState(() {});
+  }
+
   Widget _lookupList(String key, List<SettingsLookupItem> items, bool canManage) {
     final list = items.where((i) => _query.isEmpty || i.name.toLowerCase().contains(_query) || i.category.toLowerCase().contains(_query) || i.notes.toLowerCase().contains(_query)).toList();
     if (list.isEmpty) {
@@ -786,6 +839,66 @@ class _LookupsTabState extends ConsumerState<_LookupsTab> {
           ),
         );
       },
+    );
+  }
+
+  void _showAgencyDelegateDialog(BuildContext context, WidgetRef ref, {AgencyDelegateRecord? item}) {
+    if (!ref.read(permissionServiceProvider).can(PermissionKeys.settingsLookupsManage)) return;
+    final name = TextEditingController(text: item?.fullName ?? '');
+    final phone = TextEditingController(text: item?.phone ?? '');
+    final notes = TextEditingController(text: item?.notes ?? '');
+    final branches = ref.read(settingsHubProvider).referenceLists['bar_branches'] ?? const <SettingsLookupItem>[];
+    String branch = item?.barBranch ?? (branches.isNotEmpty ? branches.first.name : 'دمشق');
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text(item == null ? 'إضافة مندوب وكالات' : 'تعديل مندوب وكالات'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم المندوب *')),
+                const SizedBox(height: 12),
+                TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الهاتف')),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: branch,
+                  decoration: const InputDecoration(labelText: 'فرع النقابة'),
+                  items: [
+                    ...branches.where((b) => b.isActive).map((b) => DropdownMenuItem(value: b.name, child: Text(b.name))),
+                    if (branches.where((b) => b.isActive).every((b) => b.name != branch)) DropdownMenuItem(value: branch, child: Text(branch)),
+                  ],
+                  onChanged: (v) => setDialog(() => branch = v ?? branch),
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: notes, maxLines: 2, decoration: const InputDecoration(labelText: 'ملاحظات')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: () async {
+                if (name.text.trim().isEmpty) return;
+                final id = await ref.read(archiveIntakeRepositoryProvider).upsertAgencyDelegate(
+                      id: item?.id,
+                      fullName: name.text.trim(),
+                      phone: phone.text.trim(),
+                      barBranch: branch,
+                      notes: notes.text.trim(),
+                      isActive: item?.isActive ?? true,
+                    );
+                await ref.read(auditServiceProvider).log(action: item == null ? 'create' : 'update', category: 'lookups', entityType: 'agency_delegate', entityId: '$id', entityTitle: name.text.trim(), description: item == null ? 'إضافة مندوب وكالات' : 'تعديل مندوب وكالات', severity: 'warning');
+                if (ctx.mounted) Navigator.pop(ctx);
+                setState(() {});
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
