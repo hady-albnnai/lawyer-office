@@ -367,9 +367,27 @@ class LegalLibraryNotifier extends StateNotifier<LegalLibraryState> {
     _ready = true;
     try {
       await reload();
+      // آخر نقطة: تحميل الملفات القانونية الحقيقية من المحتوى إذا كانت المكتبة فارغة أو قليلة
+      if (state.items.length < 8) {
+        final imported = await repo.importLegalFilesFromContent();
+        if (imported > 0) {
+          await reload();
+        }
+      }
     } catch (_) {
       if (state.items.isEmpty) state = _seedState();
     }
+  }
+
+  /// استدعاء يدوي لتحميل الملفات القانونية السورية من مجلد content/
+  Future<int> loadRealLegalFiles() async {
+    final repo = _repository;
+    if (repo == null) return 0;
+    final count = await repo.importLegalFilesFromContent();
+    if (count > 0) {
+      await reload();
+    }
+    return count;
   }
 
   Future<void> reload() async {

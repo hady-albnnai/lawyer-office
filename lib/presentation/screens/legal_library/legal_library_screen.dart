@@ -66,6 +66,24 @@ class _LegalLibraryScreenState extends ConsumerState<LegalLibraryScreen>
             actions: [
               if (permissions.can(PermissionKeys.libraryAdd))
                 IconButton(
+                  tooltip: 'تحميل الملفات القانونية السورية (من المحتوى)',
+                  icon: const Icon(Icons.download),
+                  onPressed: () async {
+                    final count = await ref.read(legalLibraryProvider.notifier).loadRealLegalFiles();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(count > 0 
+                              ? 'تم تحميل $count مادة قانونية سورية حقيقية من الملفات.' 
+                              : 'الملفات القانونية محملة مسبقاً أو تم تجاوزها.'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              if (permissions.can(PermissionKeys.libraryAdd))
+                IconButton(
                   tooltip: 'إضافة إلى المكتبة',
                   icon: const Icon(Icons.add_box),
                   onPressed: () => showDialog<void>(
