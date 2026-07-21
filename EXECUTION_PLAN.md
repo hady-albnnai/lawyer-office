@@ -532,3 +532,7 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
 - أصبح رقم ملف المكتب المولد هو الرقم الداخلي للكيانات التي تملك `internalNumber`.
 - أضيف fallback في `uiFilesProvider` لاستخدام رقم `office_files` عند وجوده.
 - تعديل مصطلح حالة الملف إلى `جارية`.
+
+### متابعة 2026-07-21 — نواة الإغلاق الإداري
+
+- أضيفت دوال إغلاق وإعادة فتح ملف المكتب في `OfficeFileRepository` تمهيداً لواجهة الإغلاق الإداري.

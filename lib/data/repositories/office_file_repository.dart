@@ -101,8 +101,8 @@ class OfficeFileRecord {
       updatedAt: _readDate(data['updated_at']),
     );
   }
-}
 
+}
 /// مستودع ملف المكتب الموحد وترقيمه.
 class OfficeFileRepository {
   final AppDatabase _db;
@@ -253,4 +253,71 @@ class OfficeFileRepository {
       [entityType, entityId, officeFileId],
     );
   }
+
+  Future<void> closeOfficeFile({
+    required int officeFileId,
+    required String reason,
+    required String summary,
+    int? closedByUserId,
+    String? closedByNameSnapshot,
+    bool hasPendingFinance = false,
+    bool hasPendingPaperOriginal = false,
+    bool hasPostClosureActions = false,
+    int? handoverDocumentId,
+  }) async {
+    await _db.ensureOfficeFileTables();
+    await _db.customStatement(
+      '''
+      UPDATE office_files
+      SET status = 'closed',
+          closed_at = CURRENT_TIMESTAMP,
+          closed_by_user_id = ?,
+          closed_by_name_snapshot = ?,
+          closure_reason = ?,
+          closure_summary = ?,
+          has_pending_finance = ?,
+          has_pending_paper_original = ?,
+          has_post_closure_actions = ?,
+          handover_document_id = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+      ''',
+      [
+        closedByUserId,
+        closedByNameSnapshot,
+        reason,
+        summary,
+        hasPendingFinance ? 1 : 0,
+        hasPendingPaperOriginal ? 1 : 0,
+        hasPostClosureActions ? 1 : 0,
+        handoverDocumentId,
+        officeFileId,
+      ],
+    );
+  }
+
+  Future<void> reopenOfficeFile({
+    required int officeFileId,
+    required String reason,
+    String? reopenedByNameSnapshot,
+  }) async {
+    await _db.ensureOfficeFileTables();
+    await _db.customStatement(
+      '''
+      UPDATE office_files
+      SET status = 'active',
+          closed_at = NULL,
+          closed_by_user_id = NULL,
+          closed_by_name_snapshot = NULL,
+          closure_reason = NULL,
+          closure_summary = NULL,
+          has_post_closure_actions = 0,
+          notes = COALESCE(notes || char(10), '') || ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+      ''',
+      ['إعادة فتح: $reason${reopenedByNameSnapshot == null ? '' : ' — بواسطة $reopenedByNameSnapshot'}', officeFileId],
+    );
+  }
+
 }
