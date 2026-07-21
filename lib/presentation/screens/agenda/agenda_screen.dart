@@ -101,6 +101,23 @@ final unifiedAgendaProvider = Provider<AsyncValue<List<UnifiedAgendaItem>>>((ref
     ));
   }
 
+  // 2. جلسات الدعاوى الحقيقية من case_sessions (المهمة 2.1)
+  for (final c in allCases) {
+    if (c.nextSessionDate != null && isSameDay(c.nextSessionDate!, targetDate)) {
+      items.add(UnifiedAgendaItem(
+        id: 'case_session_${c.id}',
+        date: c.nextSessionDate!,
+        timeString: '09:00', // يمكن تحسينه لاحقًا بإضافة وقت من الجلسة
+        title: 'جلسة دعوى ${c.internalNumber}',
+        subtitle: c.subject ?? 'جلسة قضائية',
+        type: AgendaItemType.session,
+        statusIndex: 0, // scheduled
+        color: AppColors.primaryNavy,
+        icon: Icons.gavel,
+      ));
+    }
+  }
+
   // فرز حسب الوقت
   items.sort((a, b) => a.timeString.compareTo(b.timeString));
 
