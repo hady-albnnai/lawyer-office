@@ -507,3 +507,21 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
 `FULL_PATHS_COMPLETION_PLAN.md`
 
 تغطي المراحل F1–F8: الدعوى، الأجندة، الأشخاص/الوكالات، الشركات/العقود/الإجراءات، المستندات/المالية داخل الملف، البحث/التقارير/Badges، الجودة، والتسليم النهائي.
+
+---
+
+## 2026-07-21 — تصحيح مسار التنفيذ وبدء قلب ملف المكتب الموحد
+
+- تم التراجع عن تعديلات Sprint غير المطابقة لخارطة إعادة الهيكلة النهائية، لأنها أدخلت تغييرات على الأجندة ومعالج الدعوى قبل تأسيس ملف المكتب الموحد.
+- تم تنظيف فهارس Drift المكررة في `schema.dart`.
+- تم إنشاء نواة ملف المكتب الموحد بشكل SQL-managed آمن مؤقتاً:
+  - `office_files`
+  - `office_file_sequences`
+- تم إضافة:
+  - `OfficeFileType`
+  - `OfficeFileSource`
+  - `OfficeFileStatus`
+  - `OfficeFileRepository`
+  - `officeFileRepositoryProvider`
+- تم توثيق التنفيذ في `docs/PHASE_0_1_EXECUTION_LOG.md`.
+- ملاحظة: تم اختيار SQL-managed مؤقتاً لتجنب كسر البناء لعدم توفر `build_runner` في بيئة المساعد، مع إمكانية النقل إلى Drift-managed لاحقاً على Windows.

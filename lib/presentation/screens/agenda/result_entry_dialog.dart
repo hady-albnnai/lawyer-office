@@ -287,22 +287,6 @@ class _ResultEntryDialogState extends ConsumerState<ResultEntryDialog> {
              await (db.delete(db.deficiencies)
                 ..where((t) => t.entityId.equals(widget.entityId!))
              ).go();
-
-             // تحديث حالة الجلسة والموعد القادم للدعوى (المهمة 2.2)
-             await (db.update(db.cases)
-                ..where((t) => t.id.equals(widget.entityId!)))
-                .write(CasesCompanion(
-                  nextSessionDate: Value(nextDate),
-                  updatedAt: Value(DateTime.now()),
-                ));
-
-             // إغلاق أي جلسات سابقة مرتبطة بهذه الدعوى
-             await (db.update(db.caseSessions)
-                ..where((t) => t.caseId.equals(widget.entityId!) & t.status.equals(0)))
-                .write(CaseSessionsCompanion(
-                  status: const Value(2), // completed
-                  notes: const Value('تم تسجيل النتيجة'),
-                ));
           }
         }
 

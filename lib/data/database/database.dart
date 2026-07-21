@@ -96,6 +96,7 @@ class AppDatabase extends _$AppDatabase {
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
       await ensureAuthTables();
+      await ensureOfficeFileTables();
       await ensureArchiveTables();
     },
   );
@@ -182,6 +183,61 @@ class AppDatabase extends _$AppDatabase {
     await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_events(user_id, created_at);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_audit_category ON audit_events(category, action);');
     await customStatement('CREATE INDEX IF NOT EXISTS idx_sessions_user ON user_sessions(user_id, login_at);');
+  }
+
+
+  /// إنشاء جداول ملف المكتب الموحد والترقيم حسب نوع الملف.
+  /// ملاحظة تنفيذية: أبقينا هذه الجداول SQL-managed مؤقتاً حتى لا نكسر البناء في بيئة لا يتوفر فيها build_runner.
+  /// يمكن نقلها لاحقاً إلى Drift-managed schema عند توفر توليد كامل واختبارات Windows.
+  Future<void> ensureOfficeFileTables() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS office_file_sequences (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        year INTEGER NOT NULL,
+        file_type TEXT NOT NULL,
+        prefix TEXT NOT NULL,
+        last_number INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(year, file_type)
+      );
+    ''');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_office_file_sequences_year_type ON office_file_sequences(year, file_type);');
+
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS office_files (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_number TEXT NOT NULL UNIQUE,
+        file_type TEXT NOT NULL,
+        file_year INTEGER NOT NULL,
+        serial INTEGER NOT NULL,
+        source TEXT NOT NULL DEFAULT 'new_work',
+        status TEXT NOT NULL DEFAULT 'active',
+        linked_entity_type INTEGER,
+        linked_entity_id INTEGER,
+        title TEXT,
+        opened_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        opened_by_user_id INTEGER,
+        opened_by_name_snapshot TEXT,
+        closed_at DATETIME,
+        closed_by_user_id INTEGER,
+        closed_by_name_snapshot TEXT,
+        closure_reason TEXT,
+        closure_summary TEXT,
+        has_pending_finance INTEGER NOT NULL DEFAULT 0,
+        has_pending_paper_original INTEGER NOT NULL DEFAULT 0,
+        has_post_closure_actions INTEGER NOT NULL DEFAULT 0,
+        handover_document_id INTEGER,
+        notes TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(file_type, file_year, serial)
+      );
+    ''');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_office_files_type_status ON office_files(file_type, status);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_office_files_source ON office_files(source, status);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_office_files_linked_entity ON office_files(linked_entity_type, linked_entity_id);');
+    await customStatement('CREATE INDEX IF NOT EXISTS idx_office_files_opened ON office_files(opened_at);');
   }
 
 
@@ -348,6 +404,8 @@ class AppDatabase extends _$AppDatabase {
       final tables = <String>[
         'archive_items',
         'archive_batches',
+        'office_files',
+        'office_file_sequences',
         'document_paper_metadata',
         'document_links',
         'documents',

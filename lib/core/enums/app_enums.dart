@@ -213,6 +213,62 @@ enum PhysicalLocation {
   }
 }
 
+
+/// 11. أنواع ملفات المكتب الموحدة في النسخة الجديدة.
+enum OfficeFileType {
+  caseFile('case', 'دعوى'),
+  procedure('procedure', 'إجراء'),
+  contract('contract', 'عقد'),
+  company('company', 'شركة'),
+  agency('agency', 'وكالة');
+
+  final String dbValue;
+  final String label;
+  const OfficeFileType(this.dbValue, this.label);
+
+  static OfficeFileType fromDb(String value) {
+    return OfficeFileType.values.firstWhere(
+      (item) => item.dbValue == value,
+      orElse: () => OfficeFileType.caseFile,
+    );
+  }
+}
+
+/// 12. مصدر ملف المكتب: عمل جديد أو أرشيف قديم أو إدخال إداري تصحيحي.
+enum OfficeFileSource {
+  newWork('new_work', 'عمل جديد'),
+  oldArchive('old_archive', 'أرشيف قديم'),
+  manualAdmin('manual_admin', 'إداري/تصحيحي');
+
+  final String dbValue;
+  final String label;
+  const OfficeFileSource(this.dbValue, this.label);
+
+  static OfficeFileSource fromDb(String value) {
+    return OfficeFileSource.values.firstWhere(
+      (item) => item.dbValue == value,
+      orElse: () => OfficeFileSource.newWork,
+    );
+  }
+}
+
+/// 13. حالة ملف المكتب الموحدة.
+enum OfficeFileStatus {
+  active('active', 'جاري'),
+  closed('closed', 'منتهي');
+
+  final String dbValue;
+  final String label;
+  const OfficeFileStatus(this.dbValue, this.label);
+
+  static OfficeFileStatus fromDb(String value) {
+    return OfficeFileStatus.values.firstWhere(
+      (item) => item.dbValue == value,
+      orElse: () => OfficeFileStatus.active,
+    );
+  }
+}
+
 // =============================================================================
 // محولات بيانات Drift (Type Converters) لتخزين التعدادات بسلاسة وأمان في SQLite
 // =============================================================================

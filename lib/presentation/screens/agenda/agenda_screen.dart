@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/enums/app_enums.dart';
-import '../../../data/database/database.dart';
 import '../../providers/app_providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -50,23 +49,17 @@ final selectedAgendaDateProvider = StateProvider<DateTime>((ref) => DateTime.now
 
 final unifiedAgendaProvider = Provider<AsyncValue<List<UnifiedAgendaItem>>>((ref) {
   final targetDate = ref.watch(selectedAgendaDateProvider);
-  final casesAsync = ref.watch(allCasesProvider);
   final tasksAsync = ref.watch(tasksByDateProvider(targetDate));
 
-  if (casesAsync.isLoading || tasksAsync.isLoading) {
+  if (tasksAsync.isLoading) {
     return const AsyncValue.loading();
   }
 
-  if (casesAsync.hasError) return AsyncValue.error(casesAsync.error!, casesAsync.stackTrace!);
   if (tasksAsync.hasError) return AsyncValue.error(tasksAsync.error!, tasksAsync.stackTrace!);
 
-  final allCases = casesAsync.value ?? [];
   final tasks = tasksAsync.value ?? [];
 
   final List<UnifiedAgendaItem> items = [];
-
-  bool isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
 
   // 1. مهام الـ Tasks (تتضمن الجلسات المرحلة أوتوماتيكياً، وإجراءات الشركات، والعقود)
   for (final t in tasks) {
@@ -98,26 +91,7 @@ final unifiedAgendaProvider = Provider<AsyncValue<List<UnifiedAgendaItem>>>((ref
       statusIndex: t.status,
       color: color,
       icon: icon,
-      entityId: t.id,
-      entityType: 'task',
     ));
-  }
-
-  // 2. جلسات الدعاوى الحقيقية من case_sessions (المهمة 2.1)
-  for (final c in allCases) {
-    if (c.nextSessionDate != null && isSameDay(c.nextSessionDate!, targetDate)) {
-      items.add(UnifiedAgendaItem(
-        id: 'case_session_${c.id}',
-        date: c.nextSessionDate!,
-        timeString: '09:00', // يمكن تحسينه لاحقًا بإضافة وقت من الجلسة
-        title: 'جلسة دعوى ${c.internalNumber}',
-        subtitle: c.subject ?? 'جلسة قضائية',
-        type: AgendaItemType.session,
-        statusIndex: 0, // scheduled
-        color: AppColors.primaryNavy,
-        icon: Icons.gavel,
-      ));
-    }
   }
 
   // فرز حسب الوقت
@@ -333,11 +307,7 @@ class AgendaScreen extends ConsumerWidget {
                 tooltip: 'تسجيل نتيجة (Transaction)',
                 onPressed: () => showDialog(
                   context: context,
-                  builder: (_) => ResultEntryDialog(
-                    entityId: item.entityId,
-                    entityType: item.entityType ?? 'task',
-                    initialTitle: item.title,
-                  ),
+                  builder: (_) => ResultEntryDialog(initialTitle: item.title),
                 ),
               ),
             ),

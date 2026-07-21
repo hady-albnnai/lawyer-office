@@ -20,6 +20,7 @@ import '../../data/repositories/legal_library_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/work_order_repository.dart';
 import '../../data/repositories/archive_intake_repository.dart';
+import '../../data/repositories/office_file_repository.dart';
 
 // =============================================================================
 // 1. مزود قاعدة البيانات الموحدة (Database Provider)
@@ -132,6 +133,12 @@ final lookupRepositoryProvider = Provider<LookupRepository>((ref) {
 final archiveIntakeRepositoryProvider = Provider<ArchiveIntakeRepository>((ref) {
   return ArchiveIntakeRepository(ref.watch(databaseProvider), ref.watch(fileStorageServiceProvider));
 });
+
+
+final officeFileRepositoryProvider = Provider<OfficeFileRepository>((ref) {
+  return OfficeFileRepository(ref.watch(databaseProvider));
+});
+
 
 // =============================================================================
 // 4. مزودات التدفق المباشر للبيانات للواجهات (Stream & UI Providers)
