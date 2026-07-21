@@ -98,6 +98,8 @@ final unifiedAgendaProvider = Provider<AsyncValue<List<UnifiedAgendaItem>>>((ref
       statusIndex: t.status,
       color: color,
       icon: icon,
+      entityId: t.id,
+      entityType: 'task',
     ));
   }
 
@@ -331,7 +333,11 @@ class AgendaScreen extends ConsumerWidget {
                 tooltip: 'تسجيل نتيجة (Transaction)',
                 onPressed: () => showDialog(
                   context: context,
-                  builder: (_) => ResultEntryDialog(initialTitle: item.title),
+                  builder: (_) => ResultEntryDialog(
+                    entityId: item.entityId,
+                    entityType: item.entityType ?? 'task',
+                    initialTitle: item.title,
+                  ),
                 ),
               ),
             ),

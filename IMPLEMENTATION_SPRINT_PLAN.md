@@ -75,7 +75,7 @@
 | 2026-07-21 | Sprint 1 | 1.5 | مكتملة | — | `createCase` في `CaseRepository` تنفذ بالفعل إضافة الأطراف + الجلسة + المرحلة (شبه مكتملة) |
 | 2026-07-21 | Sprint 2 | 2.1 | مكتملة | `846c1ed` | `unifiedAgendaProvider` أصبح يجلب الجلسات من `cases.nextSessionDate` |
 | 2026-07-21 | Sprint 2 | 2.2 | مكتملة | `09659bd` | `ResultEntryDialog` يحدّث `cases.nextSessionDate` و `case_sessions.status` |
-| 2026-07-21 | Sprint 2 | 2.3 + 2.4 | مكتملة | سيُضاف لاحقًا | ربط الحوار بالكيان + إضافة زر إضافة جلسة |
+| 2026-07-21 | Sprint 2 | 2.3 + 2.4 | مكتملة | `508dff6` | ربط الحوار بالكيان + إضافة زر إضافة جلسة |
 
 ---
 
