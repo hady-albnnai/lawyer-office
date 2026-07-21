@@ -1,15 +1,18 @@
 import 'dart:io';
 import 'package:drift/drift.dart';
+import '../../core/enums/app_enums.dart';
 import '../database/database.dart';
 import '../database/daos/person_dao.dart';
 import '../services/file_storage_service.dart';
+import 'office_file_repository.dart';
 
 /// مستودع إدارة الوكالات القضائية والقانونية (PoaRepository)
 class PoaRepository {
   final PersonDao _personDao;
   final FileStorageService _storageService;
+  final OfficeFileRepository _officeFileRepository;
 
-  PoaRepository(this._personDao, this._storageService);
+  PoaRepository(this._personDao, this._storageService, this._officeFileRepository);
 
   Stream<List<PowersOfAttorneyData>> watchAllPoas() => _personDao.watchAllPoas();
 
@@ -21,7 +24,18 @@ class PoaRepository {
     File? poaFile,
   }) async {
     return await _personDao.db.transaction(() async {
+      final officeFile = await _officeFileRepository.createOfficeFile(
+        fileType: OfficeFileType.agency,
+        source: OfficeFileSource.newWork,
+        status: OfficeFileStatus.active,
+        title: poa.poaNumber.present ? 'وكالة ${poa.poaNumber.value ?? ''}'.trim() : 'وكالة',
+      );
       final poaId = await _personDao.insertPoa(poa);
+      await _officeFileRepository.linkOfficeFile(
+        officeFileId: officeFile.id,
+        entityType: EntityType.powerOfAttorney.index,
+        entityId: poaId,
+      );
 
       if (poaFile != null) {
         final filePath = await _storageService.saveAttachment(

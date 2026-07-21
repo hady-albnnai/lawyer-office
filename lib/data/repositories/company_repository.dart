@@ -2,22 +2,22 @@ import 'package:drift/drift.dart';
 import '../../core/enums/app_enums.dart';
 import '../database/database.dart';
 import '../database/daos/company_dao.dart';
-import '../services/sequence_service.dart';
 import '../services/task_sync_service.dart';
 import '../services/deficiency_service.dart';
+import 'office_file_repository.dart';
 
 /// مستودع إدارة الشركات التجارية والمدنية ومراحل التأسيس (CompanyRepository)
 class CompanyRepository {
   final CompanyDao _companyDao;
-  final SequenceService _sequenceService;
   final TaskSyncService _taskSyncService;
   final DeficiencyService _deficiencyService;
+  final OfficeFileRepository _officeFileRepository;
 
   CompanyRepository(
     this._companyDao,
-    this._sequenceService,
     this._taskSyncService,
     this._deficiencyService,
+    this._officeFileRepository,
   );
 
   Stream<List<Company>> watchAllCompanies() => _companyDao.watchAllCompanies();
@@ -35,13 +35,25 @@ class CompanyRepository {
     required String userRef,
   }) async {
     return await _companyDao.db.transaction(() async {
-      final String internalNum = await _sequenceService.generateNextInternalNumber();
+      final officeFile = await _officeFileRepository.createOfficeFile(
+        fileType: OfficeFileType.company,
+        source: OfficeFileSource.newWork,
+        status: OfficeFileStatus.active,
+        title: company.name.value,
+        openedByNameSnapshot: userRef,
+      );
+      final String internalNum = officeFile.fileNumber;
       
       final companyId = await _companyDao.insertCompany(
         company.copyWith(
           internalNumber: Value(internalNum),
           createdAt: Value(DateTime.now()),
         ),
+      );
+      await _officeFileRepository.linkOfficeFile(
+        officeFileId: officeFile.id,
+        entityType: EntityType.company.index,
+        entityId: companyId,
       );
 
       for (final p in partners) {

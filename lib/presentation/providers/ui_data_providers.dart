@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/enums/app_enums.dart';
 import '../../data/database/database.dart' as db;
+import '../../data/repositories/office_file_repository.dart';
 import '../screens/cases/case_models.dart' as ui_case;
 import '../screens/documents/document_models.dart' as ui_doc;
 import '../screens/files/files_screen.dart' as ui_files;
@@ -292,10 +293,25 @@ final uiDocumentsProvider = FutureProvider<List<ui_doc.DocumentItem>>((ref) asyn
 final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
   await ref.watch(coreDataBootstrapProvider.future);
   final docs = await ref.watch(uiDocumentsProvider.future);
+  final officeFiles = await ref.watch(officeFileRepositoryProvider).getAll();
   final result = <ui_files.FileItem>[];
+
+  OfficeFileRecord? officeFor(int entityType, int entityId) {
+    for (final file in officeFiles) {
+      if (file.linkedEntityType == entityType && file.linkedEntityId == entityId) return file;
+    }
+    return null;
+  }
+
+  ui_files.FileStatus statusFromOffice(OfficeFileRecord? office, ui_files.FileStatus fallback) {
+    if (office == null) return fallback;
+    return office.status == OfficeFileStatus.closed ? ui_files.FileStatus.completed : ui_files.FileStatus.active;
+  }
 
   final cases = await ref.watch(uiCasesProvider.future);
   for (final c in cases) {
+    final caseId = int.tryParse(c.id) ?? 0;
+    final office = officeFor(EntityType.caseEntity.index, caseId);
     final relatedDocs = docs.where((d) => d.entityType == 'case' && d.entityId == c.id).toList();
     final next = c.nextSession?.sessionDate ?? c.sessions.where((s) => s.sessionDate.isAfter(DateTime.now())).map((s) => s.sessionDate).fold<DateTime?>(null, (a, b) => a == null || b.isBefore(a) ? b : a);
     final hasBase = (c.baseNumber ?? '').isNotEmpty;
@@ -303,12 +319,12 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
     final overdue = next != null && next.isBefore(DateTime.now());
     result.add(ui_files.FileItem(
       id: c.id,
-      fileNumber: c.caseNumber,
+      fileNumber: office?.fileNumber ?? c.caseNumber,
       title: c.title,
       type: ui_files.FileType.caseFile,
       court: c.court,
       subCategory: c.type.displayName,
-      status: c.status == ui_case.CaseStatus.completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      status: statusFromOffice(office, c.status == ui_case.CaseStatus.completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active),
       hasDeficiencies: deficient,
       deficiencyCount: c.openDeficienciesCount,
       nextSessionDate: next,
@@ -325,17 +341,18 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
 
   final contracts = await ref.watch(allContractsProvider.future);
   for (final c in contracts) {
+    final office = officeFor(EntityType.contract.index, c.id);
     final relatedDocs = docs.where((d) => d.entityType == 'contract' && d.entityId == '${c.id}').toList();
     final end = c.dateEnd;
     final isCompleted = c.status != 'active' || (end != null && end.isBefore(DateTime.now()));
     result.add(ui_files.FileItem(
       id: '${c.id}',
-      fileNumber: c.internalNumber,
+      fileNumber: office?.fileNumber ?? c.internalNumber,
       title: c.title,
       type: ui_files.FileType.contract,
       court: c.contractType,
       subCategory: c.contractType,
-      status: isCompleted ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      status: statusFromOffice(office, isCompleted ? ui_files.FileStatus.completed : ui_files.FileStatus.active),
       nextSessionDate: c.needsFollowup ? end : null,
       hasBaseNumber: true,
       isOverdue: end != null && end.isBefore(DateTime.now()) && !isCompleted,
@@ -349,17 +366,18 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
 
   final companies = await ref.watch(allCompaniesProvider.future);
   for (final c in companies) {
+    final office = officeFor(EntityType.company.index, c.id);
     final relatedDocs = docs.where((d) => d.entityType == 'company' && d.entityId == '${c.id}').toList();
     final completed = c.isArchived || c.legalStatus == 'dissolved' || c.legalStatus == 'archived';
     final deficient = (c.registrationNumber ?? '').isEmpty && !completed;
     result.add(ui_files.FileItem(
       id: '${c.id}',
-      fileNumber: c.internalNumber,
+      fileNumber: office?.fileNumber ?? c.internalNumber,
       title: c.name,
       type: ui_files.FileType.company,
       court: c.companyType,
       subCategory: c.companyType,
-      status: completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      status: statusFromOffice(office, completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active),
       hasDeficiencies: deficient,
       deficiencyCount: deficient ? 1 : 0,
       hasBaseNumber: (c.registrationNumber ?? '').isNotEmpty,
@@ -374,17 +392,18 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
 
   final procedures = await ref.watch(allProceduresProvider.future);
   for (final p in procedures) {
+    final office = officeFor(EntityType.adminProcedure.index, p.id);
     final relatedDocs = docs.where((d) => d.entityType == 'adminProcedure' && d.entityId == '${p.id}').toList();
     final completed = p.status == 2;
     final next = p.nextDate;
     result.add(ui_files.FileItem(
       id: '${p.id}',
-      fileNumber: p.internalNumber,
+      fileNumber: office?.fileNumber ?? p.internalNumber,
       title: p.title,
       type: ui_files.FileType.adminProcedure,
       court: p.department ?? p.procedureType,
       subCategory: p.procedureType,
-      status: completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      status: statusFromOffice(office, completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active),
       nextSessionDate: next,
       hasBaseNumber: (p.transactionNumber ?? '').isNotEmpty,
       baseNumber: p.transactionNumber,
@@ -399,16 +418,18 @@ final uiFilesProvider = FutureProvider<List<ui_files.FileItem>>((ref) async {
 
   final directory = await ref.watch(uiPersonsDirectoryProvider.future);
   for (final a in directory.agencies) {
+    final agencyId = int.tryParse(a.id) ?? 0;
+    final office = officeFor(EntityType.powerOfAttorney.index, agencyId);
     final relatedDocs = docs.where((d) => d.entityType == 'poa' && d.entityId == a.id).toList();
     final completed = a.isExpired || a.notes == 'archived' || a.scope.contains('أرشفة وكالة منتهية') || a.scope.contains('أرشيف منته');
     result.add(ui_files.FileItem(
       id: a.id,
-      fileNumber: a.number,
+      fileNumber: office?.fileNumber ?? a.number,
       title: 'وكالة ${a.type.displayName} — ${directory.personById(a.principalPersonId)?.fullName ?? 'غير محدد'}',
       type: ui_files.FileType.agency,
       court: '${a.source.displayName} - ${a.branch}',
       subCategory: a.type.displayName,
-      status: completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active,
+      status: statusFromOffice(office, completed ? ui_files.FileStatus.completed : ui_files.FileStatus.active),
       nextSessionDate: a.expiresAt,
       hasBaseNumber: a.number.isNotEmpty,
       baseNumber: a.number,

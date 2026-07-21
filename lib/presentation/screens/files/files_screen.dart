@@ -27,7 +27,7 @@ enum FileStatus {
   completed,
   archived;
 
-  String get displayName => const ['عاملة', 'منتهية', 'مؤرشفة'][index];
+  String get displayName => const ['جارية', 'منتهية', 'مؤرشفة'][index];
 
   Color get color => const [AppColors.info, AppColors.success, AppColors.textSecondary][index];
 }

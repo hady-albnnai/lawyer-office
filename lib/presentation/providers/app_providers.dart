@@ -64,17 +64,17 @@ final personRepositoryProvider = Provider<PersonRepository>((ref) {
 
 final poaRepositoryProvider = Provider<PoaRepository>((ref) {
   final db = ref.watch(databaseProvider);
-  return PoaRepository(db.personDao, ref.watch(fileStorageServiceProvider));
+  return PoaRepository(db.personDao, ref.watch(fileStorageServiceProvider), ref.watch(officeFileRepositoryProvider));
 });
 
 final caseRepositoryProvider = Provider<CaseRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return CaseRepository(
     db.caseDao,
-    ref.watch(sequenceServiceProvider),
     ref.watch(taskSyncServiceProvider),
     ref.watch(deficiencyServiceProvider),
     ref.watch(fileStorageServiceProvider),
+    ref.watch(officeFileRepositoryProvider),
   );
 });
 
@@ -82,9 +82,9 @@ final companyRepositoryProvider = Provider<CompanyRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return CompanyRepository(
     db.companyDao,
-    ref.watch(sequenceServiceProvider),
     ref.watch(taskSyncServiceProvider),
     ref.watch(deficiencyServiceProvider),
+    ref.watch(officeFileRepositoryProvider),
   );
 });
 
@@ -92,9 +92,9 @@ final contractRepositoryProvider = Provider<ContractRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return ContractRepository(
     db.contractDao,
-    ref.watch(sequenceServiceProvider),
     ref.watch(taskSyncServiceProvider),
     ref.watch(fileStorageServiceProvider),
+    ref.watch(officeFileRepositoryProvider),
   );
 });
 
@@ -102,7 +102,7 @@ final adminProcedureRepositoryProvider = Provider<AdminProcedureRepository>((ref
   final db = ref.watch(databaseProvider);
   return AdminProcedureRepository(
     db.adminProcedureDao,
-    ref.watch(sequenceServiceProvider),
+    ref.watch(officeFileRepositoryProvider),
   );
 });
 

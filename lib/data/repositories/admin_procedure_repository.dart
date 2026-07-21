@@ -2,14 +2,14 @@ import 'package:drift/drift.dart';
 import '../../core/enums/app_enums.dart';
 import '../database/database.dart';
 import '../database/daos/admin_procedure_dao.dart';
-import '../services/sequence_service.dart';
+import 'office_file_repository.dart';
 
 /// مستودع إدارة الإجراءات الإدارية والمعاملات وخطوات الـ Checklist (AdminProcedureRepository)
 class AdminProcedureRepository {
   final AdminProcedureDao _procedureDao;
-  final SequenceService _sequenceService;
+  final OfficeFileRepository _officeFileRepository;
 
-  AdminProcedureRepository(this._procedureDao, this._sequenceService);
+  AdminProcedureRepository(this._procedureDao, this._officeFileRepository);
 
   Stream<List<AdminProcedure>> watchAllProcedures() => _procedureDao.watchAllProcedures();
   Future<AdminProcedure?> getProcedureById(int id) => _procedureDao.getProcedureById(id);
@@ -23,13 +23,25 @@ class AdminProcedureRepository {
     required String userRef,
   }) async {
     return await _procedureDao.db.transaction(() async {
-      final String internalNum = await _sequenceService.generateNextInternalNumber();
+      final officeFile = await _officeFileRepository.createOfficeFile(
+        fileType: OfficeFileType.procedure,
+        source: OfficeFileSource.newWork,
+        status: OfficeFileStatus.active,
+        title: procedure.title.value,
+        openedByNameSnapshot: userRef,
+      );
+      final String internalNum = officeFile.fileNumber;
 
       final procId = await _procedureDao.insertProcedure(
         procedure.copyWith(
           internalNumber: Value(internalNum),
           createdAt: Value(DateTime.now()),
         ),
+      );
+      await _officeFileRepository.linkOfficeFile(
+        officeFileId: officeFile.id,
+        entityType: EntityType.adminProcedure.index,
+        entityId: procId,
       );
 
       if (initialSteps != null) {

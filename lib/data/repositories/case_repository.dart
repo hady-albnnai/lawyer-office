@@ -3,25 +3,25 @@ import 'package:drift/drift.dart';
 import '../../core/enums/app_enums.dart';
 import '../database/database.dart';
 import '../database/daos/case_dao.dart';
-import '../services/sequence_service.dart';
 import '../services/task_sync_service.dart';
 import '../services/deficiency_service.dart';
 import '../services/file_storage_service.dart';
+import 'office_file_repository.dart';
 
 /// مستودع إدارة الدعاوى القضائية، الجلسات، المراحل، ونقل القرارات (CaseRepository)
 class CaseRepository {
   final CaseDao _caseDao;
-  final SequenceService _sequenceService;
   final TaskSyncService _taskSyncService;
   final DeficiencyService _deficiencyService;
   final FileStorageService _storageService;
+  final OfficeFileRepository _officeFileRepository;
 
   CaseRepository(
     this._caseDao,
-    this._sequenceService,
     this._taskSyncService,
     this._deficiencyService,
     this._storageService,
+    this._officeFileRepository,
   );
 
   Stream<List<Case>> watchAllCases() => _caseDao.watchAllCases();
@@ -37,7 +37,7 @@ class CaseRepository {
   Stream<List<CaseSession>> watchCaseSessions(int caseId) => _caseDao.watchCaseSessions(caseId);
   Stream<List<CaseAction>> watchCaseActions(int caseId) => _caseDao.watchCaseActions(caseId);
 
-  /// إنشاء دعوى جديدة مع الترقيم السنوي التلقائي (2026/001) وإضافة الأطراف والمرحلة الابتدائية وتدقيق النواقص
+  /// إنشاء دعوى جديدة مع رقم ملف مكتب موحد وإضافة الأطراف والمرحلة الابتدائية وتدقيق النواقص
   Future<int> createCase({
     required CasesCompanion caseData,
     required int clientId,
@@ -46,10 +46,16 @@ class CaseRepository {
     required String userRef,
   }) async {
     return await _caseDao.db.transaction(() async {
-      // 1. توليد رقم الملف الداخلي السنوي (مثال: 2026/001)
-      final String internalNum = await _sequenceService.generateNextInternalNumber(
+      // 1. توليد رقم ملف مكتب موحد غير قابل للتعديل (دعوى/2026/0001)
+      final officeFile = await _officeFileRepository.createOfficeFile(
+        fileType: OfficeFileType.caseFile,
+        source: OfficeFileSource.newWork,
+        status: OfficeFileStatus.active,
+        title: caseData.subject.present ? caseData.subject.value : null,
+        openedByNameSnapshot: userRef,
         targetYear: caseData.year.present ? caseData.year.value : DateTime.now().year,
       );
+      final String internalNum = officeFile.fileNumber;
 
       final finalCompanion = caseData.copyWith(
         internalNumber: Value(internalNum),
@@ -57,8 +63,13 @@ class CaseRepository {
         updatedAt: Value(DateTime.now()),
       );
 
-      // 2. إدخال الدعوى
+      // 2. إدخال الدعوى وربط ملف المكتب بها
       final caseId = await _caseDao.insertCase(finalCompanion);
+      await _officeFileRepository.linkOfficeFile(
+        officeFileId: officeFile.id,
+        entityType: EntityType.caseEntity.index,
+        entityId: caseId,
+      );
 
       // 3. إضافة الموكل الرئيسي
       await _caseDao.insertCaseParty(

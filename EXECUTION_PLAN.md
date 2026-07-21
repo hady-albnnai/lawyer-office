@@ -525,3 +525,10 @@ URL: https://github.com/hady-albnnai/lawyer-office/actions/runs/29109861767
   - `officeFileRepositoryProvider`
 - تم توثيق التنفيذ في `docs/PHASE_0_1_EXECUTION_LOG.md`.
 - ملاحظة: تم اختيار SQL-managed مؤقتاً لتجنب كسر البناء لعدم توفر `build_runner` في بيئة المساعد، مع إمكانية النقل إلى Drift-managed لاحقاً على Windows.
+
+### متابعة 2026-07-21 — ربط إنشاء الكيانات بملف المكتب
+
+- ربط إنشاء الدعوى والإجراء والعقد والشركة والوكالة بجدول `office_files`.
+- أصبح رقم ملف المكتب المولد هو الرقم الداخلي للكيانات التي تملك `internalNumber`.
+- أضيف fallback في `uiFilesProvider` لاستخدام رقم `office_files` عند وجوده.
+- تعديل مصطلح حالة الملف إلى `جارية`.

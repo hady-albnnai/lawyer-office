@@ -59,3 +59,21 @@ flutter run -d windows
 ```
 
 إذا ظهر خطأ، يرسل فوراً ليتم إصلاحه قبل متابعة المرحلة التالية.
+
+## متابعة تنفيذ — ربط الكيانات الأساسية بملف المكتب
+
+تمت إضافة الربط الأولي بين ملف المكتب والكيانات التشغيلية الأساسية:
+
+- `CaseRepository.createCase` ينشئ `OfficeFile` من نوع دعوى ويستخدم رقمه كـ `internalNumber`.
+- `AdminProcedureRepository.createProcedure` ينشئ `OfficeFile` من نوع إجراء.
+- `ContractRepository.createContract` ينشئ `OfficeFile` من نوع عقد.
+- `CompanyRepository.createCompany` ينشئ `OfficeFile` من نوع شركة.
+- `PoaRepository.createPoa` ينشئ `OfficeFile` من نوع وكالة ويربطه بسند الوكالة.
+- `uiFilesProvider` صار يحاول قراءة رقم ملف المكتب من `office_files` عند وجوده، مع fallback للأرقام القديمة.
+- تم تغيير تسمية حالة الملف من `عاملة` إلى `جارية`.
+
+تبقى الخطوات التالية:
+
+- تحويل شاشة الملفات لتصبح مبنية أساساً على `office_files` وليس fallback مركب فقط.
+- تنفيذ الإغلاق الإداري.
+- ربط الأرشيف القديم بإنشاء `OfficeFile.source = old_archive`.

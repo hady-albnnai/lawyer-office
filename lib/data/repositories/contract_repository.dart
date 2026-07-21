@@ -3,22 +3,22 @@ import 'package:drift/drift.dart';
 import '../../core/enums/app_enums.dart';
 import '../database/database.dart';
 import '../database/daos/contract_dao.dart';
-import '../services/sequence_service.dart';
 import '../services/task_sync_service.dart';
 import '../services/file_storage_service.dart';
+import 'office_file_repository.dart';
 
 /// مستودع إدارة العقود، التنبيهات الزمنية، ونماذج Word (ContractRepository)
 class ContractRepository {
   final ContractDao _contractDao;
-  final SequenceService _sequenceService;
   final TaskSyncService _taskSyncService;
   final FileStorageService _storageService;
+  final OfficeFileRepository _officeFileRepository;
 
   ContractRepository(
     this._contractDao,
-    this._sequenceService,
     this._taskSyncService,
     this._storageService,
+    this._officeFileRepository,
   );
 
   Stream<List<Contract>> watchAllContracts() => _contractDao.watchAllContracts();
@@ -37,7 +37,14 @@ class ContractRepository {
     required String userRef,
   }) async {
     return await _contractDao.db.transaction(() async {
-      final String internalNum = await _sequenceService.generateNextInternalNumber();
+      final officeFile = await _officeFileRepository.createOfficeFile(
+        fileType: OfficeFileType.contract,
+        source: OfficeFileSource.newWork,
+        status: OfficeFileStatus.active,
+        title: contract.title.value,
+        openedByNameSnapshot: userRef,
+      );
+      final String internalNum = officeFile.fileNumber;
       
       final contractId = await _contractDao.insertContract(
         contract.copyWith(
@@ -45,6 +52,11 @@ class ContractRepository {
           createdAt: Value(DateTime.now()),
           updatedAt: Value(DateTime.now()),
         ),
+      );
+      await _officeFileRepository.linkOfficeFile(
+        officeFileId: officeFile.id,
+        entityType: EntityType.contract.index,
+        entityId: contractId,
       );
 
       for (final party in parties) {
