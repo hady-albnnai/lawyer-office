@@ -73,7 +73,8 @@
 | 2026-07-21 | — | إنشاء هذا الملف + رفعه | مكتملة | `8fbdea6` | — |
 | 2026-07-21 | Sprint 1 | 1.1 + 1.2 + 1.3 + 1.4 | مكتملة | `8b4a163` | تحويل قوائم الوكالات والخصوم + إكمال حفظ `AddPoaDialog` و `AddOpponentDialog` |
 | 2026-07-21 | Sprint 1 | 1.5 | مكتملة | — | `createCase` في `CaseRepository` تنفذ بالفعل إضافة الأطراف + الجلسة + المرحلة (شبه مكتملة) |
-| 2026-07-21 | Sprint 2 | 2.1 | مكتملة | سيُضاف لاحقًا | `unifiedAgendaProvider` أصبح يجلب الجلسات من `cases.nextSessionDate` |
+| 2026-07-21 | Sprint 2 | 2.1 | مكتملة | `846c1ed` | `unifiedAgendaProvider` أصبح يجلب الجلسات من `cases.nextSessionDate` |
+| 2026-07-21 | Sprint 2 | 2.2 | مكتملة | سيُضاف لاحقًا | `ResultEntryDialog` يحدّث `cases.nextSessionDate` و `case_sessions.status` |
 
 ---
 
